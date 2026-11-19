@@ -3,18 +3,24 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ClipboardList, Plus, Trash2 } from "lucide-react";
 
+import { CatalogElementPicker } from "@/components/element-library/CatalogElementPicker";
+import { CATALOG_DISCIPLINES, type CatalogDiscipline } from "@/modules/element-library/domain/element-library";
 import {
   BLOCK_CONTENT_MAX,
   BLOCK_DURATION_MAX,
   BLOCK_KINDS,
   blockKindLabels,
   BLOCKS_MAX,
+  blockCatalogLinkLabels,
+  blockCatalogTarget,
+  PLAN_APPARATUS,
   PLAN_APPARATUS_BY_DISCIPLINE,
   PLAN_DISCIPLINES,
   PLAN_FOCUS_MAX,
   PLAN_NOTE_MAX,
   planApparatusLabels,
   planDisciplineLabels,
+  type BlockCatalogLink,
   type BlockKind,
   type PlanApparatus,
   type PlanDiscipline,
@@ -28,8 +34,9 @@ import {
   putClassPlanTemplate,
   putSessionPlan,
   type BlockDraft,
+  type PlanScope,
 } from "./owner-session-plan-client";
-import { ownerUi } from "./owner-ui";
+import { ownerTone, ownerUi } from "./owner-ui";
 import { OwnerPlanCheckNote, type OwnerPlanCheck } from "./OwnerPlanCheckNote";
 
 /**
@@ -49,11 +56,18 @@ type LoadState =
   | { status: "error"; message: string }
   | { status: "ready"; view: SessionPlanPageView };
 
+/** Bloque del editor: lo que se manda más el enlace que se ve ahora. */
+type DraftBlock = Omit<BlockDraft, "catalogElementId"> & {
+  catalogLink: BlockCatalogLink | null;
+  /** Solo si cambió se manda `catalogElementId`; si no, el servidor conserva el guardado. */
+  linkChanged: boolean;
+};
+
 type Draft = {
   clientRequestId: string;
   focus: string;
   note: string;
-  blocks: BlockDraft[];
+  blocks: DraftBlock[];
   objectiveIds: string[];
 };
 
@@ -61,8 +75,48 @@ function newRequestId(): string {
   return globalThis.crypto.randomUUID();
 }
 
-function emptyBlock(): BlockDraft {
-  return { id: null, kind: "technique", discipline: null, apparatus: null, content: "", durationMinutes: null };
+function emptyBlock(): DraftBlock {
+  return {
+    id: null,
+    kind: "technique",
+    discipline: null,
+    apparatus: null,
+    content: "",
+    durationMinutes: null,
+    catalogLink: null,
+    linkChanged: false,
+  };
+}
+
+function toBlockDraft({ catalogLink, linkChanged, ...block }: DraftBlock): BlockDraft {
+  return linkChanged ? { ...block, catalogElementId: catalogLink?.id ?? null } : block;
+}
+
+/** Disciplina de la biblioteca del bloque: solo artística con aparato elegido. */
+function blockCatalogDiscipline(block: Pick<DraftBlock, "discipline" | "apparatus">): CatalogDiscipline | null {
+  const discipline = blockCatalogTarget(block)?.discipline ?? null;
+  return discipline && (CATALOG_DISCIPLINES as readonly string[]).includes(discipline)
+    ? (discipline as CatalogDiscipline)
+    : null;
+}
+
+function isPlanApparatus(value: string): value is PlanApparatus {
+  return (PLAN_APPARATUS as readonly string[]).includes(value);
+}
+
+const linkChipClass = {
+  current: ownerTone.chipOutline,
+  withdrawn: ownerTone.chipWarning,
+  previous_edition: ownerTone.chipWarning,
+} as const;
+
+function CatalogLinkLine({ link }: { link: BlockCatalogLink }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className={linkChipClass[link.status]}>{blockCatalogLinkLabels[link.status]}</span>
+      <span className="min-w-0 break-words text-sm text-z-ink">{link.name}</span>
+    </div>
+  );
 }
 
 function draftFrom(view: SessionPlanPageView): Draft {
@@ -79,6 +133,8 @@ function draftFrom(view: SessionPlanPageView): Draft {
           apparatus: block.apparatus,
           content: block.content,
           durationMinutes: block.durationMinutes,
+          catalogLink: block.catalogLink ?? null,
+          linkChanged: false,
         }))
       : [emptyBlock()],
     objectiveIds: plan ? plan.objectives.map((objective) => objective.objectiveId) : [],
@@ -184,6 +240,7 @@ export function OwnerSessionPlanPanel({
         </div>
       ) : (
         <ReadyPlan
+          scope={scope}
           view={state.view}
           draft={draft}
           busy={busy}
@@ -201,7 +258,7 @@ export function OwnerSessionPlanPanel({
                   source: "manual",
                   focus: current.focus.trim() || null,
                   note: current.note.trim() || null,
-                  blocks: current.blocks,
+                  blocks: current.blocks.map(toBlockDraft),
                   objectiveIds: current.objectiveIds,
                 }),
               "Guion guardado."
@@ -245,6 +302,11 @@ export function OwnerSessionPlanPanel({
                     apparatus: block.apparatus,
                     content: block.content,
                     durationMinutes: block.durationMinutes,
+                    // Con la biblioteca activa el modelo lleva el enlace de cada
+                    // bloque; uno que ya no está en la biblioteca no se copia.
+                    ...(state.view.libraryAvailable
+                      ? { catalogElementId: block.catalogLink?.status === "current" ? block.catalogLink.id : null }
+                      : {}),
                   })),
                 }),
               "Modelo de la clase guardado. Se copiará en los guiones nuevos de esta clase."
@@ -266,6 +328,7 @@ export function OwnerSessionPlanPanel({
 }
 
 function ReadyPlan({
+  scope,
   view,
   draft,
   busy,
@@ -279,6 +342,7 @@ function ReadyPlan({
   onToggleBlock,
   onSaveAsTemplate,
 }: {
+  scope: PlanScope;
   view: SessionPlanPageView;
   draft: Draft | null;
   busy: boolean;
@@ -297,6 +361,7 @@ function ReadyPlan({
   if (draft) {
     return (
       <PlanEditor
+        scope={scope}
         view={view}
         draft={draft}
         busy={busy}
@@ -372,6 +437,7 @@ function ReadyPlan({
                     {block.durationMinutes ? <span className={ownerUi.help}>~{block.durationMinutes} min</span> : null}
                   </div>
                   <p className="whitespace-pre-line break-words text-sm text-z-ink">{block.content}</p>
+                  {block.catalogLink ? <CatalogLinkLine link={block.catalogLink} /> : null}
                   {view.session.canMarkBlocks && !readOnly ? (
                     <label className="flex min-h-11 items-center gap-2 text-sm font-semibold text-z-ink">
                       <input
@@ -431,6 +497,7 @@ function ReadyPlan({
 }
 
 function PlanEditor({
+  scope,
   view,
   draft,
   busy,
@@ -438,6 +505,7 @@ function PlanEditor({
   onCancel,
   onSave,
 }: {
+  scope: PlanScope;
   view: SessionPlanPageView;
   draft: Draft;
   busy: boolean;
@@ -446,7 +514,9 @@ function PlanEditor({
   onSave: () => void;
 }) {
   const baseId = useId();
-  const updateBlock = (index: number, patch: Partial<BlockDraft>) =>
+  const [pickerBlock, setPickerBlock] = useState<number | null>(null);
+  const libraryEditable = view.libraryAvailable === true;
+  const updateBlock = (index: number, patch: Partial<DraftBlock>) =>
     onChange({
       ...draft,
       blocks: draft.blocks.map((block, position) => (position === index ? { ...block, ...patch } : block)),
@@ -486,6 +556,9 @@ function PlanEditor({
         {draft.blocks.map((block, index) => {
           const id = `${baseId}-block-${index}`;
           const apparatusOptions = block.discipline ? PLAN_APPARATUS_BY_DISCIPLINE[block.discipline] : [];
+          // Con un elemento enlazado, disciplina y aparato quedan fijos hasta quitarlo.
+          const linkLocked = libraryEditable && block.catalogLink !== null;
+          const canPick = libraryEditable && blockCatalogDiscipline(block) !== null;
           return (
             <div
               key={block.id ?? `new-${index}`}
@@ -520,6 +593,7 @@ function PlanEditor({
                     id={`${id}-discipline`}
                     className={ownerUi.field}
                     value={block.discipline ?? ""}
+                    disabled={linkLocked}
                     onChange={(event) =>
                       updateBlock(index, {
                         discipline: (event.target.value || null) as PlanDiscipline | null,
@@ -543,7 +617,7 @@ function PlanEditor({
                     id={`${id}-apparatus`}
                     className={ownerUi.field}
                     value={block.apparatus ?? ""}
-                    disabled={!block.discipline}
+                    disabled={!block.discipline || linkLocked}
                     onChange={(event) =>
                       updateBlock(index, { apparatus: (event.target.value || null) as PlanApparatus | null })
                     }
@@ -570,6 +644,39 @@ function PlanEditor({
                   onChange={(event) => updateBlock(index, { content: event.target.value })}
                 />
               </div>
+              {canPick || block.catalogLink ? (
+                <div className="grid gap-1">
+                  <p className="text-xs font-semibold text-z-soft" id={`${id}-library`}>
+                    Elemento de la biblioteca <span className="font-normal">(opcional)</span>
+                  </p>
+                  {block.catalogLink ? <CatalogLinkLine link={block.catalogLink} /> : null}
+                  {libraryEditable ? (
+                    <div className="flex flex-wrap gap-2">
+                      {canPick ? (
+                        <button
+                          type="button"
+                          className={ownerUi.secondaryButton}
+                          aria-describedby={`${id}-library`}
+                          aria-label={`${block.catalogLink ? "Cambiar" : "Elegir"} el elemento de la biblioteca del bloque ${index + 1}`}
+                          onClick={() => setPickerBlock(index)}
+                        >
+                          {block.catalogLink ? "Cambiar elemento" : "Elegir elemento"}
+                        </button>
+                      ) : null}
+                      {block.catalogLink ? (
+                        <button
+                          type="button"
+                          className={ownerUi.secondaryButton}
+                          aria-label={`Quitar el elemento de la biblioteca del bloque ${index + 1}`}
+                          onClick={() => updateBlock(index, { catalogLink: null, linkChanged: true })}
+                        >
+                          Quitar
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="flex flex-wrap items-end gap-2">
                 <div className="grid gap-1">
                   <label className="text-xs font-semibold text-z-soft" htmlFor={`${id}-duration`}>
@@ -688,6 +795,35 @@ function PlanEditor({
           Cancelar
         </button>
       </div>
+
+      {pickerBlock !== null && draft.blocks[pickerBlock] && blockCatalogDiscipline(draft.blocks[pickerBlock]!) ? (
+        <CatalogElementPicker
+          organizationId={scope.organizationId}
+          locationId={scope.locationId}
+          discipline={blockCatalogDiscipline(draft.blocks[pickerBlock]!)!}
+          apparatus={draft.blocks[pickerBlock]!.apparatus}
+          onClose={() => setPickerBlock(null)}
+          onSelect={(picked) => {
+            const index = pickerBlock;
+            const block = draft.blocks[index]!;
+            setPickerBlock(null);
+            updateBlock(index, {
+              catalogLink: { id: picked.id, name: picked.name, status: "current", replacementId: null },
+              linkChanged: true,
+              // En artística el aparato de la biblioteca y el del guion se escriben igual.
+              apparatus: isPlanApparatus(picked.apparatus) ? picked.apparatus : block.apparatus,
+              // El contenido es del guion: solo se rellena si está vacío, con el
+              // nombre corto si dice algo (dos letras o más) o, si no, el nombre.
+              content:
+                block.content.trim() === ""
+                  ? picked.shortName.trim().length >= 2
+                    ? picked.shortName.trim()
+                    : picked.name
+                  : block.content,
+            });
+          }}
+        />
+      ) : null}
     </form>
   );
 }

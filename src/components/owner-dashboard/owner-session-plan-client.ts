@@ -74,6 +74,11 @@ export type BlockDraft = {
   apparatus: PlanApparatus | null;
   content: string;
   durationMinutes: number | null;
+  /**
+   * Enlace con la biblioteca: sin el campo el servidor conserva el guardado,
+   * `null` lo quita y un id lo pone. Solo se manda cuando cambia.
+   */
+  catalogElementId?: string | null;
 };
 
 export function fetchSessionPlan(scope: PlanScope, sessionId: string) {

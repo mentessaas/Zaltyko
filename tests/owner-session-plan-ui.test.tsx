@@ -309,3 +309,188 @@ describe("panel del plan de la sesión", () => {
     expect(await screen.findByText(/Modelo de la clase guardado/)).toBeInTheDocument();
   });
 });
+
+describe("bloques enlazados con la biblioteca de elementos (ADR-0029 §3.2 y §3.6)", () => {
+  const CAT_BEAM = "91000000-0000-4000-8000-0000000000a1";
+  const CAT_OLD = "91000000-0000-4000-8000-0000000000a2";
+  const search = {
+    edition: {
+      id: "91000000-0000-4000-8000-0000000000e1",
+      code: "fig-wag-2025-2028",
+      discipline: "artistic_female",
+      title: "Código de prueba",
+      cycleStart: 2025,
+      cycleEnd: 2028,
+      coverDate: "2026-10-14",
+      documentUrl: "https://www.gymnastics.sport/",
+      attribution: "Pie de atribución de prueba.",
+    },
+    elements: [
+      {
+        id: CAT_BEAM,
+        elementKey: "ci_beam",
+        apparatus: "beam",
+        group: "1",
+        valueLetter: "A",
+        valuePoints: null,
+        figReference: null,
+        name: "Equilibrio de prueba",
+        shortName: "Equilibrio",
+        hasNote: false,
+      },
+    ],
+    truncated: false,
+  };
+  const linkedPlan = {
+    ...plan,
+    blocks: [
+      {
+        id: BLOCK_A,
+        position: 1,
+        kind: "technique",
+        discipline: "gaf",
+        apparatus: "beam",
+        content: "Giros de la academia",
+        durationMinutes: 15,
+        done: false,
+        doneAt: null,
+        catalogLink: { id: CAT_BEAM, name: "Equilibrio de prueba", status: "current", replacementId: null },
+      },
+      {
+        id: BLOCK_B,
+        position: 2,
+        kind: "technique",
+        discipline: "gaf",
+        apparatus: "vault",
+        content: "Rondada",
+        durationMinutes: 10,
+        done: false,
+        doneAt: null,
+        catalogLink: { id: CAT_OLD, name: "Salto retirado", status: "withdrawn", replacementId: null },
+      },
+    ],
+  };
+
+  function route(view: ReturnType<typeof pageView>) {
+    fetchMock.mockImplementation(async (input: string, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "PUT") return json(200, { ok: true, data: { id: PLAN, revision: 4, replayed: false } });
+      if (url.startsWith("/api/v1/owner/element-library?")) return json(200, { ok: true, data: search });
+      if (url.includes("/plan?")) return json(200, { ok: true, data: view });
+      return json(404, { detail: "No encontrado" });
+    });
+  }
+
+  function putBody() {
+    const put = calls("PUT")[0];
+    expect(put).toBeDefined();
+    return JSON.parse(String((put![1] as RequestInit).body)) as { blocks: Array<Record<string, unknown>> };
+  }
+
+  it("elige un elemento para un bloque de artística con aparato, rellena el contenido vacío y lo manda", async () => {
+    route(pageView({ libraryAvailable: true }));
+    renderPanel();
+    fireEvent.click(await screen.findByRole("button", { name: "Crear guion" }));
+    const pick = { name: "Elegir el elemento de la biblioteca del bloque 1" };
+    expect(screen.queryByRole("button", pick)).not.toBeInTheDocument();
+
+    // Rítmica: sin catálogo, sin selector.
+    fireEvent.change(screen.getByLabelText("Disciplina"), { target: { value: "gr" } });
+    fireEvent.change(screen.getByLabelText("Aparato"), { target: { value: "hoop" } });
+    expect(screen.queryByRole("button", pick)).not.toBeInTheDocument();
+
+    // Artística sin aparato: todavía no.
+    fireEvent.change(screen.getByLabelText("Disciplina"), { target: { value: "gaf" } });
+    expect(screen.queryByRole("button", pick)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Aparato"), { target: { value: "beam" } });
+    expect(screen.getByText("Elemento de la biblioteca")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", pick));
+
+    const dialog = await screen.findByRole("dialog");
+    await waitFor(() => {
+      const searchCall = fetchMock.mock.calls.find(([input]) => String(input).startsWith("/api/v1/owner/element-library?"));
+      expect(searchCall).toBeDefined();
+      const params = new URL(String(searchCall![0]), "http://localhost").searchParams;
+      expect(params.get("discipline")).toBe("artistic_female");
+      expect(params.get("apparatus")).toBe("beam");
+    });
+    fireEvent.click(await within(dialog).findByRole("button", { name: /Equilibrio de prueba/ }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    expect(screen.getByText("De la biblioteca")).toBeInTheDocument();
+    expect(screen.getByText("Equilibrio de prueba")).toBeInTheDocument();
+    expect(screen.getByLabelText("Contenido")).toHaveValue("Equilibrio");
+    // Con el enlace, disciplina y aparato quedan fijos hasta quitarlo.
+    expect(screen.getByLabelText("Disciplina")).toBeDisabled();
+    expect(screen.getByLabelText("Aparato")).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar guion" }));
+    expect(await screen.findByText("Guion guardado.")).toBeInTheDocument();
+    expect(putBody().blocks).toEqual([
+      {
+        id: null,
+        kind: "technique",
+        discipline: "gaf",
+        apparatus: "beam",
+        content: "Equilibrio",
+        durationMinutes: null,
+        catalogElementId: CAT_BEAM,
+      },
+    ]);
+  });
+
+  it("elegir no pisa un contenido ya escrito", async () => {
+    route(pageView({ libraryAvailable: true }));
+    renderPanel();
+    fireEvent.click(await screen.findByRole("button", { name: "Crear guion" }));
+    fireEvent.change(screen.getByLabelText("Disciplina"), { target: { value: "gaf" } });
+    fireEvent.change(screen.getByLabelText("Aparato"), { target: { value: "beam" } });
+    fireEvent.change(screen.getByLabelText("Contenido"), { target: { value: "Giros en barra baja" } });
+    fireEvent.click(screen.getByRole("button", { name: "Elegir el elemento de la biblioteca del bloque 1" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(await within(dialog).findByRole("button", { name: /Equilibrio de prueba/ }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByLabelText("Contenido")).toHaveValue("Giros en barra baja");
+  });
+
+  it("muestra el enlace con su aviso, «Quitar» manda null y el bloque que no cambia no manda el campo", async () => {
+    route(pageView({ plan: linkedPlan, libraryAvailable: true }));
+    renderPanel();
+    expect(await screen.findByText("Equilibrio de prueba")).toBeInTheDocument();
+    expect(screen.getByText("Ya no está en la biblioteca")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar guion" }));
+    fireEvent.click(screen.getByRole("button", { name: "Quitar el elemento de la biblioteca del bloque 1" }));
+    expect(screen.queryByText("Equilibrio de prueba")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Elegir el elemento de la biblioteca del bloque 1" })).toBeInTheDocument();
+    expect(screen.getAllByLabelText("Disciplina")[0]).not.toBeDisabled();
+    // El contenido del bloque se conserva.
+    expect(screen.getAllByLabelText("Contenido")[0]).toHaveValue("Giros de la academia");
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar guion" }));
+    expect(await screen.findByText("Guion guardado.")).toBeInTheDocument();
+    const [first, second] = putBody().blocks;
+    expect(first).toMatchObject({ id: BLOCK_A, content: "Giros de la academia", catalogElementId: null });
+    expect(second).toMatchObject({ id: BLOCK_B, content: "Rondada" });
+    expect(second).not.toHaveProperty("catalogElementId");
+  });
+
+  it("sin la biblioteca activa se ve el enlace, pero no se elige ni se quita ni se manda", async () => {
+    route(pageView({ plan: linkedPlan }));
+    renderPanel();
+    expect(await screen.findByText("Equilibrio de prueba")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Editar guion" }));
+    expect(screen.queryByRole("button", { name: /elemento de la biblioteca/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Guardar guion" }));
+    expect(await screen.findByText("Guion guardado.")).toBeInTheDocument();
+    for (const block of putBody().blocks) expect(block).not.toHaveProperty("catalogElementId");
+  });
+
+  it("al guardar como modelo de la clase lleva el enlace vigente y deja sin enlace el retirado", async () => {
+    route(pageView({ plan: linkedPlan, libraryAvailable: true, canManageTemplate: true, template: { exists: true, revision: 4 } }));
+    renderPanel();
+    fireEvent.click(await screen.findByRole("button", { name: "Actualizar el modelo de la clase" }));
+    await waitFor(() => expect(calls("PUT")).toHaveLength(1));
+    expect(putBody().blocks.map((block) => block.catalogElementId)).toEqual([CAT_BEAM, null]);
+  });
+});

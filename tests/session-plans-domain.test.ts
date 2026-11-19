@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BLOCK_CATALOG_LINK_NEEDS_APPARATUS_MESSAGE,
+  blockCatalogTarget,
   BLOCK_KINDS,
   blockKindLabels,
   canManageClassPlanTemplate,
@@ -200,6 +202,49 @@ describe("bloques guardados en la plantilla", () => {
     expect(Object.keys(parseStoredTemplateBlocks([{ kind: "warmup", content: "Movilidad" }])[0]!)).not.toContain(
       "catalogElementId"
     );
+  });
+
+  it("un enlace exige disciplina y aparato; el contenido sigue siendo obligatorio", () => {
+    const linked = { kind: "technique", discipline: "gaf", apparatus: "beam", content: "Giro", catalogElementId };
+    for (const block of [
+      { ...linked, discipline: null, apparatus: null },
+      { kind: "technique", content: "Giro", catalogElementId },
+      { ...linked, apparatus: null },
+    ]) {
+      for (const parsed of [templateBlockSchema.safeParse(block), sessionPlanBlockSchema.safeParse(block)]) {
+        expect(parsed.success).toBe(false);
+        expect(parsed.error?.issues).toContainEqual(
+          expect.objectContaining({ path: ["catalogElementId"], message: BLOCK_CATALOG_LINK_NEEDS_APPARATUS_MESSAGE })
+        );
+      }
+    }
+    // Un bloque guardado con enlace y sin aparato no vale.
+    expect(parseStoredTemplateBlocks([{ ...linked, apparatus: null }])).toEqual([]);
+    // Sin enlace (o con null) disciplina y aparato siguen siendo opcionales.
+    expect(sessionPlanBlockSchema.safeParse({ kind: "warmup", content: "Movilidad", catalogElementId: null }).success).toBe(true);
+    // El enlace no sustituye al contenido.
+    expect(sessionPlanBlockSchema.safeParse({ ...linked, content: " " }).success).toBe(false);
+    expect(
+      saveSessionPlanCommandSchema.safeParse({ ...base, blocks: [{ kind: "technique", content: "Giro", catalogElementId }] })
+        .success
+    ).toBe(false);
+  });
+
+  it("convierte disciplina y aparato del bloque a las claves de la biblioteca", () => {
+    expect(blockCatalogTarget({ discipline: "gaf", apparatus: "beam" })).toEqual({
+      discipline: "artistic_female",
+      apparatus: "beam",
+    });
+    expect(blockCatalogTarget({ discipline: "gam", apparatus: "high_bar" })).toEqual({
+      discipline: "artistic_male",
+      apparatus: "high_bar",
+    });
+    expect(blockCatalogTarget({ discipline: "gr", apparatus: "freehand" })).toEqual({
+      discipline: "rhythmic",
+      apparatus: "body",
+    });
+    expect(blockCatalogTarget({ discipline: "gaf", apparatus: null })).toBeNull();
+    expect(blockCatalogTarget({ discipline: null, apparatus: null })).toBeNull();
   });
 
   it("nunca devuelve más de 20 bloques", () => {

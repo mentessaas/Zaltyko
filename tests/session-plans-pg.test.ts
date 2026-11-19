@@ -11,6 +11,10 @@ import {
   changeAthleteObjectiveStatus,
   createAthleteObjective,
 } from "@/modules/athlete-progress/application/athlete-progress-service";
+import {
+  ELEMENT_LIBRARY_ENV_FLAG,
+  ELEMENT_LIBRARY_UNAVAILABLE_REASON,
+} from "@/modules/element-library/domain/element-library";
 import { getOrganizationUsage } from "@/modules/saas-billing/application/organization-usage";
 import {
   getClassPlanTemplate,
@@ -21,6 +25,13 @@ import {
   saveClassPlanTemplate,
   saveSessionPlan,
 } from "@/modules/session-plans/application/session-plan-service";
+import {
+  BLOCK_CATALOG_LINK_MISMATCH_MESSAGE,
+  BLOCK_CATALOG_LINK_NEEDS_APPARATUS_MESSAGE,
+  type SessionPlanBlockView,
+  type SessionPlanPageView,
+} from "@/modules/session-plans/domain/session-plan";
+import { SKILL_LEVELS_ENV_FLAG } from "@/modules/skill-levels/domain/skill-levels";
 
 /**
  * P2 #17 (segunda parte) · Planificación sobre sesiones en PostgreSQL
@@ -84,6 +95,25 @@ const progressCandidate = () => candidateFile("20261111120000_athlete_progress_c
 const plansCandidate = () => candidateFile("20261111200000_session_plans_candidate.sql");
 const LEVELS = "20261114121000_skill_levels_candidate.sql";
 const LIBRARY = "20261119120000_element_library_candidate.sql";
+const NOTES = "20261119120500_element_library_notes_candidate.sql";
+
+/** Enciende o apaga las dos banderas que necesita la biblioteca; devuelve cómo restaurarlas. */
+function setLibraryFlags(on: boolean): () => void {
+  const previous = {
+    [ELEMENT_LIBRARY_ENV_FLAG]: process.env[ELEMENT_LIBRARY_ENV_FLAG],
+    [SKILL_LEVELS_ENV_FLAG]: process.env[SKILL_LEVELS_ENV_FLAG],
+  };
+  for (const name of [ELEMENT_LIBRARY_ENV_FLAG, SKILL_LEVELS_ENV_FLAG]) {
+    if (on) process.env[name] = "true";
+    else delete process.env[name];
+  }
+  return () => {
+    for (const [name, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  };
+}
 
 /**
  * Las candidatas abren su propia transacción (`begin; … commit;`): se
@@ -106,15 +136,15 @@ async function exists(table: string): Promise<boolean> {
 }
 
 /**
- * Aplica `statement` dentro de una transacción que se deshace siempre y
+ * Aplica `statements` dentro de una transacción que se deshace siempre y
  * devuelve la forma que ve la detección mientras tanto.
  */
-async function shapeWith(statement: string): Promise<string> {
+async function shapeWith(...statements: string[]): Promise<string> {
   const rollback = new Error("rollback");
   let shape = "";
   const seen = await db
     .transaction(async (tx) => {
-      await tx.execute(sql.raw(statement));
+      for (const statement of statements) await tx.execute(sql.raw(statement));
       shape = await getSessionPlanStorageShape(tx);
       throw rollback;
     })
@@ -743,6 +773,50 @@ describe.skipIf(!disposablePgEnabled)("planificación sobre sesiones en PostgreS
     await expect(fromTemplate(sessionS2)).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
+  it("sin la columna de enlace, pedir un elemento de la biblioteca es 503 sin escribir; null se guarda como siempre", async () => {
+    expect(await getSessionPlanStorageShape(db)).toBe("base");
+    const fresh = await session(a.organizationId, a.locationIds[0]!, classS1, "2026-11-06T16:30:00Z");
+    const plainClass = await classTemplate(a.organizationId, a.locationIds[0]!, "CI Sin biblioteca");
+    const block = (catalogElementId: string | null) => ({
+      kind: "technique",
+      discipline: "gaf",
+      apparatus: "beam",
+      content: "Giros",
+      catalogElementId,
+    });
+    const saveModel = (catalogElementId: string | null) =>
+      saveClassPlanTemplate({
+        actor: ownerA,
+        classTemplateId: plainClass,
+        command: { ...s1(), expectedRevision: null, blocks: [block(catalogElementId)] },
+      });
+    const unavailable = { code: "FEATURE_NOT_AVAILABLE", status: 503, details: { reason: ELEMENT_LIBRARY_UNAVAILABLE_REASON } };
+    // Con las banderas apagadas y encendidas: sin la columna no hay enlace posible.
+    for (const flags of [false, true]) {
+      const restore = setLibraryFlags(flags);
+      try {
+        await expect(create(ownerA, fresh, s1(), { blocks: [block(randomUUID())] })).rejects.toMatchObject(unavailable);
+        await expect(saveModel(randomUUID())).rejects.toMatchObject(unavailable);
+        const view = await read(ownerA, fresh, s1());
+        expect(view.libraryAvailable).toBe(false);
+        expect(view.plan).toBeNull();
+      } finally {
+        restore();
+      }
+    }
+    expect(await getClassPlanTemplate({ actor: ownerA, classTemplateId: plainClass, query: s1() })).toMatchObject({
+      template: null,
+    });
+    expect(await create(ownerA, fresh, s1(), { blocks: [block(null)] })).toMatchObject({ revision: 1, replayed: false });
+    expect(await saveModel(null)).toMatchObject({ revision: 1, replayed: false });
+    expect((await read(ownerA, fresh, s1())).plan!.blocks).toMatchObject([
+      { kind: "technique", apparatus: "beam", content: "Giros", catalogLink: null },
+    ]);
+    expect((await getClassPlanTemplate({ actor: ownerA, classTemplateId: plainClass, query: s1() })).template!.blocks).toEqual([
+      { kind: "technique", discipline: "gaf", apparatus: "beam", content: "Giros", durationMinutes: null },
+    ]);
+  });
+
   it("conserva los vínculos que quien guarda no ve y solo valida los nuevos", async () => {
     // pastS1Second tiene vínculos a Ana (S1) y a Dani (creado en S2).
     const view = await read(managerA1, pastS1Second, s1());
@@ -1097,6 +1171,312 @@ describe.skipIf(!disposablePgEnabled)("planificación sobre sesiones en PostgreS
       // Sin la columna de enlace vuelve a ser la forma del candidato de guiones.
       expect(await shapeWith("alter table zaltyko.session_plan_blocks drop column catalog_element_id")).toBe("base");
       expect(await getSessionPlanStorageShape(db)).toBe("with_catalog_links");
+    });
+
+    it("la forma con enlaces exige la columna uuid y con nulos", async () => {
+      const drop = "alter table zaltyko.session_plan_blocks drop column catalog_element_id";
+      expect(await shapeWith(drop, "alter table zaltyko.session_plan_blocks add column catalog_element_id text")).toBe(
+        "absent"
+      );
+      expect(
+        await shapeWith(
+          drop,
+          "alter table zaltyko.session_plan_blocks add column catalog_element_id uuid not null default gen_random_uuid()"
+        )
+      ).toBe("absent");
+      expect(await shapeWith(drop, "alter table zaltyko.session_plan_blocks add column catalog_element_id uuid")).toBe(
+        "with_catalog_links"
+      );
+      expect(await getSessionPlanStorageShape(db)).toBe("with_catalog_links");
+    });
+
+    describe("enlaces de los bloques con la biblioteca (ADR-0029 §3.2, §3.3 y §3.6)", () => {
+      let restoreFlags: () => void = () => undefined;
+      let beam: string;
+      let vault: string;
+      let toWithdraw: string;
+      let modelToWithdraw: string;
+      let linkedSession: string;
+
+      async function catalogEdition(code: string, discipline: string): Promise<string> {
+        const result = await db.execute(sql`
+          insert into zaltyko.catalog_element_editions
+            (code, discipline, cycle_start, cycle_end, title, document_url, cover_date, status)
+          values (${code}, ${discipline}, 2025, 2028, 'Código de prueba', 'https://www.gymnastics.sport/', '2026-10-14', 'published')
+          returning id
+        `);
+        return (result.rows[0] as { id: string }).id;
+      }
+
+      /** Elemento de prueba revisado: nada sale de los archivos de datos del repositorio. */
+      async function catalogElement(
+        editionId: string,
+        input: { key: string; apparatus: string; letter?: string; points?: string; name: string }
+      ): Promise<string> {
+        const result = await db.execute(sql`
+          insert into zaltyko.catalog_elements
+            (edition_id, element_key, discipline, apparatus, element_group, value_letter, value_points,
+             name, short_name, source_page, source_checked_on, drafted_by, drafted_on, batch, review_status, reviewed_on)
+          values (${editionId}::uuid, ${input.key}, 'artistic_female', ${input.apparatus}, '1',
+            ${input.letter ?? null}, ${input.points ?? null}::numeric, ${input.name}, ${input.name.slice(0, 20)},
+            1, '2026-11-19', 'Claude', '2026-11-19', 1, 'reviewed', '2026-11-19')
+          returning id
+        `);
+        return (result.rows[0] as { id: string }).id;
+      }
+
+      async function withdraw(id: string) {
+        await db.execute(sql`
+          update zaltyko.catalog_elements set withdrawn_at = now(), withdrawn_reason = 'Aviso de prueba'
+          where id = ${id}::uuid
+        `);
+      }
+
+      /** Lo que el editor manda de un bloque que no cambia de enlace (sin el campo). */
+      const keep = (block: SessionPlanBlockView) => ({
+        id: block.id,
+        kind: block.kind,
+        discipline: block.discipline,
+        apparatus: block.apparatus,
+        content: block.content,
+        durationMinutes: block.durationMinutes,
+      });
+      const edit = (sessionId: string, view: SessionPlanPageView, blocks: Array<Record<string, unknown>>) =>
+        saveSessionPlan({
+          actor: ownerC,
+          sessionId,
+          command: { ...sc(), clientRequestId: randomUUID(), expectedRevision: view.plan!.revision, blocks },
+        });
+      const blockLinks = async (sessionId: string) => {
+        const result = await db.execute(sql`
+          select block.content, block.catalog_element_id
+          from zaltyko.session_plan_blocks as block
+          join zaltyko.session_plans as plan on plan.organization_id = block.organization_id and plan.id = block.plan_id
+          where plan.organization_id = ${c.organizationId}::uuid and plan.session_id = ${sessionId}::uuid
+          order by block.position
+        `);
+        return (result.rows as Array<{ content: string; catalog_element_id: string | null }>).map((row) => [
+          row.content,
+          row.catalog_element_id,
+        ]);
+      };
+      async function expectBadLink(promise: Promise<unknown>, message = BLOCK_CATALOG_LINK_MISMATCH_MESSAGE) {
+        const error = await promise.then(
+          () => null,
+          (failure: unknown) => failure
+        );
+        expect(error).toMatchObject({ code: "INVALID_RELATION", status: 400 });
+        expect((error as Error).message).toBe(message);
+      }
+
+      beforeAll(async () => {
+        // La biblioteca existe con sus cinco tablas: falta la de las notas.
+        if (!(await exists("academy_element_notes"))) await runOnOwnConnection(candidateFile(NOTES));
+        const edition = await catalogEdition("fig-wag-2025-2028", "artistic_female");
+        beam = await catalogElement(edition, { key: "ci_plan_beam", apparatus: "beam", letter: "A", name: "Equilibrio de prueba" });
+        vault = await catalogElement(edition, { key: "ci_plan_vault", apparatus: "vault", points: "2.40", name: "Rondada de prueba" });
+        toWithdraw = await catalogElement(edition, {
+          key: "ci_plan_vault_withdrawn",
+          apparatus: "vault",
+          points: "3.20",
+          name: "Salto que se retirará",
+        });
+        modelToWithdraw = await catalogElement(edition, {
+          key: "ci_plan_beam_withdrawn",
+          apparatus: "beam",
+          letter: "B",
+          name: "Giro que se retirará",
+        });
+        restoreFlags = setLibraryFlags(true);
+      }, 120_000);
+
+      afterAll(() => {
+        restoreFlags();
+      });
+
+      it("enlaza un elemento visible del mismo aparato, conserva el contenido y lo muestra «De la biblioteca»", async () => {
+        linkedSession = await session(c.organizationId, c.locationIds[0]!, classC, "2026-10-19T16:30:00Z");
+        expect((await read(ownerC, linkedSession, sc())).libraryAvailable).toBe(true);
+        const command = {
+          ...sc(),
+          clientRequestId: randomUUID(),
+          expectedRevision: null,
+          blocks: [
+            { kind: "technique", discipline: "gaf", apparatus: "beam", content: "Giros de la academia", catalogElementId: beam },
+            { kind: "warmup", content: "Movilidad" },
+          ],
+        };
+        expect(await saveSessionPlan({ actor: ownerC, sessionId: linkedSession, command })).toMatchObject({
+          revision: 1,
+          replayed: false,
+        });
+        const view = await read(ownerC, linkedSession, sc());
+        expect(view.plan!.blocks).toMatchObject([
+          {
+            content: "Giros de la academia",
+            apparatus: "beam",
+            catalogLink: { id: beam, name: "Equilibrio de prueba", status: "current", replacementId: null },
+          },
+          { content: "Movilidad", catalogLink: null },
+        ]);
+        expect(await blockLinks(linkedSession)).toEqual([
+          ["Giros de la academia", beam],
+          ["Movilidad", null],
+        ]);
+        // Repetir la misma alta es un reintento; con otro enlace, otra petición.
+        expect(await saveSessionPlan({ actor: ownerC, sessionId: linkedSession, command })).toMatchObject({
+          revision: 1,
+          replayed: true,
+        });
+        await expect(
+          saveSessionPlan({
+            actor: ownerC,
+            sessionId: linkedSession,
+            command: { ...command, blocks: [{ ...command.blocks[0]!, catalogElementId: null }, command.blocks[1]!] },
+          })
+        ).rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT", status: 409 });
+      });
+
+      it("rechaza con 400 otro aparato, la rítmica, un id desconocido o cambiar el aparato de un bloque enlazado", async () => {
+        const view = await read(ownerC, linkedSession, sc());
+        const [linked, plain] = view.plan!.blocks;
+        const attempts: Array<Array<Record<string, unknown>>> = [
+          [keep(linked!), { ...keep(plain!), discipline: "gaf", apparatus: "floor", catalogElementId: beam }],
+          [keep(linked!), { ...keep(plain!), discipline: "gr", apparatus: "hoop", catalogElementId: beam }],
+          [keep(linked!), { ...keep(plain!), discipline: "gaf", apparatus: "vault", catalogElementId: randomUUID() }],
+          // El enlazado cambia de aparato sin tocar el enlace (aunque el otro se enlace bien).
+          [{ ...keep(linked!), apparatus: "floor" }, { ...keep(plain!), discipline: "gaf", apparatus: "vault", catalogElementId: vault }],
+        ];
+        for (const blocks of attempts) await expectBadLink(edit(linkedSession, view, blocks));
+        // Sin disciplina ni aparato el enlace ni siquiera pasa la validación de la orden.
+        await expect(edit(linkedSession, view, [keep(linked!), { ...keep(plain!), catalogElementId: beam }])).rejects.toThrow(
+          BLOCK_CATALOG_LINK_NEEDS_APPARATUS_MESSAGE
+        );
+        // Nada se guardó.
+        expect((await read(ownerC, linkedSession, sc())).plan!.revision).toBe(view.plan!.revision);
+        expect(await blockLinks(linkedSession)).toEqual([
+          ["Giros de la academia", beam],
+          ["Movilidad", null],
+        ]);
+      });
+
+      it("guardar sin el campo conserva el enlace y null lo quita", async () => {
+        let view = await read(ownerC, linkedSession, sc());
+        await edit(linkedSession, view, view.plan!.blocks.map(keep));
+        expect(await blockLinks(linkedSession)).toEqual([
+          ["Giros de la academia", beam],
+          ["Movilidad", null],
+        ]);
+        view = await read(ownerC, linkedSession, sc());
+        const [linked, plain] = view.plan!.blocks;
+        await edit(linkedSession, view, [{ ...keep(linked!), catalogElementId: null }, keep(plain!)]);
+        expect(await blockLinks(linkedSession)).toEqual([
+          ["Giros de la academia", null],
+          ["Movilidad", null],
+        ]);
+        expect((await read(ownerC, linkedSession, sc())).plan!.blocks.map((block) => block.catalogLink)).toEqual([null, null]);
+      });
+
+      it("un elemento retirado se sigue viendo con su aviso y se conserva al guardar, pero no se enlaza de nuevo", async () => {
+        let view = await read(ownerC, linkedSession, sc());
+        await edit(linkedSession, view, [
+          ...view.plan!.blocks.map(keep),
+          { kind: "technique", discipline: "gaf", apparatus: "vault", content: "Salto de la academia", catalogElementId: toWithdraw },
+        ]);
+        await withdraw(toWithdraw);
+        view = await read(ownerC, linkedSession, sc());
+        expect(view.plan!.blocks.at(-1)).toMatchObject({
+          content: "Salto de la academia",
+          catalogLink: { id: toWithdraw, name: "Salto que se retirará", status: "withdrawn", replacementId: null },
+        });
+
+        // Sin el campo, o con el mismo enlace y el mismo aparato, se guarda igual.
+        await edit(linkedSession, view, view.plan!.blocks.map(keep));
+        view = await read(ownerC, linkedSession, sc());
+        await edit(
+          linkedSession,
+          view,
+          view.plan!.blocks.map((block) => ({
+            ...keep(block),
+            ...(block.catalogLink ? { catalogElementId: block.catalogLink.id } : {}),
+          }))
+        );
+        expect(await blockLinks(linkedSession)).toEqual([
+          ["Giros de la academia", null],
+          ["Movilidad", null],
+          ["Salto de la academia", toWithdraw],
+        ]);
+
+        // Enlazar el retirado en otro bloque ya no es posible.
+        view = await read(ownerC, linkedSession, sc());
+        await expectBadLink(
+          edit(linkedSession, view, [
+            ...view.plan!.blocks.map(keep),
+            { kind: "technique", discipline: "gaf", apparatus: "vault", content: "Otro salto", catalogElementId: toWithdraw },
+          ])
+        );
+      });
+
+      it("el modelo de la clase guarda el enlace y, al crear un guion, un elemento retirado se copia sin enlace", async () => {
+        const linkedClass = await classTemplate(c.organizationId, c.locationIds[0]!, "CI Modelo enlazado");
+        const model = (command: Record<string, unknown>) =>
+          saveClassPlanTemplate({ actor: ownerC, classTemplateId: linkedClass, command: { ...sc(), ...command } });
+        const stored = async () =>
+          (await getClassPlanTemplate({ actor: ownerC, classTemplateId: linkedClass, query: sc() })).template!;
+        const blocks = [
+          { kind: "technique", discipline: "gaf", apparatus: "beam", content: "Giros", catalogElementId: modelToWithdraw },
+          { kind: "technique", discipline: "gaf", apparatus: "vault", content: "Rondada", catalogElementId: vault },
+          { kind: "warmup", content: "Movilidad" },
+        ];
+        const created = { expectedRevision: null, focus: "Barra y salto", blocks };
+        expect(await model(created)).toMatchObject({ revision: 1, replayed: false });
+        const expected = [
+          { kind: "technique", discipline: "gaf", apparatus: "beam", content: "Giros", durationMinutes: null, catalogElementId: modelToWithdraw },
+          { kind: "technique", discipline: "gaf", apparatus: "vault", content: "Rondada", durationMinutes: null, catalogElementId: vault },
+          { kind: "warmup", discipline: null, apparatus: null, content: "Movilidad", durationMinutes: null },
+        ];
+        expect((await stored()).blocks).toEqual(expected);
+        // El mismo alta se reconoce como reintento, también con el enlace.
+        expect(await model(created)).toMatchObject({ revision: 1, replayed: true });
+        // Otro aparato: 400 sin escribir.
+        await expectBadLink(
+          model({ expectedRevision: 1, blocks: [{ kind: "technique", discipline: "gaf", apparatus: "floor", content: "Suelo", catalogElementId: beam }] })
+        );
+        // Sin el campo, cada bloque conserva el enlace del bloque guardado en su posición.
+        expect(
+          await model({
+            expectedRevision: 1,
+            focus: "Barra y salto",
+            blocks: blocks.map((block) => ({
+              kind: block.kind,
+              discipline: block.discipline,
+              apparatus: block.apparatus,
+              content: block.content,
+            })),
+          })
+        ).toMatchObject({ revision: 2 });
+        expect((await stored()).blocks).toEqual(expected);
+
+        await withdraw(modelToWithdraw);
+        const fromModel = await session(c.organizationId, c.locationIds[0]!, linkedClass, "2026-10-26T16:30:00Z");
+        await saveSessionPlan({
+          actor: ownerC,
+          sessionId: fromModel,
+          command: { ...sc(), clientRequestId: randomUUID(), expectedRevision: null, source: "template" },
+        });
+        expect((await read(ownerC, fromModel, sc())).plan!.blocks).toMatchObject([
+          { content: "Giros", apparatus: "beam", catalogLink: null },
+          { content: "Rondada", apparatus: "vault", catalogLink: { id: vault, status: "current" } },
+          { content: "Movilidad", catalogLink: null },
+        ]);
+        expect(await blockLinks(fromModel)).toEqual([
+          ["Giros", null],
+          ["Rondada", vault],
+          ["Movilidad", null],
+        ]);
+        // El modelo conserva su enlace aunque el elemento ya no esté en la biblioteca.
+        expect((await stored()).blocks[0]).toMatchObject({ catalogElementId: modelToWithdraw });
+      });
     });
   });
 });

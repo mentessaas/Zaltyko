@@ -214,9 +214,26 @@ describe("candidato SQL de planificación sobre sesiones", () => {
     ]) {
       const source = read(path);
       expect(source, path).not.toMatch(/\.select\(\)\s*\.from\(sessionPlanBlocks\)/);
-      expect(source, path).not.toMatch(/\.insert\(sessionPlanBlocks\)/);
       expect(source, path).not.toMatch(/\.returning\(\)/);
     }
+    expect(read("src/modules/session-plans/application/session-plan/templates.ts")).not.toMatch(
+      /\.insert\(sessionPlanBlocks\)/
+    );
+    // La columna de enlace solo se nombra con la biblioteca activa (que exige la
+    // forma «with_catalog_links»): un único alta con la tabla completa, tras esa
+    // guarda, y la lectura de enlaces vuelve sin consultar con la forma «base».
+    const plans = read("src/modules/session-plans/application/session-plan/plans.ts");
+    expect(plans.match(/\.insert\(sessionPlanBlocks\)/g)).toHaveLength(1);
+    const write = plans.slice(plans.indexOf("async function writeBlocks"), plans.indexOf("async function writeObjectives"));
+    expect(write.indexOf("if (input.libraryOn && insertLinks.some")).toBeGreaterThan(-1);
+    expect(write.indexOf("if (input.libraryOn && insertLinks.some")).toBeLessThan(write.indexOf(".insert(sessionPlanBlocks)"));
+    expect(write).toContain("await tx.insert(sessionPlanBlocksBaseInsert).values(inserts);");
+    expect(plans).toContain('return access.storageShape === "with_catalog_links" && (await isElementLibraryAvailable(tx));');
+    const links = plans.slice(plans.indexOf("async function loadBlockLinks"), plans.indexOf("export async function isBlockLibraryOn"));
+    expect(links.indexOf('if (access.storageShape !== "with_catalog_links") return links;')).toBeLessThan(
+      links.indexOf("sessionPlanBlocks.catalogElementId")
+    );
+    expect(links.indexOf('if (access.storageShape !== "with_catalog_links") return links;')).toBeGreaterThan(-1);
   });
 
   it("repite en Drizzle cada CHECK con el mismo nombre y la misma expresión", () => {
@@ -354,8 +371,10 @@ describe("rutas API de planificación", () => {
     expect(storage).toContain("con.conname = 'session_plan_blocks_position_uq'");
     // Las dos formas válidas exigen la unicidad diferida, RLS y la revocación.
     expect(storage).toMatch(
-      /when \$\{positionDeferred\}[\s\S]*?then\s+case\s+when \$\{allColumnsMatch\} then 'base'\s+when \$\{allColumnsMatchWithCatalogLinks\} then 'with_catalog_links'\s+else 'absent'/
+      /when \$\{positionDeferred\}[\s\S]*?then\s+case\s+when \$\{allColumnsMatch\} then 'base'\s+when \$\{allColumnsMatchWithCatalogLinks\} and \$\{catalogLinkColumnsTyped\} then 'with_catalog_links'\s+else 'absent'/
     );
+    // La columna de enlace, además de existir, es uuid y admite nulos.
+    expect(storage).toContain("and data_type = 'uuid' and is_nullable = 'YES'");
     const plans = read("src/modules/session-plans/application/session-plan/plans.ts");
     const mapping = plans.slice(plans.indexOf("function uniqueViolation"), plans.indexOf("async function loadPlan"));
     expect(mapping).toContain('cause.constraint === "session_plans_session_uq"');

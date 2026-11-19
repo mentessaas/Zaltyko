@@ -1,6 +1,12 @@
 import { z } from "zod";
 
 import { apparatusLabels as artisticApparatusLabels } from "@/modules/athlete-progress/domain/athlete-progress";
+import {
+  fromSessionPlanApparatus,
+  fromSessionPlanDiscipline,
+  type CanonicalDiscipline,
+} from "@/modules/shared/domain/discipline-keys";
+import type { SkillApparatus } from "@/modules/skill-levels/domain/skill-levels";
 
 /**
  * P2 #17 (segunda parte): planificación sobre sesiones.
@@ -99,6 +105,19 @@ export function planApparatusBelongsToDiscipline(
   return (PLAN_APPARATUS_BY_DISCIPLINE[discipline] as readonly string[]).includes(apparatus);
 }
 
+/**
+ * Disciplina y aparato del bloque con las claves de la biblioteca de
+ * elementos (ADR-0029 §5: se convierte en el borde), o null si falta alguno.
+ */
+export function blockCatalogTarget(block: {
+  discipline: PlanDiscipline | null | undefined;
+  apparatus: PlanApparatus | null | undefined;
+}): { discipline: CanonicalDiscipline; apparatus: SkillApparatus } | null {
+  const discipline = block.discipline ? fromSessionPlanDiscipline(block.discipline) : null;
+  const apparatus = block.apparatus ? fromSessionPlanApparatus(block.apparatus) : null;
+  return discipline && apparatus ? { discipline, apparatus } : null;
+}
+
 /* ------------------------------------------------------------------------ */
 /* Permisos                                                                  */
 /* ------------------------------------------------------------------------ */
@@ -168,15 +187,22 @@ const blockShape = {
   content: blockContentSchema,
   durationMinutes: z.number().int().min(1).max(BLOCK_DURATION_MAX).nullable().optional(),
   /**
-   * Enlace opcional a un elemento de la biblioteca (ADR-0029 §3.2 y §3.3).
-   * Aquí solo se valida la forma; qué elemento se puede enlazar lo decide la
-   * aplicación con la biblioteca instalada.
+   * Enlace opcional a un elemento de la biblioteca (ADR-0029 §3.2 y §3.3):
+   * ausente conserva el guardado, `null` lo quita y un uuid lo pone. Exige
+   * disciplina y aparato; qué elemento se puede enlazar lo decide la
+   * aplicación con la biblioteca instalada. El contenido sigue siendo obligatorio.
    */
   catalogElementId: z.string().uuid().nullable().optional(),
 };
 
+/** Respuesta 400 al enlazar un elemento en un bloque sin disciplina o sin aparato. */
+export const BLOCK_CATALOG_LINK_NEEDS_APPARATUS_MESSAGE = "Elige disciplina y aparato para enlazar un elemento";
+
+/** Respuesta 400 al enlazar un elemento de otro aparato, de otra disciplina o que la academia no ve. */
+export const BLOCK_CATALOG_LINK_MISMATCH_MESSAGE = "Ese elemento de la biblioteca no corresponde a este aparato";
+
 function refineApparatus(
-  value: { discipline?: PlanDiscipline | null; apparatus?: PlanApparatus | null },
+  value: { discipline?: PlanDiscipline | null; apparatus?: PlanApparatus | null; catalogElementId?: string | null },
   context: z.RefinementCtx
 ) {
   if (!planApparatusBelongsToDiscipline(value.discipline, value.apparatus)) {
@@ -184,6 +210,14 @@ function refineApparatus(
       code: "custom",
       path: ["apparatus"],
       message: "El aparato no corresponde a la disciplina",
+    });
+  }
+  // Un elemento de la biblioteca es de un aparato concreto (ADR-0029 §3.2).
+  if (typeof value.catalogElementId === "string" && (!value.discipline || !value.apparatus)) {
+    context.addIssue({
+      code: "custom",
+      path: ["catalogElementId"],
+      message: BLOCK_CATALOG_LINK_NEEDS_APPARATUS_MESSAGE,
     });
   }
 }
@@ -309,11 +343,34 @@ export type SaveClassPlanTemplateCommand = z.infer<typeof saveClassPlanTemplateC
 /* Vistas                                                                    */
 /* ------------------------------------------------------------------------ */
 
-export type SessionPlanBlockView = TemplateBlock & {
+/**
+ * Enlace de un bloque con la biblioteca (ADR-0029 §3.6). «current»: está en la
+ * biblioteca; «withdrawn»: ya no está; «previous_edition»: es de una edición
+ * anterior. `replacementId` es el mismo elemento en una edición más nueva.
+ */
+export type BlockCatalogLinkStatus = "current" | "withdrawn" | "previous_edition";
+
+export type BlockCatalogLink = {
+  id: string;
+  /** Nombre del elemento en la biblioteca; el bloque conserva su propio contenido. */
+  name: string;
+  status: BlockCatalogLinkStatus;
+  replacementId: string | null;
+};
+
+export const blockCatalogLinkLabels: Record<BlockCatalogLinkStatus, string> = {
+  current: "De la biblioteca",
+  withdrawn: "Ya no está en la biblioteca",
+  previous_edition: "Edición anterior",
+};
+
+export type SessionPlanBlockView = Omit<TemplateBlock, "catalogElementId"> & {
   id: string;
   position: number;
   done: boolean;
   doneAt: string | null;
+  /** Elemento de la biblioteca enlazado, o null. */
+  catalogLink: BlockCatalogLink | null;
 };
 
 export type SessionPlanObjectiveView = {
@@ -349,6 +406,8 @@ export type SessionPlanPageView = {
   canManageTemplate: boolean;
   /** Objetivos en curso de las gimnastas de esta sesión, más los ya vinculados. */
   objectiveOptions: SessionPlanObjectiveView[];
+  /** La biblioteca de elementos está activa: los bloques de artística pueden enlazar un elemento. */
+  libraryAvailable: boolean;
 };
 
 export type ClassPlanTemplateView = {
