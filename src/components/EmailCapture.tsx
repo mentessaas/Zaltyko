@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mail, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { analytics } from "@/lib/analytics";
-import { getGrowthVisitorId } from "@/lib/growth/client";
 
 interface EmailCaptureProps {
   source?: string;
@@ -47,7 +46,6 @@ export function EmailCapture({
           source,
           plan,
           eventId: crypto.randomUUID(),
-          visitorId: getGrowthVisitorId(),
         }),
       });
 

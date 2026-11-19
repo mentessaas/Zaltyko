@@ -23,7 +23,7 @@ import { findCitiesByRegion } from "@/lib/citiesByRegion";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getStarterClassPresets, getStarterGroupPresets } from "@/lib/specialization/operational-presets";
 import { getSportConfigSeedByVariant, getSportConfigSeedsByCountry } from "@/lib/sport-config/catalog";
-import { UTM_STORAGE_KEY, readUtmWithFallback } from "@/lib/growth/utm";
+import { readOwnerOnboardingUtm } from "@/lib/growth/consented-attribution";
 
 const ACADEMY_KIND_OPTIONS = [
   { value: "recreational", label: "Recreativa" },
@@ -256,13 +256,7 @@ export function OwnerOnboardingForm({
     setNeedsDirectoryReview(false);
 
     try {
-      const utm = readUtmWithFallback(
-        typeof window !== "undefined"
-          ? new URLSearchParams(window.location.search)
-          : new URLSearchParams(),
-        typeof window !== "undefined" ? window.sessionStorage : undefined,
-        UTM_STORAGE_KEY
-      );
+      const utm = readOwnerOnboardingUtm();
 
       const response = await fetch("/api/onboarding/owner", {
         method: "POST",

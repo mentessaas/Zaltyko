@@ -7,7 +7,6 @@ import type { CommercialPlanSlug } from "@/lib/growth/contracts";
 import { MARKET_ACCESS_DISCIPLINES, MARKET_ACCESS_ROLES } from "@/lib/growth/market-access";
 import {
   capturePublicGrowthEvent,
-  getGrowthVisitorId,
   getPublicAttribution,
 } from "@/lib/growth/client";
 
@@ -117,7 +116,6 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
         ...(directoryId ? { directoryEntryId: directoryId } : {}),
         message: formData.get("message"),
         honeypot: formData.get("company"),
-        visitorId: getGrowthVisitorId(),
         ...(reason === "market_access" ? {
           marketAccess: {
             countryName: String(formData.get("countryName") ?? "").trim(),
@@ -129,9 +127,12 @@ export function ContactForm({ defaultReason = "demo", defaultPlan, directoryEntr
       const fingerprint = JSON.stringify(fields);
       let pendingRequest = lastRequest.current;
       if (!pendingRequest || pendingRequest.fingerprint !== fingerprint) {
+        // ContactRequestSchema requires a UUID. Scope it to this one request,
+        // and reuse it only while retrying the exact same pending payload.
+        const submissionId = crypto.randomUUID();
         pendingRequest = {
           fingerprint,
-          body: JSON.stringify({ ...fields, submissionId: crypto.randomUUID() }),
+          body: JSON.stringify({ ...fields, submissionId, visitorId: submissionId }),
         };
         lastRequest.current = pendingRequest;
       }
