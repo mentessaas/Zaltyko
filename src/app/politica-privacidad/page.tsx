@@ -7,21 +7,22 @@ import { SellerIdentification } from "@/components/legal/SellerIdentification";
 
 const baseUrl = getPublicSiteUrl();
 
-const updatedAt = "26 de octubre de 2026";
+const updatedAt = "6 de noviembre de 2026";
 
 const sections = [
   {
     title: "1. Quiénes somos",
     content: [
-      "Zaltyko es una plataforma software-as-a-service operada bajo la marca Zaltyko que ayuda a academias de gimnasia a gestionar atletas, coaches, clases y cobros internos en múltiples sedes.",
-      "Esta política describe cómo tratamos los datos personales cuando utilizas nuestro sitio web, la aplicación web y las APIs asociadas.",
+      "La plataforma, operada bajo la marca Zaltyko, tiene como titular a Elvis Lazaro Valdes Inerarte, en España, identificado en esta página. Zaltyko permite gestionar familias, gimnastas, grupos, clases, inscripciones, asistencia y cuotas con registro manual de pagos. La contratación de pago permanece cerrada mientras se completan la revisión fiscal del software y los demás requisitos de apertura.",
+      "El prestador de Zaltyko actúa como responsable de los datos de registro, relación con clientes, soporte y seguridad que trata para sus propios fines. La academia actúa como responsable de los datos de sus familias, gimnastas y personal; Zaltyko actúa como encargado cuando los trata siguiendo sus instrucciones, conforme al acuerdo de encargo que deberá formalizarse antes de incorporar datos reales.",
     ],
   },
   {
     title: "2. Datos que recopilamos",
     content: [
       "Datos de cuenta: nombre, apellidos, correo electrónico, contraseña (hash) y rol asignado dentro de la academia.",
-      "Datos operativos: información de academias, atletas, coaches, asistencia, evaluaciones y eventos que tu organización introduce voluntariamente en la plataforma.",
+      "Datos operativos: identificación y contacto de familias, tutores, gimnastas y personal; vínculos con la academia y sede; grupos, clases, inscripciones, asistencia, cuotas y pagos manuales introducidos por la academia. No introduzcas documentación de identidad, datos de salud ni otras categorías especiales que no sean necesarias y estén expresamente cubiertas por el acuerdo de encargo.",
+      "Solicitudes de contacto y acceso asistido: nombre y correo de la persona de contacto, club opcional y necesidad indicada. Para un país pendiente, también el país autodeclarado, la función y las disciplinas seleccionadas. No introduzcas datos de menores ni información sensible en el texto libre. La solicitud está dirigida a representantes de clubes; no crea una academia ni una suscripción.",
       "Datos de suscripción y pago: identificadores de cliente en Stripe, historial de suscripción y metadatos de pago. No almacenamos números completos de tarjeta ni CVV.",
       "Datos técnicos: registros de acceso, direcciones IP, tipo de dispositivo, idioma, cookies esenciales y tokens de sesión para garantizar la seguridad y la experiencia de uso.",
     ],
@@ -30,9 +31,10 @@ const sections = [
     title: "3. Finalidad del tratamiento",
     content: [
       "Prestar el servicio contratado, incluyendo autenticación, control de acceso por roles y mantenimiento de tus academias.",
-      "Procesar pagos y upgrades de plan mediante Stripe u otros procesadores compatibles.",
-      "Generar analíticas agregadas para ayudarte a monitorear desempeño y uso de la plataforma.",
-      "Comunicarnos contigo sobre novedades del producto, soporte y cambios relevantes en los servicios.",
+      "Gestionar las suscripciones SaaS mediante Stripe cuando se habilite la contratación. Las cuotas familiares se registran manualmente y no generan cargos automáticos.",
+      "Mostrar resúmenes operativos a partir de los datos de la academia, respetando los permisos de acceso. No se anuncian evaluaciones automatizadas de personas ni decisiones con efectos jurídicos basadas exclusivamente en perfiles.",
+      "Atender consultas y comunicar incidencias, seguridad o cambios necesarios para el servicio. Las comunicaciones comerciales requieren su base jurídica y opción de oposición o retirada; aceptar las condiciones no implica aceptar publicidad.",
+      "Responder a solicitudes de acceso administrativo en países pendientes y estudiar la necesidad comunicada. La respuesta se atiende manualmente por soporte; enviar la solicitud no garantiza recibir una respuesta automática. Expresar interés o enviar esa solicitud no activa campañas ni suscribe al contacto a avisos de lanzamiento.",
     ],
   },
   {
@@ -40,22 +42,22 @@ const sections = [
     content: [
       "Ejecución de contrato cuando actúas como cliente o usuario autorizado de una academia.",
       "Interés legítimo para mejorar el servicio, prevenir fraudes y garantizar la seguridad de la plataforma.",
-      "Consentimiento explícito cuando lo requerimos para comunicaciones comerciales o integraciones opcionales.",
+      "Consentimiento cuando corresponda para usos opcionales, que podrá retirarse sin afectar a tratamientos anteriores lícitos. Las obligaciones legales fundamentan la conservación exigible. La academia debe determinar e informar de la base jurídica de los datos que incorpora; no se presume que todos esos tratamientos se basen en consentimiento.",
     ],
   },
   {
     title: "5. Conservación y ubicación",
     content: [
-      "Los datos se almacenan en la infraestructura de Supabase (UE) y se conservan mientras mantengas una cuenta activa o exista una obligación legal.",
-      "Podemos anonimizar o agregar información para fines estadísticos una vez finalizada la relación contractual.",
+      "La base de datos productiva está alojada en Supabase en la Unión Europea. Esto no significa que todos los proveedores procesen toda la información exclusivamente en la UE. Los datos de cuenta se conservan durante la relación y después solo en la medida necesaria para obligaciones legales o reclamaciones. Los registros de seguridad se limitan a la finalidad de prevención e investigación de incidencias.",
+      "Los datos operativos de la academia se conservan según sus instrucciones y el acuerdo de encargo. El archivo de una ficha no la elimina. Las solicitudes de devolución o supresión y los ciclos de copias de seguridad deberán quedar concretados en ese acuerdo antes de incorporar datos reales; no se promete un borrado automático al cancelar una suscripción.",
     ],
   },
   {
     title: "6. Compartición de datos",
     content: [
-      "Proveedores esenciales: Supabase, Stripe, Brevo y herramientas de observabilidad necesarias para operar el servicio.",
+      "El inventario de proveedores comprende Vercel (alojamiento), Supabase (base de datos y autenticación), Brevo (integración de correo transaccional preparada), Hostinger Mail (buzón de soporte), Upstash/Redis (control de solicitudes), Sentry (observabilidad) y Stripe (suscripciones SaaS cuando se habiliten). El registro y la recuperación comprobados utilizan Supabase Auth; todavía no se acredita una entrega transaccional de Brevo desde el núcleo. La participación y los datos tratados por cada proveedor deberán concretarse en el inventario y el acuerdo de encargo antes de incorporar datos reales.",
       "Cumplimiento legal: podemos divulgar información si una autoridad competente lo solicita conforme a la legislación aplicable.",
-      "No vendemos datos personales ni los compartimos con fines publicitarios de terceros.",
+      "No vendemos datos personales ni los compartimos con fines publicitarios de terceros. Cuando un proveedor implique transferencias fuera del Espacio Económico Europeo, deberán documentarse el destino y la garantía aplicable antes de ese tratamiento; no se presume adecuación por el mero uso del proveedor.",
     ],
   },
   {
@@ -64,7 +66,8 @@ const sections = [
       "Acceder, rectificar o borrar tus datos personales.",
       "Limitar u oponerte a determinados tratamientos.",
       "Solicitar la portabilidad de la información en un formato estructurado.",
-      "Ejercer estos derechos escribiendo a hola@zaltyko.com, indicando el rol y la academia a la que perteneces.",
+      "La descarga canónica disponible es un paquete parcial de datos operativos, con alcance y exclusiones expresos. Sus hashes comprueban la integridad del contenido del paquete; no demuestran su procedencia ni una devolución integral, y no existe un servicio de restauración acreditado mediante esa descarga. Las fuentes excluidas deben tramitarse por el procedimiento de derechos correspondiente.",
+      "Para datos de tu cuenta o relación con Zaltyko, escribe a hola@zaltyko.com. Para datos que una academia haya incorporado sobre ti, dirige la solicitud a esa academia; Zaltyko le prestará la asistencia que corresponda como encargado. Podrá pedirse la información mínima necesaria para verificar tu identidad. Puedes presentar una reclamación ante la Agencia Española de Protección de Datos (www.aepd.es).",
     ],
   },
   {
@@ -77,7 +80,7 @@ const sections = [
   {
     title: "9. Menores de edad",
     content: [
-      "Zaltyko está pensada para administradores y personal autorizado de academias. No recopilamos datos directamente de menores sin consentimiento de su representante legal.",
+      "El registro público está dirigido a personas que representan academias, no a menores. La academia es responsable de informar a familias y representantes y de contar con la base jurídica que corresponda para los datos de menores que introduzca. Zaltyko no presume que una aceptación del administrador sustituya esos requisitos.",
     ],
   },
   {
@@ -89,7 +92,7 @@ const sections = [
   {
     title: "11. Contacto",
     content: [
-      "Para consultas sobre privacidad o ejercer tus derechos, escríbenos a hola@zaltyko.com o contáctanos desde la sección de soporte en el dashboard.",
+      "Para consultas sobre privacidad o ejercer tus derechos, escríbenos a hola@zaltyko.com, el contacto oficial del titular. Los datos de identificación del titular se muestran en esta página.",
     ],
   },
 ];

@@ -254,10 +254,10 @@ describe("L2 — copy pública presente en componentes", () => {
     const privacy = readSiteFile("src/app/politica-privacidad/page.tsx");
     expect(terms).not.toContain("Zaltyko S.L.");
     expect(privacy).not.toContain("Mentes SaaS S.L.");
-    expect(terms).toContain("Zaltyko se reserva");
+    expect(terms).toContain("Podemos suspender o cancelar cuentas que infrinjan estos términos.");
     expect(privacy).toContain("operada bajo la marca Zaltyko");
-    expect(terms).toContain("26 de octubre de 2026");
-    expect(privacy).toContain("26 de octubre de 2026");
+    expect(terms).toContain("6 de noviembre de 2026");
+    expect(privacy).toContain("6 de noviembre de 2026");
     // Both documents must expose the same actual seller and pending-status notice.
     expect(terms).toContain("<SellerIdentification />");
     expect(privacy).toContain("<SellerIdentification />");

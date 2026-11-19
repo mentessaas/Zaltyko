@@ -127,3 +127,10 @@ Todo cambio de copy publico debe revisarse contra [[Inventario de producto]] y [
 ### Vendedor y precios — declaración humana26oct2026
 
 Promotor y futuro titular: Elvis Valdes Inerarte, España; no afirmar alta de autónomo hasta que sea efectiva. Correo oficial hola@zaltyko.com (recepción/respuesta pendiente de comprobación). Precios base sin IVA. Información legal aún en preparación y contratación Live cerrada; nunca publicar NIF/domicilio ficticios ni totales fiscales no confirmados.
+
+
+## Revisión estática de acceso de equipo — 2026-11-05
+
+En el candidato `ac3ab001`, Owner mantiene perfiles en Personal sin cuenta, invitación ni acceso; la dirección gestiona la operativa. No se ofrece todavía invitación canónica `manager`/`coach`, alcance por sede ni asignación canónica de entrenadores. El flujo `/dashboard/users` y las asignaciones por `coachId` son legacy y no deben presentarse como sustitutos.
+
+La revisión encontró esos claims en fuentes de copy; `SocialProofSection` está retirada de la portada actual según `tests/audit/public-claims.catalog.test.ts:173-177`, y la página de clases no se verificó en runtime. Se preparó una corrección en el worktree aislado `Zaltyko-team-copy-reality-20261105`; no está integrada ni publicada. Mantener el acceso/asignación de entrenadores «en preparación», las cuotas/pagos como manuales y la creación/gestión de fichas sin prometer importación. Evidencia: `auditorias/2026-11-05/team-self-service-readiness.md`.

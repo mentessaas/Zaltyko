@@ -8,6 +8,32 @@ source:
 ---
 
 
+## 2026-11-05 — Publicación df73 y cuota MXN recuperada
+
+**Cierre posterior08:24UTC:** Backend concilió ambos exports: hashes/scope PASS,38filas previas idénticas y33altas esperadas; cadena financiera única sin parciales. Owner+QA corrigieron Cobros en608a53bb; revisión estática independiente final sin bloqueos. CI principal41991471249 y aislada41991514265 SUCCESS,5670unitariasPASS/6skip, ambosbuilds,3casos por motor y RequiredGate; Static/Directory/GitGuardian exactosSUCCESS. Cinco jobs condicionales principales y dos propuestas aisladas omitidos. PR actual REVIEW_REQUIRED; sin nueva publicación. Artefacto df73 conserva el fallo visual alojado hasta aprobar/publicar el parche y medirlo. Borradores legales/vault/matriz preservados fuera del commit. Fuente externa manual-payment-width-608a53bb-status.md.
+
+**Hallazgos:** aprobación exacta de elvisvaldes07:13UTC; df73ad3b publicado solo en entregas como dpl_As1F6hwJFAVETGkXMzW1oab8G5bx. Aislamiento/240tests/tipos/build245526ms/artefacto0faltantes/healthDB PASS. Alias delivery comprobado; protección y despliegue anterior conservados. Producción/Live/ensayo sin cambios.
+
+Sesión existente Owner México: export200 propio con hashes46tablas/bundle, scope y fechasISO comprobados; export hacia QA A404sinarchivo. Personal: respuesta201 perdida trascommit, recuperación en carga nueva con mismobody/key y recibooriginal200, una ficha; edición/archivo/reactivación/archivo final confirmados. La primera recarga de Personal fue bloqueada: no se la presenta como realizada. Cuota diciembre35025MXN y pago parcial12550MXN; pérdida de respuesta, recarga REAL1Document/0POST, reintento exacto y saldo22475; dashboard1cobro12550MXN. Snapshot final financiero en conciliación local separada. Solo fixtures sintéticas de entregas y sin SQL.
+
+**Fallo vigente:** Cobros recorta formulario con referencia larga a375/768. doc.scrollWidth igualviewport no basta: FORM892.5px a375 y916.5a768; h1/select/inputs salen de su contenedor. No declarar móvil completo. Owner corrige solo presentación; QA añade geometría de elementos/controles a375/768/1280. Nueva CI remota/revisión pendientes; no tests/builds/servicios locales.
+
+**Fuente:** auditorias/2026-11-05/delivery-df73ad3b-publication.md, export-df73ad3b-hosted-file-check.md, payments-df73-clipping-geometry.json y capturas. **Importancia:** separar publicación/finanzas correctas del defecto visual demostrado. **Siguiente paso:** cerrar regresión y controles del nuevo candidato; después aceptar solo lo afectado. Contratos/SQL, fiscalidad/Live, Brevo de aplicación y procedimientos integrales de datos siguen pendientes.
+
+## 2026-11-05 — Corte nocturno: candidato verde y cierres separados
+
+CI del SHA `bd022b63499749ff0dce7e8338b53b0d57f54c77`: principal41938034058 y aislada41938063876 SUCCESS, incluidos ambos builds y Chromium/Firefox/WebKit. Unitarias5526PASS/3skip; Static41938034070, Directory41938034154 y GitGuardian SUCCESS. Replay canónico41938024719 SUCCESS. Los cinco jobs omitidos de la principal no se cuentan como verificados. PR234 requiere nueva revisión externa exacta; preview de entregas conserva64dc9381. No se ha publicado este candidato ni tocado producción/Live/ensayo.
+
+El ensayo experimental independiente41941485318, SHA030a3a87, inventarió pg_dump/pg_restore17.11: dos jobs SUCCESS y cuatro SKIPPED. No ejecutó dump, SQL ni restore. Backend prepara ahora una fase sintética con dos bases nuevas en GitHub, archivo cifrado y comprobación de ledger/ACL; sigue sin ejecutar. No representa recuperación productiva, Storage ni RPO/RTO.
+
+Se conciliaron evidencias de correo: recuperación Auth recibida y confirmación de alta QA México histórica64dc, separadas de Brevo. Dominio/remitente Brevo autenticados; entrega API de aplicación aún no acreditada. Recibos ofrecidos como PDF, sin promesa de email. Soporte manual bidireccional comprobado; suplencia humana pendiente.
+
+La revisión detectó montaje global de SDK opcionales y Google Ads condicionado a ID sin gate común de consentimiento. Owner prepara un parche aislado desde bd022b63, sin activación de proveedores ni cambios en Sentry o métricas first-party del servidor. No se afirma emisión real o filtración: no se inspeccionó configuración runtime. QA revisa además el recorrido real de incorporación de personal canónico; fixtures de rol no equivalen a autoservicio.
+
+Preflight sin importación de Upgrade:1403elementos/561referencias de vídeo;471con vínculo a gimnasta; no se copiaron datos ni medios. El normalizador requiere separar identidad/reglas/medios y elegibilidad de publicación; no se acreditan licencias. Fuente durable `/Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-11-05/upgrade-catalog-import-preflight.md`.
+
+Documentación vigente del corte en auditorías5nov: bd022b63-candidate-green, acceptance-and-opening-index, inventario de backup, revisión pública de siete proveedores, paquete contractual legible/manifiesto, correo y preflight Auth/Storage. Borradores legales siguen locales/no aprobados; SQL contractual940c0154… sin aplicar. Cero builds/tests/instalaciones/servicios en Mac. Cambios de vault conservados locales, sin commit ni nuevo CI por documentación.
+
 ## 2026-10-27 — APT mirror-file en runners de navegadores
 
 CI40417855338: Chromium/Firefox y5146 unitarias PASS(3skip); WebKit cancelado al límite30min durante instalación, sin ejecutar E2E. Logs muestran mirror+file:/etc/apt/apt-mirrors.txt y descargas Azure; el helper previo no contemplaba esa indirection y no imprimió cambio. Se añade reescritura acotada del archivo de mirrors y descubrimiento de fuentes .list/.sources, sin modificar firmas/suites/componentes/repositorios ajenos. Regresión de mirror-file con metadata, comentarios, lookalikes e idempotencia pendiente de CI remota; no pruebas/build locales. Sin despliegues, producción ni ensayo. Monitor9a0 cerrado por fallo terminal; nuevo candidato requerirá todos los gates y revisión externa.
@@ -12922,3 +12948,935 @@ Aprobación externa exacta y CI completa SUCCESS (tres navegadores sintéticos).
 ## 2026-10-27 — QA A actual y corrección móvil demostrada
 
 QA A humana enab067043: resumen30/3/1/3pagos70EUR,usageFree30/3/10,2inscripciones activas,Presente persistido,cuota35EUR noviembre impide duplicado y cobros sin pendientes. Lecturas ajenas denegadasNOT_FOUND/403; no se atribuyen escrituras/snapshots actuales. A375px no hay scrollhorizontal pero capturaCDP demuestra solapamiento de Inscripciones/Asistencia. Se corrige grid móvil3columnas bajo640/6desde640, alineación de objetivos y etiquetas completas; nuevo E2E remoto mide texto contenido,44pxmínimo y nointersección. PendienteCI/revisión/publicación,ab067preview intacta. Sin producción/ensayo/builds locales. Matriz vigente del corte docs/qa/essential-release-current-2026-10-27.md separa gates técnicos, ensayo natural y bloqueos vendedor/fiscal/Live. Nota anterior de publicación se incorpora sin reescribir historia.
+
+## 2026-10-27 — Lecturas adicionales durante CI móvil
+
+8dff9c33 CI40493366088 pendiente; no deployment nuevo. En previewab067 QA A GET familias orgA/sedeB403,orgB/sedeB403, sin sede400. GET cobros deB403. No escrituras negocio ni evidencia nueva de ausencia de parciales; matriz de roles/dos sedes pendiente. Fuente auditorias/2026-10-27/delivery-ab067043-additional-read-checks.md fuera del checkout. Ensayo/producción/Stripe/correo/SQL intactos, cero builds/tests locales. Nota sin commit conserva candidatoCI.
+
+
+## 2026-10-27 — preview móvil 8dff9c33 publicada y comprobada
+
+Aprobación exacta y gates CI completos. Delivery alias pasa a dpl_6DS35QNxp4AAQB27FKF7hSgVH2kb; remoto226tests/tipos/Next155012ms/297páginas/artefacto sin faltantes/healthDB84.7ms. Scopes42 restaurados. QA A móvil375/768/escritorio1280 sin solapamiento, Más→Plan mantiene contexto; Free30/3/10. Denegaciones GET academia/sede ajena verificadas. No escrituras ni prueba de ausencia de parciales esta ronda. Evidencia: auditorias/2026-10-27/delivery-8dff9c33-mobile-validation.md fuera del checkout. Producción y ensayo sin consultar/modificar; cero builds locales.
+
+
+## 2026-10-27 — escrituras cruzadas y concurrencia alojadas8dff9c33
+
+QA A→B POSTgroups403; sedeB404; programaB422. Snapshots79tablas×2: sin cambios de negocio; única auditoría denegada B contrastada. Dos altas de grupo en paralelo con cupo3/3 devuelven409ambas sin diferencias158pares. No equivale a última plaza libre ni reintento tras éxito. Roles existentes solo Owner; autorización solicitada para fixtures restringidas y segunda sede de entregas. Evidencia fuera checkout: auditorias/2026-10-27/delivery-8dff9c33-cross-write-concurrency.md y JSONsnapshots. Ensayo/producción intactos; sin builds locales ni cambios de código.
+
+Ampliación alojada8dff: POSTclase sedeB403, solo auditoría location_scope contrastada; clase11 propia409, cero diferencias158pares. No clases/horarios/sesiones parciales en conjunto observado.
+
+Gimnasta31 rechazado409 desde alta y pertenencia, grupo3/10pero academia30/30; snapshot158pares idéntico. Límites31/4/11 acreditados sobre8dff; archivo/desbloqueo no repetido.
+
+
+## 2026-10-27 — segunda sede QA autorizada, cuenta limitada preparada
+
+Sede02f2c58a-eae3-435c-aab0-71c167c71fcc creada solo QA A tras guard; ambosOwnersactive/all eupdated_at intactos. Owner accede y resumen sedevacía0. Registro aliasdelivery-limited20261027 preparado, passwordvacío/condiciones sinmarcar, sin cuentaAuthnueva todavía. Sesión localQA A cerrada normalmente para registro. Pendientehumano contraseña/aceptación/confirmación; despuésmembershipmanagerselectedsolo nueva sede. Fuente auditorias/2026-10-27/delivery-restricted-fixture-preparation.md. Sin producción/ensayo/buildlocal.
+
+
+## 2026-10-27 — cuenta limitada confirmada y asignada
+
+Auth confirmada12:06:55UTC; membresía manager/active/selected y una única sede02f2c58a creada transaccionalmente en sandbox por autorización humana. Owners A/B y timestamps intactos. Enlace posteriormente otp_expired; sin reenvío ni confirmación administrativa. Login humano pendiente; no afirmar roles HTTP comprobados. Fuente auditorias/2026-10-27/delivery-limited-role-validation-2026-10-27.md fuera checkout. Producción/ensayo excluidos, sin builds locales.
+
+
+## 2026-10-27 — roles limitados autenticados y bloqueo funcional
+
+Manager humano solo ve nueva sede; sedeoriginal/academiaB/GimnastasOwner denegados en UI. Dos POSTarchivo403 con snapshots79tablas×2 por intento: sin registros negocio parciales; único auditB contrastado excluyendo ID916edb56. Formulario nueva sede bloqueado porque usage exige Owner; pendiente corrección sin ampliar permisos comerciales y validación positiva manager. Evidencia delivery-limited-role-validation-2026-10-27.md y snapshots fuera checkout. Sin producción/ensayo/build/deploy.
+
+
+## 2026-10-27 — corrección manager: política operativa mínima
+
+Causa alojada: cabecera consultaba /saas/usage exclusivo Owner, bloqueando manager de sede. Nueva lectura /owner/operational-policy valida identidad, academia y sede con resolveOwnerScope, aplica rate limit y calcula snapshot repetible solo lectura; devuelve únicamente readOnly/planCode sin contadores ni recursos comerciales. Cabecera usa esa lectura; Checkout/Portal/regularización/archivo comercial y sus guards intactos. Regresiones servidor y cliente añadidas para proyección mínima, denegaciones, rate limit, error recuperable y readOnly global. CI remota pendiente; no tests/builds locales. Pendiente revisión exacta, publicación delivery y permitido/denegado autenticados; no afirmar fix desplegado. Ensayo/producción excluidos.
+
+
+## 2026-10-27 — manager49ac publicado y escritura por sede acreditada
+
+Delivery dpl_9e4UrHu8Rit4QbZCwSRMSVPkWeH3 READY/SHA49ac;14checks,226tests,tipos/buildremoto360s/artefactoPASS,healthDB106.4ms.42ámbitos env reasignados temporalmente para capturadeployment y restauradosverificados;no duplicaciónpermanente. Políticaoperativa200mínima;comercialOwnerFORBIDDEN. Manager crea grupoen sedeasignada201,un grupo/audit/outbox; sedeoriginal403con158paressin cambios y academiaB403sinnegocioparcial,sóloauditdenegacióncontrastadohash. Fixture vacío original archivado temporalmente y restaurado; grupo nuevo archivado en limpiezatransaccional,3activos;sinborrados/cambiosroles/plan. Captura demuestra persistencia tras recarga. Evidencia auditorias/2026-10-27/delivery-49ac5e43-manager-validation.md y snapshots fuera checkout. Ensayo runtime/datos yproducción no consultados/modificados; sí scopesefímerosrestaurados. Sin builds/testslocales. Esta prueba cubre creación degrupos,no todaslasrutas/MVP.
+
+## 2026-10-27 — recorrido Owner alojado y límites49ac
+
+Sesión humana OwnerA. Archivo UI de atleta QA04 conserva historia; alta nueva854551cd/familiae797f3ae, tutor/pagador, asignación a grupo existente e inscripción activa a clase existente confirmados. Asistencia sintética de sesión futura1nov guardada; no cuenta en resumen de octubre. Octubre bloquea mes incompleto sin prorrateo; noviembre emite35EUR201 y anota pago manual sintético201. Persistencia factura/cargo paid; processor nulo. Resumen4cobros105EUR,30atletas/3grupos. Sin dinero externo. Atleta31/grupo4/clase11 devuelven409 y158pares idénticos por intento. OwnerA→B clase403,solo auditdenegación; hash excluyendo ese registro coincide. Evidencia fuera checkout auditorias/2026-10-27/owner-49ac-essential-journey.md y snapshots/captura. No producción/ensayo ni builds/tests locales ni nuevo despliegue/commit; conserva cambios previos.
+
+
+## 2026-10-27 — Recuperación de ficha: autobloqueo detectado
+
+Hallazgo: respuesta PATCH 200 perdida deja deshabilitado el reintento de la propia ficha en delivery 49ac. Corrección a2adb3c7 y dos regresiones integradas enviadas a CI remota 40580404288, pendiente; no PASS local ni publicación. Fuente: auditorias/2026-10-27/owner-49ac-lost-response-blocker.md en raíz Zaltyko. Importancia: bloquea cierre de respuesta perdida. Siguiente paso: CI, revisión externa y replay autenticado con la misma clave; conservar operación pendiente. Producción y ensayo intactos.
+
+
+## 2026-10-27 — Lectura de cobros entre academias de entregas
+
+Hallazgo: sesión OwnerA denegada en cobrosB; 157/158pares idénticos y solo dos auditorías de denegaciónB. Excluidas ambas filas, hash previo idéntico. Fuente: auditorias/2026-10-27/owner-49ac-cross-payments-denied.md en raíz Zaltyko. Importancia: aislamiento representativo sin cambios de negocio. Siguiente paso: CI a2adb3c7 pendiente y replay alojado tras revisión/publicación; no se ha cerrado concurrencia. Ensayo/producción intactos y ningún build local.
+
+
+## 2026-10-27 — CI recuperación: ajustes de aislamiento de pruebas
+
+Hallazgo: a2adb3c7 unitarias5159PASS/3FAIL/3skip; selector Nombre ambiguo y mocks one-shot no reseteados. Fuente: job122457937332 y auditoría owner-49ac-lost-response-blocker.md. Importancia: bloquea aprobación. Siguiente paso: gates remotos85dda60e (CI40582097152), mismos controles/aserciones; seguimiento actualizado. No cambios de preview, ensayo o producción ni builds/tests locales.
+
+
+## 2026-10-27 — Cobros y cuotas: sede ajena en academia propia
+
+Hallazgo: OwnerA conorgA/sedeB denegado en payments y monthly-invoices. Snapshot158pares antes/después por navegación:solo2auditorías cadauna, sin cambios negocio, hashes previos recuperados excluyendoIDs exactos. Fuente: auditorias/2026-10-27/owner-49ac-mixed-site-denied.md en raíz Zaltyko. Importancia: control de ámbito representativo. Siguiente paso: CI85dda60e y pruebas de concurrencia/replay aún pendientes; no equivalen a estas lecturas. Sin producción/ensayo/build local.
+
+
+## 2026-10-27 — Concurrencia PostgreSQL remota del candidato
+
+Hallazgo: disparado workflow existente ci-isolated schema-replay40582774756 sobre85dda60e exacto; pendiente. Fuente: auditorias/2026-10-27/remote-postgres-concurrency-85dda60e.md en raíz Zaltyko. Importancia: diez suites PG sobre DB efímera GitHub, sin credenciales externas ni fixtures del ensayo. Siguiente paso: resultado CI y replay; no heredar validación HTTP alojada. Sin cambios de código/SHA/preview ni builds locales.
+
+
+## 2026-10-27 — Delivery85dda60e publicada
+
+Hallazgo: dpl_86cm5QkmoHhRC6FvQWPs1D2MJaEG READY y aliasdelivery confirmado;226tests/tipos/Next191991ms/artefactoPASS,healthDB135.61ms.42ámbitos restaurados. Fuente: auditorias/2026-10-27/delivery-85dda60e-validation.md. Importancia: corrección disponible. Siguiente paso: humano recarga pestaña37 y confirma beforeunload para ejecutar replay original todavía NO VERIFICADO, sin borrar marcador. Sin producción/ensayo/buildlocal.
+
+
+## 2026-10-27 — Asistencia: rechazo403 frente a respuesta perdida
+
+Fix acotado: primer403 tipado forbidden/location-scope-denied libera la intención y muestra detail; si existe resultado previo incierto conserva cuerpo/clave incluso tras403. No cambia auth, roles, límites ni servidor. Regresiones UI amplían400 a400/403 con/sin recarga y helper rechaza envelopes inconsistentes. Pruebas/build solo CIremota; resultado pendiente, preview sigue85dda60e. Evidencia origen manager-85dda-enrollment-attendance.md. Producción/ensayo intactos.
+
+
+### 28oct — preview90c4ba7e y asistencia
+Aprobación exacta y CI completa verificadas. Delivery dpl_36BXP4k36B6Y7hLHnDXpH8kUowVg publicada; build remoto230194ms,226 controles/tipos PASS y variables restauradas. Manager403 real muestra acceso denegado, no respuesta perdida;158 snapshots idénticos. Guardado permitido y restauración Presente sin fila duplicada; QA B intacta. Evidencia: /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-10-28/delivery-90c4-attendance-validation.md. Producción/ensayo excluidos; MVP público aún NO-GO.
+
+
+### 28oct — cierre acotado candidato90c4
+Owner QA A iniciado por humano. Dashboard y pagos manuales persistidos:4/105EUR,3grupos; cuota noviembre35EUR ya facturada y segunda emisión bloqueada. Respuesta de asistencia201 perdida controladamente: UI incierta/replay misma clave y cuerpo,158 snapshots idénticos tras replay; restaurado Presente. Mobile asistencia375/768/1280 sin overflow y geometría sin intersección; no cobertura visual universal. Matriz finita consolidada en /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-10-28/mvp-final-candidate-status.md. Faltan cierre alojado del recorrido/matriz final, roles/rutas restantes, concurrencia financiera alojada y revisión móvil completa; producción/Live/fiscalidad y terminal del ensayo independientes. Sin nuevas credenciales ni pruebas/builds locales ni consultas producción/ensayo.
+
+
+### 28oct — concurrencia financiera y límites 90c4 comprobados
+Dos emisiones concurrentes200/201 producen una cuota diciembre35EUR; dos pagos completos201/409 producen un único pago/asignación manual. Rechazos31/4/11:158 parejas tabla/academia idénticas por intento. UsageFree30/3/10 editable; B intacta. Evidencia: auditorias/2026-10-28/concurrency-limits90-validation.md y snapshots asociados. Tres chats existentes revisaron contratos/Owner/límites. Pendiente prioritario: recuperar pago parcial incierto al cerrar/cambiar pestaña; emisión tras reload y getter sessionStorage con error visible. No declarar MVP cerrado. Sin producción/ensayo/build local ni cambio de HEAD. La cuota/pago sintéticos se conservan; el corte anterior4pagos/105EUR es histórico.
+
+
+### 28oct — recuperación financiera 4ebabdd7 en CI remota
+Correcciones integradas de los chats Backend y Owner; QA readonly independiente pendiente de dictamen final. Pagos: marcador durable por hash de actor/academia/cargo, Web Locks entre pestañas, referencia solo hash, reintento explícito misma clave/cuerpo, fallo cerrado de storage/locks y saldo obsoleto bloqueado. Emisión: intención persistida antes POST en sessionStorage, recuperación tras reload sin replay automático y limpieza exclusiva del comando confirmado. Nuevo actorId proviene de usuario verificado en página servidor, no amplía roles. Regresiones añadidas, NO ejecutadas en Mac. Commit4ebabdd76ee021aebde05349fa85f9f16e425efa publicado en PR234; CI40652761539, Static40652761522 y Directory40652761617 activas. Sin SQL, producción, ensayo, proveedor ni deploy. Preview sigue90c4; no afirmar corrección alojada hasta review/gates/publicación/replay. Pendiente CI completa y QA independiente.
+
+
+## 28 octubre — recuperación financiera 3126614b
+Backend, Owner y QA cerraron recuperación tras recarga, v1 explícito y regresión de contención. CI remota40654152636 iniciada, sin gates rebajados. Pendiente resultado completo y runtime; preview90c4 conservada. Evidencia auditorias/2026-10-28/financial-recovery-3126614b-status.md fuera del checkout. Sin producción ni ensayo ni builds locales.
+
+
+### 2026-10-28 — Preview 71fa01d6 y recuperación financiera
+
+Publicado únicamente delivery, dpl_6sbwyTwNQZfp99br5u2xJoXUwTmZ. Emisión tras respuesta perdida/recarga conserva cuerpo y clave, una factura3500; pago parcial idem conserva1250, una asignación y saldo2250. Segunda pestaña con saldo antiguo bloquea antes del POST. Snapshots158pares idénticos por reintento. Nuevo defecto visual: formulario recuperado mostraba saldo2250 como importe aunque reintentaba1250; ajuste Owner y revisión QA en curso. Evidencia: /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-10-28/delivery-71fa01d6-validation.md. Sin producción/ensayo/builds locales. MVP aún no cerrado.
+
+
+## 2026-10-29 — Credencial exclusiva de entregas autorizada
+
+Hallazgo: el candidato43776a65 exige el usuario de conexión del ensayo y la rama de entregas carecía de conexiones propias. Con autorización humana se creó zaltyko_delivery_server_v1 solo en sandbox aeeootdmuiqkfeernskw, sin superusuario/creación de roles/bases/replicación, con el mismo servicio servidor existente. Rol anterior intacto. Tres conexiones guardadas como secretos exclusivos preview/rama de entregas. Login remoto psql con sslmode=verify-full PASS; pg_stat_ssl refleja la conexión posterior del pooler, no el TLS cliente. No escrituras de negocio.
+
+Cambio: preflight exige usuario de entregas en delivery y conserva usuario anterior fuera de delivery; regresiones rechazan credenciales cruzadas. Pruebas y build locales NO ejecutados. CI remota pendiente del commit nuevo. No se publicará43776a65 sin este ajuste ni se relajarán gates. Alias sin mover, ensayo/producción intactos. Secretos adicionales Stripe test/Redis y service-role aún deben recuperarse desde sus fuentes autorizadas; no se heredan valores globales compartidos.
+
+
+## 2026-10-29 — CI36a62ad4 y propuesta de mínimo privilegio
+WebKit y CI40856498675 SUCCESS; GitGuardian FAILURE: un hallazgo en historial PR, sin extraer valores. REVIEW_REQUIRED persiste; E2E autenticados omitidos, no acreditados. Propuesta NO APLICADA en /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-10-29/delivery-minimum-privilege-proposal.md: inventario previo, rol sin service_role/BYPASSRLS condicionado a compatibilidad/RLS, separación Auth/webhook y Redis. No configuración, SQL remoto, despliegue, alias, producción, ensayo ni builds locales en esta revisión.
+
+
+## 2026-10-29 — GitGuardian36a62ad4 resuelto
+Incidente39258819: fixture sintética test línea22; clasificado falso positivo con evidencia. Re-run oficial sin Skip/exclusiones produce check123409643500SUCCESS. SHA intacto, CI completa SUCCESS, PR actualizada lista para revisión humana. Otros incidentes históricos fuera de alcance no resueltos. Evidencia: /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-10-29/gitguardian-36a62ad4-resolution.md. Sin permisos mínimos aplicados, producción/ensayo/builds locales ni despliegue.
+
+
+## 2026-10-29 — Stripe test y revisión aprobada
+APPROVED36a62ad4 exacto confirmado. Cuatro precios test existentes leídos y guardados solo Vercelpreview/rama entregas. Endpoint test solo lectura, intacto. Acceso Dashboard de Elvis requiere segundo factor humano; pestaña conservada sin solicitar código por chat. Sin nuevas cuentas, permisos mínimos aplicados, producción/ensayo/builds locales ni deployment. Evidencia delivery-exclusive-credential.md.
+
+- 2026-10-29:36a62ad4 publicado solo delivery preview,dpl_8wifz8VRcdVn2NVKVkEfK4c1HCvZ;14preflight/226tests/tipos/298páginas remotosPASS,health200,OwnerQA A abre en navegador chat. Anterior conservado. Sin producción/ensayo ni permisos mínimos. Webhook test conserva relay original; eventos delivery NO VERIFICADOS. Evidencia auditorias/2026-10-29/delivery-36a62ad4-deployment.md.
+
+## 2026-10-29 — validación Stripe entregas36a62
+Cuenta/precios/Portal test verificados solo GET; Owner QA A lee Free30/3/10 y precios sin IVA. Dos POST negativos al webhook delivery devuelven500WEBHOOK_NOT_CONFIGURED antes de procesamiento; no snapshotSQL ni prueba de firma válida. Relay existente v1 leído, intacto: envía todos los SaaS marcados al ensayo; deduplicación compartida cuenta/entorno/evento impide atribuir un nuevo pago a delivery con segundo endpoint. Ningún Checkout/evento/replay emitido. Solicitada autorización para sandboxStripe separado y claves solo delivery; no creado ni permisos mínimos aplicados. Plan y matriz de cierre: /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-10-29/delivery-stripe-validation-and-mvp-gap.md. Producción/ensayo sin cambios; cero builds/tests locales.
+
+## 2026-10-29 — sandbox Stripe exclusivo de entregas creado
+Con autorización explícita humana: Zaltyko Entregas QA20261029 acct_1UVtpNDdRiQuy2QT creado vacío, sin copiar Live;2productos/4precios19/190/49/490EURexclusive activos test; Portal bpc_1UVtqlDdRiQuy2QTVP8mYmSd test/default/cancelación finperiodo. Claves iniciales guardadas sensitive en Vercel solo preview/rama entregas y publicableplain; metadata de cuenta/precios actualizada. Firma anterior eliminada solo de variable delivery para bloquear despliegue mixto; runtime actual sin cambios. Ningún pago/Checkout/subscripción/evento SaaS ni despliegue nuevo. Pendiente autorización concreta acceso temporal7días al alias delivery para relay independiente; no protección debilitada ni accesos creados por inferencia. Contrato/referencias/siguiente paso: /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-10-29/delivery-stripe-isolated-sandbox.md. Sin producción/ensayo ni builds/tests locales; propuesta mínima NO aplicada.
+
+
+## 2026-10-29 — Stripe aislado y relay de entregas
+Acceso autorizado solo alias delivery hasta 5nov14:14:33UTC, sin renovación. Relay saas-delivery-webhookv1 creado con firma/test/allowlist QA A/B/destino fijo; POST sin firma400 y canje Vercel307/cookie comprobados. Firma guardada solo preview/rama y sandbox. Deployment36a62ad4 bloqueado por preflight cuenta antigua, alias sin mover. Parche98c48d68 exige nueva cuenta solo delivery, conserva cuenta ensayo fuera delivery y añade rechazos cruzados. CI remota pendiente; pruebas locales no ejecutadas. Checkout/transporte auténtico/grant NO VERIFICADOS. Evidencia auditorias/2026-10-29/delivery-stripe-relay-setup.md. Permisos mínimos sin aplicar, producción/ensayo intactos.
+
+
+## 29 octubre: publicación 98c48d68 y bloqueo de concesión Stripe test
+
+### Hallazgos
+- Aprobación externa exacta verificada. Delivery READY dpl_AYtHnvAZarwGWyHccc8yHjRR6HTU; alias de entregas actualizado. Build solo remoto: 14 preflight, 226 tests, tipos y artefacto PASS; Next 218999 ms bajo 360 s. Health DB 200. Despliegue anterior conservado.
+- Checkout auténtico de Starter mensual en cuenta aislada acct_1UVtpNDdRiQuy2QT completado con tarjeta sintética test, EUR 1900 céntimos. Nunca dinero real. Checkout ofrecía USD adaptativo inicialmente; se seleccionó EUR explícitamente. Moneda determinista pendiente.
+- checkout.session.completed procesado con firma válida. invoice.paid evt_1UW0mRDdRiQuy2QTbPqelU69 falla; acceso QA A sigue Free/revisión 1. No segunda compra ni grant manual.
+- PostgreSQL registra SQLSTATE 23505: duplicado de organización/revisión 2. Trigger canónico organization_entitlements_revision_history ya inserta historial; grantOrganizationEntitlement volvía a insertarlo. Transacción revertida: historial persistido conserva solo revisión 1. Permisos UPDATE/INSERT comprobados presentes; no se ampliaron.
+- Parche elimina el INSERT redundante de aplicación y conserva el trigger canónico. Regresión unitaria modela el trigger y prohíbe INSERT adicional; nueva integración PostgreSQL desechable comprueba concesión e idéntico replay con una sola revisión.
+
+### Fuente
+Logs PostgreSQL sandbox 21:22–21:24 UTC, lecturas SQL acotadas a QA A, eventos firmados y deployment exacto. Código y pruebas versionados por separado de este registro.
+
+### Importancia
+NO-GO público: pago test no acredita acceso hasta corregir, pasar CI/revisión, publicar y reprocesar el evento auténtico existente. No se alteraron producción ni ensayo; cero builds/tests locales.
+
+### Siguiente paso
+CI remota completa y replay PostgreSQL desechable; revisión externa del nuevo commit; publicación delivery y reentrega auténtica del mismo invoice.paid, comprobando concesión única. Propuesta de permisos mínimos sigue SIN aplicar.
+
+
+### Verificación remota posterior — 50782f98
+Replay PostgreSQL desechable 40958114038 SUCCESS. Script ejecuta la suite saas-capacity-postgres.integration.test.ts que incorpora la regresión grant/replay con triggers canónicos, además de aislamiento RLS de 28 tablas, ACL, dos academias, escrituras/rollback y guards del baseline. Logs de integración se ocultan salvo fallo; no se afirma un conteo individual no expuesto. CI general 40958091648 sigue activa; GitGuardian, Static, Directory, RLS, integridad SQL, seguridad y móvil PASS al corte. No publicación adicional ni reentrega todavía. Seguimiento silencioso separado creado: zaltyko-ci-concesi-n-stripe-50782f98.
+
+Seguimiento del candidato 50782f98: lint/tipos PASS; build, unitarias y Chromium activos, Firefox/WebKit en cola al corte. Preparado protocolo de reentrega de factura existente, concesión única y pendientes de moneda/firma en auditorias/2026-10-29/delivery-stripe-next-validation.md del directorio raíz. Sin cambios adicionales al código ni al HEAD durante esta comprobación.
+
+
+## CI 50782f98: fallo de fixture HMAC y corrección determinista
+Hallazgos: 5197 unitarias PASS/1 FAIL/3 skip. Único fallo onboarding-email-link-token: sustituir dos caracteres finales por AA podía no cambiar la firma aleatoria. El verificador HMAC no cambió. La prueba nueva decodifica 32 bytes, invierte un bit en bytes 0/15/31, verifica que el token difiera y exige INVALID_SIGNATURE en cada caso. Se conservan las aserciones originales y se amplía cobertura. Replay PostgreSQL del parche funcional SUCCESS; nuevo SHA requiere sus propios gates y replay remotos. No builds/tests locales.
+Fuente: job123743390761/run40958091648, lectura directa de logs del job terminal. Importancia: no reiniciar al azar para esconder un test no determinista. Siguiente paso: push del ajuste exclusivamente de test, CI completa y replay aislado exactos; aprobación externa después de gates. Preview permanece98c48d68; no reentrega ni compra adicional.
+
+29oct: índice de cierre consolidado en auditorias/2026-10-29/mvp-closeout-current.md del directorio raíz. Separa evidencia histórica90c4/71fa del candidato9ec y preview98c; prioriza concesión SaaS, moneda/firma y validación final. NO-GO público; no nuevas pruebas alojadas, cambios de código, producción ni ensayo en esta revisión documental.
+
+
+## Candidato9ec408ec listo para revisión externa
+CI40959435678 COMPLETED/SUCCESS, incluidos Chromium/Firefox/WebKit y gate agregado,5200unitariasPASS/3skip,build,lint/tipos,seguridad/móvil/RLS. Replay40959465812SUCCESS exactoSHA;Static40959435724/Directory40959435775/GitGuardianSUCCESS. Jobsomitidos NO acreditan E2Eauth/public/readiness/smoke/Lighthouse. PR234 head9ec exacto,REVIEW_REQUIRED. CuerpoPR actualizado sin cambiarhead. SeguimientoCI eliminado tras éxito, seguimientoensayo intacto. Preview98c sin modificar; reentrega/concesiónStarter siguen pendientes. Hace falta aprobación externaelvisvaldes delSHA actual, no autorización implícita ni autoaprobación.
+
+
+## Resultado 29oct22:23UTC — 9ec408ec publicado y pago recuperado
+
+Deployment dpl_DQ8ZXbzYvbFhFiFJYGxuMsifT1ZC READY, alias de entregas asignado tras health200/databaseok109.88ms y login200. Build Next275191ms bajo360s,298páginas,226tests/13archivos y tiposPASS; artefacto missing0/CApresente. Deployment anterior dpl_AYtHnvAZarwGWyHccc8yHjRR6HTU conservado. Acceso shareable-link conserva createdAt1793283273409, sin renovar ni desactivar protección.
+
+Reentrega desde Stripe UI del evento auténtico evt_1UW0mRDdRiQuy2QTbPqelU69 a endpoint exclusivo we_1UVu78DdRiQuy2QTu2hjjXc9: HTTP200/FORWARDED22:22:42UTC. Persistencia signedtrue/processed/errornull/attempts3. QA A pasa Free/bootstrap/rev1 a Starter/stripe_subscription/rev2, effective_until2026-11-29T21:22:36Z coincidente con periodo de factura. Historial solo rev1+rev2. QA B conserva Free/bootstrap/rev1. Segunda entrega22:22:51UTC HTTP200/FORWARDED: mismas revisiones/historial/periodo; no segundo grant. No compra adicional ni grants administrativos.
+
+UI autenticada tras recarga: Starter Activa/rev2,30/75gimnastas,3/5grupos,10/20clases y periodo29nov. Sesión Portal creada desde Gestionar suscripción; enlace Abrir portal seguro preparado, NO abierto ni acciones Portal comprobadas por agente. No documentar URL con secreto.
+
+Producción y ensayo excluidos de esta ronda. Sin SQL escritura/permisos/migraciones/builds locales. No acredita cierre MVP ni Stripe Live. Pendientes: moneda adaptativa, clasificación de firmas sin secreto legacy, matriz final autenticada/móvil y requisitos comerciales/Live por separado. El cambio de moneda debe preservar el payload y clave originales de operaciones Checkout inciertas ya existentes; no basta añadir un campo a todos los reintentos. Propuesta de permisos mínimos sigue SIN aplicar.
+
+
+##29oct — parche moneda y firmas preparado
+# Checkout EUR y clasificación de firmas — candidato 29oct2026
+
+## Hallazgos
+
+La compra test de entregas ofreció USD por la configuración adaptativa heredada del proveedor, aunque el catálogo y el procesador SaaS exigen EUR. Con verificador SaaS activo y sin secreto legacy, las firmas inválidas caían en WEBHOOK_NOT_CONFIGURED500 en lugar de rechazo400.
+
+## Cambio
+
+Nuevas operaciones Checkout normales usan hash de petición versión3 y adaptive_pricing.enabled=false. No cambia precio, impuestos, catálogo ni ajuste global de Stripe. Las operaciones persistidas versión2 se reconocen y reenvían sin añadir campos a su cuerpo; las versión3 conservan el campo y la misma clave en todos los reintentos. El sobre QA del ensayo mantiene hash, clave, fechas y cuerpo anteriores. No se consulta ni modifica el ensayo remoto.
+
+Si no hay secreto legacy pero existe verificador SaaS, una petición no autorizada por éste recibe400/SIGNATURE_VERIFICATION_FAILED sin procesador ni escritura. Sin ningún verificador se mantiene500; firma SaaS válida con configuración de negocio ausente conserva503. La verificación legacy independiente y el rechazo de marca SaaS autorizada únicamente con firma legacy se conservan.
+
+## Fuente
+
+src/modules/saas-billing/application/saas-billing-service.ts; src/lib/stripe/webhook-handler.ts; regresiones saas-checkout-service, saas-short-paid-checkout-service y stripe-saas-webhook-dispatch. API oficial consultada con stripe docs: https://docs.stripe.com/api/checkout/sessions/create?query=adaptive_pricing indica que enabled hereda el ajuste del dashboard si se omite.
+
+## Importancia
+
+El versionado es necesario para no romper la recuperación de una respuesta perdida con Stripe: una clave existente no admite un cuerpo distinto. Las sesiones ya abiertas no se convierten a otra moneda ni se sustituyen automáticamente. La firma sigue siendo obligatoria.
+
+## Validación y siguiente paso
+
+Revisión estática y git diff --check, sin ejecutar tests/builds locales. CI completa y replay PostgreSQL desechable se ejecutarán remotamente sobre el SHA nuevo. Pendientes revisión externa del SHA y comprobación alojada antes de publicar. Preview de entregas continúa9ec408ec; no desplegar por push ni tocar producción. Permisos mínimos no aplicados. No equivale a cierre MVP ni Stripe Live.
+
+Candidato moneda/firma d9b9e25d3586ef40a6ea848e621ea44710720125:CI40966121148activa, replayPG40966138809SUCCESS, Static/Directory/GitGuardian/seguridad/RLS/móvilPASS. No heredar gates; preview9ec408ecintacta. Seguimiento silencioso activo, revisión externa y runtime pendientes.
+
+
+##29oct — revisión de pendientes durante CI d9b9e25d
+Build/lint/tipos yaPASS; unitarias/Chromium activos, Firefox/WebKit pendientes. Se cotejó diffsrc90c4/71fa..d9b9e25d y se preparó auditorias/2026-10-29/mvp-final-revalidation-scope.md con secuencia moneda/firma, presentación del comando1250/saldo2250, roles/móvil, Free en B y Portal aislado. Sin nuevo head, sin navegador/escrituras alojadas/producción/ensayo; ninguna evidencia histórica elevada a runtime actual.
+
+
+##29oct — seguimiento d9b9e25d y auditoría de rollback
+Firefox, unitarias y controles anterioresPASS; WebKit activo, head exacto sin cambios. Auditoría estática identifica que el artefacto9ec solo leehashv2: rollback tras crearv3 debe comprobar compatibilidad y no deshacer datos. Hallazgo anotado enBacklog y auditorias/2026-10-29/checkout-version-rollback-boundary.md. No pruebas/builds locales, no producción/ensayo ni cambios remotos.
+
+
+## 31oct — c5a entregas y recuperación financiera comprobada
+Publicación remota exacta c5a646fe, dpl_hbAdwKVxZvSyKjWZvj65TG3vdMt2;235 pruebas remotasPASS/healthDBok. Pago manual sintético1250 sobre3500: respuesta201 perdida después de persistir, recarga conserva1250 frente a2250pendientes, sin autoPOST; replay misma clave/cuerpo/IDs y158pares de snapshots idénticos. Dashboard7pagos/165EUR cotejado con SQL readonly QA A; dashboard y pagos sin overflow375/768/1280, captura dashboard375 revisada. Fuentes externas al checkout: /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-10-29/delivery-c5a646fe-financial-recovery-2026-10-31.md y dashboard-c5a-validation-2026-10-31.md. Auditoría estática independiente confirma bruto no saldo; no nuevas métricas añadidas. Pendiente matriz completa de roles/límites/móvil y SaaS aislado, no cierre MVP. Sin producción/ensayo/builds locales/nuevas credenciales. Dirty anterior preservado; sin push ni commit.
+
+
+##31oct — matriz móvil operativa c5a
+18combinaciones alojadas grupos/clases/inscripciones/asistencia/bandeja vacía/fomulario inscripción375/768/1280 sin overflow; capturas conservadas. Revisión visual375 clases/inscripciones/formulario sin solapamiento. OwnerA→inscripcionesB rechazado con404sin datos; no acredita writes ni manager. No altas/cambios de datos durante esta ronda. Fixture clase limitada acabó27oct: no alargar; mensaje sin clases activas correcto. Fuente /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-10-29/operational-mobile-c5a-2026-10-31.md. Cuotas/error/roles/escrituras/no-partiales/cicloSaaS pendientes; sin producción/ensayo/buildlocal ni cambios de código.
+
+
+## 31oct — manager y contexto de cuotas
+Manager limitado: escritura de asistencia en su sede guardada y restaurada a Presente; rechazo entre academias404 con158pares de snapshots idénticos, sin efectos parciales. Captura y evidencia en auditorias externas 2026-10-29/billing-context-0629e2df-status.md y manager-c5a-snapshots-2026-10-31.json. Corrección contextual sede/periodo en265411db; gate de dependencias bloqueó por GHSA-mrwp-f3q8-3g9p. Lockfile mínimo parcheado follow-redirects1.16.2 con metadata oficial, commit0629e2df; CI41187318131 pendiente, Static41187318212/Directory41187318129PASS. No ampliar permisos ni bajar controles; preview siguec5a. Sin producción/ensayo/builds/tests/instalaciones locales.
+
+
+## 31oct — rechazo manager por sede acreditado
+POST de asistencia con sesión/inscripción relacionadas de sede principal:403location-scope-denied y158pares snapshot idénticos, sin efectos. UI muestra rechazo definitivo, sin reintento incierto. Error375/768/1280sin overflow; captura375 revisada. Fuente externa auditorias/2026-10-29/manager-site-denied-c5a-2026-10-31.md. CI0629 dependencias/SBOM y GitGuardianPASS, lint/tiposPASS; restantes activos/cola, no publicación. Sin producción/ensayo/builds locales.
+
+
+## 31oct — montaje del router en regresiones de cuotas
+CI0629 build/security/tiposPASS;5263unitariasPASS/4FAIL por AppRouter no montado en owner-monthly-invoice-scope. Commit177632ab solo añade mock/reset del router sin alterar aserciones ni producto; enviado y CI41187884654/Static41187884655/Directory41187884649 iniciadas. Fuente externa auditorias/2026-10-29/billing-context-177632ab-status.md. Previewc5a intacta; publicación y comprobación OwnerA pendientes. Sin pruebas/builds locales, producción ni ensayo.
+
+
+### 31 octubre — entregas177632ab
+Revisión exacta/CI completa verificadas; publicado dpl_JBTgam5WkiYXRrpKshnpK1S4HkDK solo alias de entregas.235 gates/tiposPASS,Next183194ms,healthDBok. OwnerA: sede/mesURL/recarga,cuota35EUR yaemitida,saldo22.50EUR y pago/asignación1250cent conservados. Cuotas375/768/1280 sinoverflow. Sin nuevas escrituras financieras,producción,ensayo ni builds locales. Evidencia auditorias/2026-10-29/delivery-177632ab-deployment.md. MVP aún NO-GO; cicloSaaSaislado y gates de apertura pendientes.
+
+### 31 octubre — Portal aislado y Checkout recuperado177632ab
+Portal de entregas abierto: test,Starter19EUR/mes,factura pagada y cancelación visible; ninguna acción de cancelación. CheckoutB anterior expired sin pago; uno nuevo desde UI,recarga/recuperación mismo enlace,Stripe confirma test/EUR1900. SQL final una operación expired y una open,Free/rev1 intacto. A sigueStarter/rev2. Revisión de apoyo estática confirma guards Free30/3/10 y regularización sin cambios; no sustituye repetición runtime final. Sesión OwnerB proporcionada por humano queda disponible; mantener Free hasta negativas finales. Fuente /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-10-31/limits-stripe-177632ab.md. Sin producción/ensayo/builds locales ni cambios de código.
+
+### 31 octubre — fronteras Free177632ab comprobadas
+QA B preparada por UI con30/3/10. Gimnasta31 con pertenencia,grupo4 yclase11 con sesiones rechazados409capacity-full; snapshots antes/después deCADAintento158pares idénticos (79tablas/A-B), audit/outboxincluidos. Archivo normal de ficha30 conserva persona/ficha/pertenencia ended, reduce29 y admite reposición hasta30; no acredita aún readOnly por exceso→regularizado. Free/rev1 final30/3/10,Checkouttest sin pagar. Regularización requiere escenario con capacidad temporal y vencimiento; decisión humana solicitada antes de alterar fechas/grants, sin aplicar excepción. Fuente /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-10-31/free-b-limits-177632ab.md. Sin producción/ensayo/SQL directo deescritura/buildslocales ni cambios de código.
+
+
+## 1nov — cobertura de recarga real de inscripciones
+Reintento manager misma pestaña200/samebody/samekey, doce pares operativos idénticos y ningún evento adicional, inscripción restaurada. Nueva observación identifica reload cancelado por beforeunload result=false/sin Document; no atribuir ausencia histórica al producto. Añadido caso browser en e2e-owner-local-setup: commit+respuesta abortada, documento nuevo, replay explícito y snapshots fila/historial/outbox. Solo cobertura, sin producto/permisos/SQL alojado. Ejecución remota pendiente; no tests/builds locales. Revisión readonly independiente realizada. Fuente externa auditorias/2026-11-01/enrollment-real-reload-gap.md. Trabajo previo dirty preservado.
+
+Commit0030ac0f publicado solo prueba, incluyendo pauses. CI41340695742 en cola/Static41340695776 y Directory41340695767 activos, sin resultados heredados. Preview177632ab intacta, nueva revisión externa pendiente tras gates.
+
+
+## 1nov — alcance público y enlace del kit
+Revisión estática independiente sin promesas avanzadas bloqueantes en páginas públicas esenciales examinadas. Hallazgo menor enlace kit→directorio desactivado: corregido localmente a /features, sin publicar ni reiniciar CI0030ac0f. No afirmar cobertura de ese diff por CI en curso. Perfil comercial mantiene Live cerrado y datos/verificaciones pendientes, sin consultas producción. OwnerQA A anunciado por humano, login aún no confirmado. Fuente externa auditorias/2026-11-01/public-scope-closeout.md.
+
+1nov19:20UTC: Chromium0030ac0f job124949855888SUCCESS,1passed42.5s; nuevo bloque recarga real/replay/pauses/historial/outbox ejecutado en primer alta sintética. Build y lint/tiposPASS. NO runtime delivery; Firefox/WebKit y unitarias pendientes. Sin reinicios ni cambios de controles.
+
+### 2026-11-01 — Recorrido fresco Owner y carrera WebKit
+Delivery177632ab: nueva ficha/familia completada/tutor/pagador, grupo, inscripción activa, asistencia, cuota35EUR y pago manual sintético únicos; SQL readonly confirma filas y dashboard31/3/2/1cobro35EUR. Evidencia auditorias/2026-11-01/owner-integral-journey-177632ab.md. No producción/ensayo/builds locales. CI0030ac0f Chromium/Firefox PASS, WebKit falla por goto statusall frente refresh statusactive. Se añade sincronización explícita del GET refresh en la regresión, sin cambiar producto ni retirar aserciones. Pendiente CI del nuevo commit.
+
+Commit de sincronización d9f244de publicado a la misma rama PR234; CI remota nueva pendiente. Solo test, sin incluir el ajuste público local ni otros cambios dirty del vault. No publicación delivery ni producción.
+
+Preparación independiente: tests/billing-replay-readonly.test.ts añade dos negativas de pagos nuevos bajo exceso con cero efectos. Revisión estática/diffcheck; NO ejecutados ni incluidos en CI d9f244de, sin commit/push para preservar ejecución actual. Caso emisión mensual nueva pendiente. Matriz vigente auditorias/2026-11-01/mvp-current-evidence-matrix.md separa esta preparación de la prueba alojada.
+
+### 2026-11-01 — Negativa financiera nativa preparada
+Agente reutilizó fixture real de billing-ledger-postgres.integration para emisión nueva bajo excesoFree: cotización válida,4grupos,uso realreadOnly y snapshot8tablas idéntico tras409. Revisión estática/diffcheck correctos, sin ejecutar. Tests financieros preparados no están en CI d9f244de, no se publica/reinicia durante su ejecución. Fuente auditorias/2026-11-01/free-operational-evidence-gap.md.
+
+### 2026-11-01 — Sustitución de espera RSC bloqueada
+
+Chromium d9f244de falló en response.finished() tras 300 s. Ajuste E2E revisado independientemente sin P1/P2: filtro Todos antes de pérdida/recarga y espera de Reanudar habilitado, sin navegación tras replay. Sin bajar aserciones ni timeout. Se incluyen casos preparados de rechazo financiero Free y enlace público hacia funciones disponibles. Validación remota pendiente; preview 177632ab intacta. Sin ejecución local, producción ni ensayo.
+
+## PostgreSQL remoto ac7bf41d — resultado verificado
+
+Run41344026839 SUCCESS del SHA ac7bf41da323c66b6cf410f8444483595528eb3b. Logs confirman replay vacío, aislamiento RLS28tablas/ACL, rollback y guards, capacidad Free y ledger financiero concurrente/idempotente/sin efectos parciales. El script ejecuta billing-ledger-postgres.integration.test.ts con ZALTYKO_PG_INTEGRATION=1, NODE_ENV=test y DBloopback; suite no condicionada por describe.skip. Incluye el nuevo caso de emisión excedida y snapshot8tablas. No es HTTP sandbox ni producción. CI general41344021116 aún activa.
+
+### 2026-11-01 — Preparación del cierre alojado
+
+Procedimiento en auditorias externas 2026-11-01/hosted-closeout-runbook.md: SHA/revisión/publicación delivery, recarga documental con pérdida de respuesta y snapshots, restauración explícita. No ejecutado. Distingue recorrido parcial existente de academia limpia y mantiene pendiente preparación QA C autorizada/SQL separado. Sin nuevas escrituras de negocio ni cambios del candidato ac7bf41d mientras CI activa.
+
+## Avance verificado ac7bf41d — Chromium y build
+
+CI41344021116: Chromium job124959957368 SUCCESS, log 1 passed (33.5s) a19:59:34UTC; incluye recarga real y replay del test completo sin eliminar aserciones. Build job124959957629 SUCCESS, 298/298páginas. Head PR sigue ac7bf41da323c66b6cf410f8444483595528eb3b. Unitarias activas, Firefox activo y WebKit en cola al corte; no aprobación ni despliegue. Es CI aislada, no runtime alojado.
+
+## Unitarias ac7bf41d — resultado
+
+Job124959957580 SUCCESS: 673 archivos PASS/1omitido y5269pruebas PASS/3omitidas. billing-replay-readonly.test.ts10casosPASS incluye los dos nuevos rechazos de pago manual. No confundir guard simulado con negativa HTTP alojada. Firefox activo/WebKit en cola, ChromiumPASS; GitGuardian/Static/DirectoryPASS del head exacto. Sin despliegue ni nueva aprobación.
+
+## Firefox ac7bf41d — PASS
+
+Job124959957639 SUCCESS, log 1passed47.8s a20:06:41UTC. Cubre el recorrido aislado y recarga/replay; no sandboxHTTP. WebKit124959957619 comprobado activo en instalación del navegador; último control pendiente de CI41344021116. Head PR exacto conservado, REVIEW_REQUIRED. No desplegado.
+
+### 2026-11-01 — PR234 conciliada con ac7bf41d
+
+Cuerpo de PR actualizado sin cambiar head: candidatos/CI exactos, PostgreSQL aislado, preview real177632ab y límites de evidencia alojada. Relectura GitHub confirma headac7bf41d y descripción actual. WebKit aún activo (preload de imágenes tras instalación); no aprobación ni publicación. Sin efectos productivos ni sobre ensayo.
+
+## CI completa ac7bf41d — lista para revisión externa
+
+CI41344021116 SUCCESS; Chromium/Firefox/WebKit y RequiredGate SUCCESS. WebKit job124959957619 log1passed51.7s a20:14:25UTC. Unitarias5269PASS/3omitidas. Build298páginas,lint/tipos,seguridad,móvil,RLS,migraciones,Static41344021120,Directory41344021113,GitGuardian y PostgreSQL41344026839 SUCCESS del SHA exacto. Omitidos Auth/readiness/smoke/público/Lighthouse no acreditados. PR sigue REVIEW_REQUIRED. Preview177632ab intacta; siguiente publicación requiere aprobación externa.
+
+### 2026-11-01 — Preflight de publicación pendiente de revisión
+
+Candidatoac7bf41d completo en CI pero PRREVIEW_REQUIRED. Preflight local solo lectura confirma despliegues Git apagados/crons vacíos. Checkout sin vínculo.vercel; no creado. Ruta anterior API/proyecto/equipo queda como referencia histórica para revalidación futura, no permiso de despliegue anticipado. Evidencia externa delivery-ac7bf41d-preflight.md. Sin efectos proveedores ni negocio.
+
+### 2026-11-02 — Publicación delivery ac7bf41d iniciada
+
+Aprobación externa exacta verificada. Build remoto dpl_8rBswnoADmXQsBzouZWYr1ZbEHnE BUILDING,preview,sinautoasignación. PreflightaislamientoPASS; aliasantiguoconservado. Evidencia auditorias externas2026-11-02/delivery-ac7bf41d-publication.md. No producción/ensayo/configuración nueva ni builds locales.
+
+### 2026-11-02 — ac7bf41d publicado solo en entregas
+- Aprobación exacta, CI y PostgreSQL verdes. Deployment dpl_8rBswnoADmXQsBzouZWYr1ZbEHnE READY, alias entregas releído, build remoto 255s/360s, health DB111.3ms. Anterior conservado.
+- QA A accesible. Pausa controlada con respuesta200 descartada: una transición/pausa/historia/evento, QA B y tablas restantes sin cambios. Interceptación retirada; intento original conservado en pestaña9. Recarga automatizada no navegó: se requiere recarga humana antes del replay, sin pulsar Reintentar. Fixture decfb606 queda pausada hasta completar.
+- Evidencia: /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-11-02/delivery-ac7bf41d-publication.md y recovery-ac7bf41d-snapshots.json. Sin producción/ensayo/builds locales. MVP público NO-GO.
+
+### 2026-11-02 — conciliación de cierre tras ac7bf41d
+- Matriz actual separa publicación delivery, recuperación pendiente, HTTP Free excedido, recorrido limpio y requisitos comerciales/productivos. Fuente auditorias/2026-11-02/mvp-closeout-current.md fuera del checkout.
+- El inventario conserva pestaña9, pero el control del navegador no permite leerla. Sin navegación ni replay ni modificación de la fixture pendiente. No se afirma espera viva ni recarga realizada. No producción/ensayo/build local.
+
+### 2026-11-02 — intento original recuperado sin duplicados
+
+## Reintento original cerrado — continuación humana
+Control del navegador recuperado reiniciando únicamente la conexión de herramientas, sin cerrar pestañas. Panel original presente; no hay Document observado que acredite recarga real. No afirmar recuperación tras recarga ni igualdad literal con petición original: la captura original en memoria se perdió al restablecer la conexión.
+
+Se pulsó Reintentar una sola vez: PATCH200, panel desaparece y UI confirma operación. Los18pares (9tablas×2academias) inmediatamente antes/después son idénticos. Inscripción decfb606 pausedv3,1pausa/3historias tras replay. Reanudación explícita separada: activev4,1pausa cerrada,0abiertas,4historias. No segunda pausa ni transición por reintento. Sin producción/ensayo/builds locales. Evidencia recovery-replay-result.json y recovery-restored-active.png. La prueba alojada de recarga real sigue NO VERIFICADA; ya no queda operación pendiente ni fixture pausada.
+
+### 2026-11-02 — diagnóstico recarga y ensayo con huellas
+
+## Nuevo ensayo final instrumentado
+Recarga normal sin pendiente comprobada: loader principal cambió FC6EB74297C7019ED226CF04AA1FB844→A4DF6F7D5403BF9F3F383FFFDD425C58. Tráfico POST observado era /_vercel/insights/view, no mutación de negocio; Document capturado era iframe feedback, por eso no usar conteo global Document como prueba principal.
+
+Se preparó una nueva pausa explícita de la misma fixture QA autorizada; respuesta200 descartada después de commit. Huellas SHA256 del cuerpo y cabecera Idempotency-Key guardadas sin sus valores en final-reload-original-proof.json, con loader anterior y SHA/deployment exactos. Snapshot antes/después en final-reload-snapshots.json. Interceptación retirada. Nueva recarga automatizada conserva loader principal: no ocurrió navegación. Panel original pendiente y pestaña9 conservada. Requiere botón de recarga del navegador por humano, antes de cualquier replay. No desactivar beforeunload ni fabricar almacenamiento. La fixture queda temporalmente pausada para esta prueba, distinto del ensayo anterior ya cerrado.
+
+### 2026-11-02 — revisión independiente del alcance público
+- Revisión estática acotada sin contradicciones públicas demostradas; catálogo manual, registro Owner, rutas avanzadas retiradas/bloqueadas y preview histórica no disponible en production. No equivale a HTTP alojado ni a publicación productiva.
+- Evidencia /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-11-02/essential-public-scope-review.md. Sin código nuevo/builds/producción/ensayo. Intento final de recarga conservado sin acciones.
+
+### 2026-11-02 — revalidación exacta y límite del navegador
+PR234 ac7bf41d APPROVED/CLEAN; CI41344021116 y PostgreSQL41344026839 SUCCESS releídos sin relanzar. Revisión del test de recarga confirma aceptación explícita de beforeunload, respuesta Document, no autoenvío y replay literal; no equivale a sandbox alojado. La API del navegador del chat no expone accept() para BeforeUnloadDialog y no retorna diálogo actual; loader previo sin cambio. Causa interna de cancelación NO VERIFICADA. Intento nuevo instrumentado sigue pendiente, sin reenviar ni retirar protección. Cierre actualizado en auditorias/2026-11-02/mvp-closeout-current.md; sin código nuevo, producción, ensayo ni builds locales.
+
+### 2026-11-02 — recuperación alojada resuelta sin cambiar protección
+Navegación interna al resumen, recarga real del documento y vuelta a Inscripciones en la misma pestaña. Intento original rehidratado; replay único200 con cuerpo/clave originales por huellasSHA256. Snapshot18pares idénticos durante navegación/recarga y durante replay. Reanudación explícita200,activev6,2pausas históricas/0abiertas/6historias. No acredita recarga directa en Inscripciones (cancelada por IAB). Evidencia externa route-reload-replay-result.json/route-reload-snapshots.json/route-reload-restored-active.png. Sin código nuevo, producción, ensayo ni builds locales. Pendientes FreeHTTP excedido, recorrido limpio y comercial/productivo conservados.
+
+
+## 2026-11-02 — QA C preparación Free excedido
+Relay entregas v2 permite solo QA C adicional; caducidad auténtica procesada y Checkout expired. Trial UI Starterrev2;31/4/11 confirmados. SQL dos minutos preparado NO aplicado y pendiente autorización exacta. Evidencia: /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-11-02/qa-c-trial-preparation.md. Sin producción/ensayo/build local.
+
+
+## 2026-11-02 — QA C caducidad y regularización PASS
+SQL aprobado aplicado una vez solo QA C: vencimiento16:59:20.939UTC/revisión3/guardO. Rechazos HTTP409 de pausa y alta de grupo con13tablas idénticas antes/después. Archivo exclusivo atleta31/grupo04/clase11:30/3/10 sin solo lectura. Pausa y reactivación posteriores200; pertenencia finalactive. Evidencia /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-11-02/qa-c-short-trial-applied-and-regularized.md. Sin producción/ensayo/Live/builds ni despliegue. No equivale a terminalStripe o recorrido nuevo integral.
+
+
+### 2026-11-02 — recorrido operativo QA C en ac7bf41d
+Interfaz y SELECT sandbox acreditan familia→inscripción→tarifa→asistencia→factura35EUR→pago manual sintético→resumen. Sin dinero real ni producción/ensayo/builds locales. Evidencia durable: auditorias/2026-11-02/qa-c-operational-journey-ac7bf41d.md. NO-GO público conservado; pendientes cierre cobertura y comercial/Live.
+
+
+### 2026-11-02 — candidato Cuotas adaptable b474768e
+Owner y QA separaron detalles/acciones y añadieron geometría 375/768/1280 con tres motivos y ambos botones. Revisión independiente estática sin P1/P2; diff whitespace PASS. Prueba HTTP de layout explícitamente sintética, restaura ruta real. CI remota pendiente, preview sigue ac7bf41d. Auditoría productiva autorizada SOLO lectura: dos esquemas,92 tablas RLS forzada; SaaS Live no configurado por metadata, comercial bloqueado. Evidencia: /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-11-02/production-readonly-readiness.md. Sin builds/tests locales ni mutaciones productivas/ensayo.
+
+
+### 2026-11-02 — Cuotas adaptable publicado b474768e
+CI y revisión exactas PASS; delivery dpl_3NQ68yNz6te1ZRMdhdeb5vsXqEs8 READY/alias confirmado, build remoto253346ms bajo360s y artefactoPASS. Cuotas real QA C medido375/768/1280 sin solapamientos/overflow, ambos botones enabled44px. Sin escrituras financieras/productivas/ensayo/builds locales. Evidencia /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-11-02/delivery-b474768e-publication.md. Defecto layout cerrado; requisitos comercial/Live y productivo siguen pendientes.
+
+
+### 2026-11-02 — cierre técnico y aporte humano consolidado
+Revisiones independientes readonly concluidas: ningún otro defecto esencial demostrado tras b474; preservar evidencia segmentada sin repetir recorridos. Matriz vigente /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-11-02/technical-readiness-current.md y lista humana opening-owner-inputs.md. Pendientes: ciclo natural Stripe completo, configuración/recuperación productiva y comercial/Live. Este corte sin consultas ni mutaciones producción/ensayo, sin builds/tests locales ni cambios de código/HEAD. vercel.json actualcrons[]; referencia12crons en guía25oct histórica.
+
+
+## 2026-11-02 — preparación Production autorizada, aún sin promoción
+Usuario autorizó publicar. Primer staged Production b474768e: dpl_8hMCqtkR3HriRDbbj52HULgQBHEs ERROR timeout360 tras298/298páginas; autoAssignfalse, sinpromoción. Producción anterior dpl_2DaEheDHVXcA8EZ39U8N6CYcoKAW conservada. No builds/tests/servicios/instalaciones Mac.
+Auth producción jegxfahsvugilbthbked: SiteURL/callbackszaltyko.com, SMTPBrevo propio activo. Corregido únicamente Confirmemail OFF→ON, guardado y recargaverificada; recepción real pendiente. Sin nuevas cuentas/correos/contraseñas. Canonicalorg/customer/subscription/trial0; legacy8academias/8subs/2Stripecustomers, no modificar ni presentar producción vacía. Policycontractual0filas: bloquea bootstrap. SQL separado NO APLICADO, candidato external production-consent-policy-candidate.sql SHA940c01540599802be64ee2144b7f4e534080b9912676207f3476e0da11849218, requiere revisióntextos/autorización antesaplicar. Livecerrado/fiscalpendiente.
+Tres especialistas coordinados: bridge implementó optincompilaciónprod; capacity regresiones/revisiónestática; billing auditó configuración/SQL. Sin P1/P2 estáticos reportados; NO sustituye pruebas. Commit2e71862e7b98e276470ae5920796364d0359650e publicado solo ramaPR234. CI41514614807,Static41514614773,Directory41514614780 iniciadas; nueva revisión externa requerida tras gates. Monitorzaltyko-ci-compilaci-n-productiva-2e71862e activo silencioso si pendiente. No redeploy/promoción/SQL automático por monitor.
+Evidencia durable /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-11-02/production-staged-b474768e-status.md y production-consent-policy-review.md. Mantener ensayo/previewdelivery intactos y datos previos. Configartifact nuevo DB TLSconCA dedicada/devfalse/onboardingfalse no se convirtió en configuración global del proyecto.
+
+
+### Continuación — candidato e2ed9a7f y decisión humana
+Humano eligió «Preparar la revisión; no aplicarlo todavía»: SQL de política permanece NO APLICADO, junto al documento production-consent-policy-review.md y hashes de fuentes contractuales. No interpretar esta respuesta como aprobación SQL o legal.
+CI2e71862e jobDependencySecurityfalló en audit:env por nuevoflag no declarado; audit:dependencies --prod sí pasó el umbralhigh (solo moderate/low informadas). Añadido flag false a.env.example sinrelajarcontroles. Commitactual e2ed9a7f45dc4a3a7d12dd2bd6c9b7416d9d38e4, CI41515188269,Static41515188713,Directory41515188783 pendientes/en curso. NoheredarPASS. Monitor existente actualizado, no duplicado. Nuevo candidato requiere aprobación externa despuésdegates y otro staged con optinbuildtrue; no está publicado en dominio ni previewdelivery. Confirmemailprodyaactivo, resto ensayo/deliverydatos intactos.
+
+
+## 2026-11-02 — Propuesta contractual corregida (local)
+Términos/privacidad ajustados al núcleo, roles de tratamiento, límites Free y Portal. SQL intacto y NO aplicado; Live cerrado. Pendientes internos: DPA, conservación/proveedores y soporte verificados; datos fiscales humanos pendientes. Evidencia: auditorias/2026-11-02/contractual-corrections-review.md en raíz durable. Solo revisión estática/diff, sin build/test local ni publicación.
+
+
+## 2026-11-02 — DPA, conservación y proveedores para revisión
+Paquete local docs/legal/revision-apertura.md y tres borradores; contratos/regiones/retención reales pendientes. Propuestas no aplicadas. Hallazgo estático: Sentry Replay lazy con muestreo5%/100%error y máscaras; saneado/cookies/retención reales NO VERIFICADOS, no declarar ausencia PII. No SQL, Live, ensayo, servicios o build local. Revisar antes de incorporar datos reales.
+
+
+## 2026-11-02 — Cierre estático privacidad
+Añadidos procedimientos de derechos/incidentes y verificación operativa en docs/legal. Confirmado TTL deslizante del rate limit, no todo Redis; filtros Sentry diferentes cliente/Node/Edge y preview omite init servidor. No hay prueba de fuga, tampoco saneado integral acreditado. Pendiente revisión técnica separada y cuentas proveedores. Sin SQL, CI, build local, producción/ensayo o proveedores modificados.
+
+
+## 2026-11-02 — Sentry a69b25ee / CI remota
+Filtro allowlist común navegador/Node/Edge, adjuntos/breadcrumbs/texto libre descartados; Replay no cargado y logs SDK off. Detalle diagnóstico reducido de forma explícita; error tracking conservado. Regresiones sintéticas nuevas, no ejecutadas Mac. CI41536267721 activa; GitGuardianPASS inicial. Sin despliegue/SQL/Live/ensayo. Borradores legales preservados fuera del commit. Evidencia durable sentry-a69b25ee-status.md.
+
+
+## 2026-11-02 — Sentry a69b25ee publicado SOLO entregas
+CI5298PASS/3skip,10regresiones filtroPASS; todos gates requeridos y revisión externa exactos. dpl_GDdEqU46QSbvMD9rVWU7dUaxXor7 READY, aliasdelivery asignado, artefactomissing0/CA,healthDBok. BrowserQA C conserva acceso; bundle32scripts confirma filtro/PIIoff/logsoff/breadcrumbs0,Replayrequests0 en recarga y consolaerror0. No prueba sobres Sentry reales Node/Edge; previewinitservidor excluido. Producción/ensayo/SQL/Live intactos. Legales/DPA locales no incluidos. Evidencia durable delivery-sentry-a69b25ee.md y captura.
+
+
+## 2026-11-03 — Paquete único legal para revisar
+Consolidado docs/legal/aprobacion-paquete-2026-11-03.md; actualizados anexos Sentry para no describir como actual el código anterior. Diagnóstico histórico conservado con aviso. Separa decisiones propuestas, datos fiscales y verificaciones internas; aprobación de textos no autoriza SQL ni certifica DPA. Sin CI nueva/build/SQL/proveedores/producción/ensayo. Manifiesto de hashes actualizado.
+
+
+## 2026-11-03 — Proveedores/soporte/borrado readonly
+BrevoZaltyko(zaltyko@gmail.com)free/relayenabled; dominiozaltyko.com noverificado/noautenticado en cuenta accesible y remitentesfiltradosvacíos. Hostingerconector solo otra marca: no leído correo. DNSMXHostinger/SPFHostingerBrevo/DMARCnone no prueban entrega. BorradoSuperAdmin perfil→Auth no atómico con cascada academiaslegacy; no usar como supresión de academia. Archivoatleta softdelete no purga. Acceso buzóncorrecto/confirmacióncuentaBrevo/operadorsoporte pendientes. Evidencia durable auditorias/2026-11-03/providers-support-erasure-readonly.md. Sin cambios remotos/SQL/envíos/borrado/build local.
+
+
+### 2026-11-03 — Webmail preparado y devolución/supresión delimitada
+- Webmail Hostinger abierto en el navegador del chat con hola@zaltyko.com; contraseña y acceso pendientes del humano. No se enviaron mensajes.
+- Ampliado docs/legal/procedimientos-derechos-incidentes.md con control previo por academia: pertenencias compartidas, devolución estructurada, conservación financiera, proveedores/copias y validación de aislamiento. Es propuesta, no borrado implementado ni ejecutado.
+- Sin SQL, Live, ensayo, cambios de proveedores ni builds locales.
+
+- 2026-11-03: recuperado navegador y verificada sesión web Inbox de hola@zaltyko.com. No se abrieron mensajes ni se enviaron correos; entrega/respuesta actual pendiente de prueba autorizada. Evidencia: auditoría providers-support-erasure-readonly.md del 3 noviembre.
+
+- 2026-11-03: prueba de soporte autorizada PASS manual bidireccional mentessaas@gmail.com ↔ hola@zaltyko.com, Inbox en ambos extremos, 11:35–11:36 Madrid. Evidencia support-roundtrip-2026-11-03.md. No acredita SMTP/Brevo automatizado ni cobertura de atención. Sin SQL/Live/ensayo/builds locales.
+
+
+### 3 noviembre 2026 — revisión actual Brevo y paquete contractual
+Dominio zaltyko.com no autenticado/verificado en cuenta accesible zaltyko@gmail.com; único remitente activo Gmail. Soporte manual bidireccional PASS separado de correo automático NO VERIFICADO. Actualizado paquete único con evidencia y pendientes de responsable/suplencia, cuenta prevista y compromisos operativos. Sin SQL/Live/ensayo/proveedores/builds. Evidencia: auditorias/2026-11-03/brevo-automatic-mail-review.md en raíz de proyecto.
+
+
+### 3 noviembre — cuenta Brevo y responsable confirmados
+Titular confirma zaltyko@gmail.com; soporte Elvis con apoyo IA, sin suplente humano ni automatización acreditada. Paquete contractual actualizado. Propuesta DNS/remitente en auditoria brevo-domain-setup-proposal.md; faltan valores exactos de pantalla Brevo, no se han inventado ni aplicado. Sin SQL/Live/ensayo/builds.
+
+
+### 3 noviembre — Brevo DNS contrastado en sesión web
+DKIM y código existentes coinciden; bloqueo DMARC por falta rua. Diff exacto preparado en brevo-domain-setup-proposal.md; no DNS modificado. Añadir rua enviaría informes agregados a Brevo, pendiente decisión del titular y acceso DNS. Sin correo automático enviado/SQL/Live/ensayo/builds.
+
+
+### 3 noviembre — DMARC aprobado aplicado, propagación pendiente
+Solo TXT _dmarc de zaltyko.com actualizado con rua Brevo, TTL3600 intacto. DNS autoritativo nuevo/1.1.1.1 anterior. Brevo autenticación aún pendiente por caché; no acreditar success transitorio como final. Sin SQL/Live/ensayo/builds ni correos nuevos. Evidencia durable brevo-domain-setup-proposal.md y capturas en auditorias/2026-11-03.
+
+
+### 3 noviembre — remitente soporte preparado en Brevo
+Zaltyko <hola@zaltyko.com> añadido una vez, verificación por código pendiente del titular; correo de verificación visible en buzón correcto. DNS propagación sigue pendiente. No acreditar entrega automática de aplicación. Sin SQL/Live/ensayo/builds.
+
+
+### 3 noviembre — soporte remitente Brevo verificado
+Tras petición explícita del titular, verificación por código completada sin guardar/exponer código. UI Remitentes muestra hola@zaltyko.com Verificado. Dominio sigue con aviso DMARC; correo automático no acreditado. Captura brevo-sender-verified.png. Sin SQL/Live/ensayo/builds.
+
+
+### 3 noviembre — aceptación correo automático preparada
+Brevo aún no autenticado; no correos repetidos. Identificados por lectura los circuitos independientes Auth SMTP y API de aplicación, con guards de proyecto/fixture/artefacto/recepción y sin consumir recovery. Plan durable automatic-mail-acceptance-plan.md. No ejecución alojada, SQL/Live/ensayo/builds.
+
+
+### 3 noviembre — cierre correo y proveedores, lectura acotada
+Brevo sigue pendiente de autenticación aunque DMARC está propagado; monitor existente conservado sin duplicados y sin nuevos envíos. Cuenta muestra APD incluido en condiciones; evidencia guardada sin aceptar acuerdos. Añadido Hostinger Mail al inventario y corregido responsable soporte Elvis/IA prevista, sin suplencia ni integración acreditadas. Lista finita de gates en auditorias/2026-11-03/mvp-remaining-gates.md de la raíz. SQL/Live/ensayo/producción intactos; sin builds/tests locales.
+
+
+### 3 noviembre — revisión de tres chats e integración
+Leídos informes Owner y Backend; matriz QA en revisión cruzada. Hallazgos Owner contrastados en rutas y servicios; corrección contextual de sede asignada exclusivamente a OwnerClassesManager/OwnerGroupsManager y test nuevo, no permisos. Runbook de derechos enlazado desde verificacion-operativa-privacidad; sin operaciones de datos. Contrastada evidencia c5a de pago parcial y manager-cross-and-recovery-177632ab para no reabrir cobertura positiva sin motivo. No SQL/Live/ensayo/proveedores/producción ni builds/tests locales. Cambios legales y vault previos conservados.
+
+
+### 3 noviembre — candidato de sede36949f0a publicado en PR234
+Owner implementó y QA revisó sinP1/P2 estáticos doscomponentes+testnuevo4casos. Commit36949f0a0272cd7bf1f91962d24eac488bbfd9ac pushnormal; CI41634098372,Static41634098255,Directory41634098275 yGitGuardian en curso. Sin pruebas locales; gitdiffcheckPASS. Previewa69intacta, REVIEW_REQUIRED; no desplegar antesdegates/review. MatrizQA corregida para conservar evidencia positiva posterior de replayfinanciero y cruceManagerB. Informes/runbook durables recibidos; navegaciónmanager aún pendiente. Legales/vaultprevios fuera del commit, SQL/Live/ensayo/prod intactos.
+
+### 2026-11-03 — CI contextual36949 verde y navegación manager autorizada
+Revalidado head36949f0a y CI41634098372SUCCESS, incluidos Chromium/Firefox/WebKit, Static41634098255, Directory41634098275 y GitGuardian. Regresión4casosPASS; E2E alojados omitidos, no publicados. Usuario avisado para revisión externa. Owner retoma corrección mínima de enlaces manager y QA revisa capacidades sin ampliar permisos; ambos chats existentes, responsabilidad de escritura única Owner en código. Preservados legales/docsdirty. Sin SQL, Live, ensayo, producción ni pruebas/builds/servicios locales. Evidencia location-context-36949f0a-status.md en auditorías raíz.
+
+### 2026-11-03 — Navegación manager: corrección preparada
+Owner implementó shell por página con capacidades de presentación desde scopes validados: manager sin enlaces Gimnastas/Finanzas/Plan; Owner/Admin mantienen capacidades respectivas y Plan solo Owner. Sin cambios de guards/APIs/SQL. QA revisa diff final; regresiones preparadas no ejecutadas localmente. Asistencia/Pagos añaden lectura readonly de scope; coste conocido, denegaciones manejadas como404. Pendiente CI exacta, revisión externa y runtime de entregas. Evidencia: auditorias/2026-11-03/manager-navigation-closure.md en raíz Zaltyko. Preservados borradores legales y cambios previos; ninguna acción producción/Live/ensayo.
+
+Cierre de preparación: candidato b953c5ef7541454f377077d9b10f19af32b88f43 publicado a rama, sin deploy. QAestática final sinP1/P2; CI41640608196 +Static41640608128 +Directory41640608091/GitGuardian pendientes.8casos nuevos preservan agregado versus defaultdeformulario. Monitor exacto activo para aprobación tras gates; ninguna ampliación de permisos.
+
+
+### 2026-11-03 — Recuperación de dos pruebas del manager
+Autorización humana específica para corregir las dos unitarias de b953c5ef y ejecutar CI remota. Logs de CI41640608196 confirman 5312PASS/2FAIL/3skip; Chromium/Firefox/WebKit del padre finalizaron SUCCESS, sin heredar ese resultado al nuevo candidato. Solo dos tests modificados: contrato de pagos normaliza whitespace y mantiene frase completa/prohibición de saldo automático; setup sintético incorpora hooks de navegación conservando noAuth/noDB/noConsent/404producción. Sin cambios funcionales, permisos, APIs ni workflows; revisión independiente QA en curso. git diff --check PASS; no tests/builds/instalaciones locales. SQL/Live/ensayo/proveedores/producción intactos, legales y vault previos preservados. Nueva CI exacta pendiente; navegación alojada sigue pendiente de gates/revisión/publicación.
+
+Candidato recuperación85ff32c1 publicado: QAestática sinbloqueos; CI41723372944, Static41723372984, Directory41723372900/GitGuardian pendientes, REVIEW_REQUIRED. Dos tests únicamente; legales/vault fuera del commit, deliverya69intacta. Seguimiento exacto separado deBrevo/ensayo.
+
+
+### 2026-11-03 — Cierre paralelo sin cambiar candidato85ff
+Retomados Backend y QA con archivos exclusivos: preflight documental de devolución canónica y addendum de aceptación incremental. Coordinador corrige hechos desactualizados solo en borradores: soporte manual verificado3nov en DPA y HostingerMail en privacidad; no nuevas condiciones fiscales ni promesas operativas. Manifiesto de revisión nueve archivos preparado en auditoría raíz, no aprobación ni publicación. HashSQL contractual intacto y no aplicado. HEAD85ff y CI41723372944 intactos; sin nueva implementación, deploy, proveedores, producción, Live, ensayo ni pruebas/builds/servicios locales.
+
+
+### CI exacta85ff32c1 completada
+Revalidado SHA de PR23485ff32c18ab9ebfc35f3828b4cb038c9df0fea4f: CI41723372944SUCCESS, Chromium/Firefox/WebKit y gateRequiredSUCCESS, unitarias/build/lint/tipos/seguridad/móvil/RLS/migracionesSUCCESS; Static41723372984SUCCESS, Directory41723372900SUCCESS y GitGuardianSUCCESS. Las dos suites reparadas figuran verdes en logs. E2EAuthenticated/credenciales/smoke/público/Lighthouse omitidos, noPASS. GitHubREVIEW_REQUIRED. Se eliminó monitorCI al completarse; Brevo y ensayo separados intactos. Usuario puede revisar/aprobar85ff32c1; publicación/runtime de navegación aún pendientes. No nuevo commit/deploy/SQL/Live/ensayo/producción ni ejecución local.
+
+
+Cierre documental paralelo: copia legible de23apartados preparada y enlazada desde paquete único; manifiesto de10archivos regenerado, sin divergencias de hash. QA entregó addenduma85ff que limita aceptación a navegación/contexto por rol/sede y conserva replayManager original pendiente (pestaña/sesiónNO VERIFICADAS). No repetir backendpagos/Free/Stripetest sin cambios. Documentos locales fuera del candidato y sin aprobación. SQL/Live/producción/ensayo intactos.
+
+
+Backend entregó preflight canónico breve y QA addendum final de aceptación; integrados en verificaciones/gates. Coordinador corrigió frontera del futuro ensayo a CIremotaefímera y mantuvo analítica avanzada fuera delMVP. Ningún conteo/export/borrado/fixture/restore ejecutado. Borradores y manifiesto locales; HEAD85ff32c1 preservado, revisión externa pendiente y sin promoción.
+
+
+### 2026-11-03 — Entregas85ff32c1 publicada
+- Aprobación externa exacta elvisvaldes review5760389198 y CI/Static/Directory/GitGuardianPASS, incluidos3navegadores. Remoto Git dpl_3LuT3y8HE4xcAdLtNknHtFqDBc5e READY;235pruebas/tipos/Next268549ms/artefacto0missing/healthDB63.84ms.
+- Alias entregas publicado exclusivamente; previo conservado. OwnerQA C navegación global y375/768 observados; Manager/dos sedes pendientes de sesión humana. Correo limitado preparado. Dos enlaces de contenido Clases trasladados a Owner para revisión estática del contexto global.
+- SinSQL/Live/producción/ensayo/env nuevos ni builds/tests locales. Borradores legales dirty fuera del artefacto. Evidencia auditorias/2026-11-03/delivery-85ff32c1-publication.md.
+
+
+### 2026-11-03 — Manager85ff comprobado y contextoClases2599 enCI
+- Tras loginhumano Manager: menús1280/375/768 sinGimnastas/Finanzas/Plan/Más; academia/sedeúnica preservadas, Clases/Inscripcionescargan, rutaactiva, sinaccionesmutantes. Captura delivery-85ff32c1-manager-mobile.png. No cierra replayoriginalManager ni OwnerQA A multisedes.
+- Owner+QA implementaron/revisaron P2 de dosenlaces deClases:2599bf89b3842f9780d9839df40250e64542f27c, solo2src/4tests; sinP1/P2 estáticos, no testsMac. CI41734798120/Static41734798180/Directory41734798397 activos,GitGuardianPASS. Monitorúnico creado, sinotrosseguimientosmodificados. Previewpermanece85ff. Legal/vaultdirtypreservadosfuera commit.
+
+
+### 2026-11-03 — Seguimiento2599 y lecturas denegadas85ff
+- CI2599 encurso,GitGuardian/security/lint/tipos/móvil/RLS/SQLPASS; unitarias/build/Chromium pendientes,Firefox/WebKitencola. Monitorúnicoexistenteconservado, sinreinicios.
+- Manager85ff: pantallas404 para PlanQA A, Clasesdesedehermana e InscripcionesQA B. Solo navegaciónlectura, noPOST ni snapshots; fuente manager-85ff-direct-read-denials.md. No extrapolarnoefectosparciales. Entornoentregasúnico, sinSQL/Live/ensayo/producción/buildsMac.
+
+
+### 2026-11-04 — Entregas2599 publicada y Owner QA A multisedes PASS
+Aprobación elvisvaldes exacta2599 +CI/Static/Directory/GitGuardianSUCCESS; Git remoto dpl_2UvoqYo4yC7ttfp4PC7VpsasRssz READY,235pruebas/tipos/Next158706ms/artefacto0missing/CApresente/healthDB123.59ms. Soloaliasentregas actualizado,anterior85ffconservado. Trasloginhumano OwnerQA A:global y dos sedes conservadas enClases→Grupos/Resumen;375/768/1280global sin scroll. SinPOSTnegocio/SQL/Live/producción/ensayo/buildsMac. QA independiente confirma alcanceincremental. Fuenteauditorias/2026-11-03/delivery-2599bf89-publication.md. Integridad10archivoscontractualesPASS;legalesdirty fueraartefacto. ReplayoriginalManager/primerusocontinuo/correoautomático siguenpendientes.
+
+
+### 2026-11-04 — Brevo dominio autenticado
+Cuenta zaltyko@gmail.com verificada. Tras propagación, UI todosregistrossuccess; una acción Autenticar dominio: UIAutentificado/Conmarca y API authenticatedtrue/verifiedtrue para dominio6a68ec013f3292e6fe0a1923. DNS/SMTP/credenciales/planes sin cambios. MonitorBrevo eliminado aléxito, otrosintactos. Evidencia auditorias/2026-11-03/brevo-domain-setup-proposal.md. No atribuir entregaautomática/prod; pruebaAuthdesdeentregas iniciada separadamente. SinSQL/Live/ensayo/buildsMac.
+
+
+## Recepción automática comprobada —4 noviembre Madrid
+Una recuperación real desde entregas llegó al Inbox de Owner QA A a00:42Madrid. Remitente/mailed-by/signed-by son de Supabase; TLSvisible y destino sandbox/callback entregas correcto, enlace sin consumir. Esto acredita el flujo Auth observado, NO BrevoSMTP/API. Backend confirma que el candidato de informes es legacy academyId/tenantId, sin correspondencia verificada con Owner organizationId: no invocarlo como sustituto. Fuente automatic-mail-auth-delivery-2026-11-04.md. No cambiar SMTP compartido con ensayo ni introducir funciones avanzadas solo para probar Brevo. Dominio Brevo ya resuelto y monitor cerrado; no más envíos automáticos en espera.
+
+
+## 2026-11-04 — Integración finita de cierre MVP
+Tres chats existentes coordinados con archivos separados: Owner, Backend y QA. GitHub2599 exacto APPROVED y CI/Firefox/WebKit/GitGuardian SUCCESS por lectura actual; cinco suites omitidas, no PASS. Sin runs/deploys nuevos.
+QA cierra primer uso por cadena QA C31oct→2nov en la misma academia; no repetir alta. Owner2599 multisedes aceptado en entregas. Resta una lectura Manager de los dos enlaces corregidos; acceso solicitado al humano, herramienta navegador actualmente no permite operar la pestaña, no se cambió sesión. Replay Manager histórico sigue NO VERIFICADO sin reconstrucción.
+Backend confirma que archivo lógico/exports legacy no equivalen a devolución/supresión canónica íntegra: capacidad ejecutable y prueba faltan. Alcance del núcleo de nuevas academias es organizationId canónico; no introducir crosswalk legacy como requisito adicional por inferencia. No SQL, borrados ni restore ejecutados.
+Owner preparó SOLO copy familiar en src/app/(site)/onboarding/parent/page.tsx para retirar promesas avanzadas; coordinador conservó etiquetas semánticas en preferencias. Sin cambios de rutas, claves, callbacks ni permisos; aún sin commit/CI/publicación. Legales/vault dirty preexistentes preservados.
+Brevo autenticado/verificado, monitor cerrado; Auth real recibido por Supabase, no BrevoAPI/SMTP. No repetir envíos. SQL contractual y Live siguen cerrados. Necesidades humanas: alta/NIF/domicilio, criterio fiscal del asesor, aprobación contractual final y pasos de credenciales; no contraseñas por chat. Evidencia consolidada auditorias/2026-11-04/mvp-opening-checklist.md de raízdurable y corte GitHub readonly adjunto.
+
+QA independiente del copy familiar confirmó controles/claves/rutas/callbacks intactos. Se retiró además la afirmación de invitación y configuración de permisos no acreditada; asociación/permisos se expresan como requisitos. Diff --check limpio; sin ejecución/commit/publicación.
+
+
+## 2026-11-04 — Lectura Manager 2599 CERRADA (01:10 Madrid)
+La sesión limitada autenticada por el humano permitió comprobar en entregas Clases→Grupos y Clases→Volver al resumen. Ambas páginas cargaron conservando academia `0242c134-872b-45ca-a2bf-c64ece52a15b` y sede `02f2c58a-eae3-435c-aab0-71c167c71fcc`; selector de sede único y restricción financiera por rol conservados. Alias actual confirmado al mismo despliegue inmutable `dpl_2UvoqYo4yC7ttfp4PC7VpsasRssz` documentado para2599. Sin formularios ni escrituras; sesión conservada. Evidencia y tres capturas: `auditorias/2026-11-04/manager-2599-navigation-acceptance.md`.
+Esta actualización sustituye exclusivamente las referencias anteriores a lectura Manager2599 pendiente o bloqueo del controlador. Recuperación original histórica Manager: NO VERIFICADA, independiente de esta lectura; no reconstruirla ni pedir aceptación de riesgo como sustituto de prueba. La capacidad de devolución/supresión, conservación/proveedores, contratos/fiscalidad y verificación productiva siguen abiertas según su alcance. No declarar MVP integral cerrado. SQL, Live y ensayo intactos; cero builds/pruebas pesadas locales, CI o despliegues nuevos.
+
+
+## 2026-11-04 — Devolución operativa canónica en implementación
+Continuación humana hasta terminar: Backend, Owner y QA anteriores retomados con archivos exclusivos. Backend export JSON por organización/snapshot readonly, Owner panel de descarga y QA aislamiento/cobertura. No es PDF contractual ni nueva función avanzada. Coordinador conectó la futura suite PG al runner remoto existente y la excluyó de la ejecución sin PG; todavía NO se ejecutó. Borradores legales y copy existentes preservados, sin commits/proveedores/SQL aplicado/Live/ensayo/buildsMac. Fuente raíz auditorias/2026-11-04/canonical-data-return-implementation-status.md. Supresión sigue separada hasta retención/registro durable revisados.
+
+
+## 2026-11-04 — Devolución operativa canónica integrada (pendiente CI)
+Servicio readonly Owner/all, catálogo literal46 tablas incluidas y exclusiones explícitas, panel de descarga independiente del plan/Stripe. Revisión estática independiente sinP0/P1; coordinación completó HTTP/PG/checksums y E2E375/768/1280. Sin tests/builds locales, SQL aplicado, Live, producción o ensayo. Aún no hay nuevo SHA, CI ejecutada o descarga alojada de este delta. No equiparar paquete acotado con devolución integral/supresión/restauración selectiva. Evidencia durable: auditorias/2026-11-04/canonical-data-return-implementation-status.md.
+
+## 2026-11-04 — Integridad del runner de devolución operativa
+CI41753092907 del9f3c3912:5350unitariasPASS/1FAIL/3skip. Único fallo en ci-isolated-workflow-contract.test.ts265: el campo replay_script_sha256 seguía registrando el runner2599 aunque9f añadió la suite canónica PG. Corrección propuesta solo del hash a4c048aa96fb1df3558a9ee96ac588e83fd68d63141d7b7aa64310fe58b2a3268. Baseline y seed conservan hashes exactos; no SQL alterado/aplicado ni aserciones retiradas. Replay41753135839 yaSUCCESS del código9f. Revisión independiente estática y nuevaCI completas pendientes. No repetir replay por este cambio de metadatos. CI anterior conserva sus navegadores en curso; no publicar nuevohead hasta terminar esos jobs para no cancelarlos por concurrency existente. Monitor viejo eliminado tras el fallo confirmado; seguimiento del ensayo intacto. No builds/tests/instalaciones/servicios locales, producción, Live o proveedores.
+
+## Corrección del estado Firefox y ajuste de navegación
+La consulta completa de CI9f confirma FirefoxFAIL, noPASS. Coordinación había inferido indebidamente éxito al desaparecer de un filtro de jobs activos; se corrigió al humano y esta nota sustituye cualquier referencia anterior a FirefoxPASS de9f. Logsjob126322676303: page.gotoNS_BINDING_ABORTED al abrir Plan en línea2473, después de familia201/relaciones persistidas verificadas. ArtefactoFirefox conserva Grupos y aviso de asociación; OwnerGroupsManager onSaved dispara router.refresh. Ajuste de prueba pendiente de revisión: usar enlace real Principal→Plan con href/URL scoped explícitos, sin capturar error ni timeout/retry nuevo ni quitar descarga/secretos/geometría375/768/1280. Ningún cambio de aplicación en este ajuste. WebKit aún en curso; se espera a su fin antes del push para no cancelarlo.
+
+## Pin secundario de procedencia — control automático existente
+Push50906457 inició CI41755855904, Static41755855900, Directory41755855913. Estos dos últimosSUCCESS, GitGuardianSUCCESS; CI principal en curso. El cambio de manifiesto también activó el workflow ya versionado canonical-domain-proposal41755847635: FAILen preparación por EXPECTED_MANIFEST_SHA256 antiguo80c65acb..., rehearsalSKIPPED. NoSQLaplicado ni destino remoto usado. No es fallo de la base ni permiso para ampliar control.
+Corrección pendiente de revisión independiente: SOLO pin a SHAmanifiesto revisadoe12a6f01fbfee1649de6fa374ce784c508b95a718c9cf21f8c7df567e1ff99a8, manteniendo comparaciónestricta. Manifestdiffsoloactualizó hashreplay; baseline/seed/candidatoSQLautorizado intactos. HashSQLcandidato sigue00ead5a3869bb335f2f17e58ebaaacac2bdc1ae4504493b473c68393359dab00. Rendercandidate no toma el hashmanifiesto comoentradaSQL; el outputJSONsí registra procedencia. La comparación remota cmp mantendrá rechazo de divergencias. No se ejecutó generador/parser/DB/local ni se instaló nada. Se continuará con nuevohead solo trasrevisión; la CIcompleta debe acreditarlo.
+
+## Candidato d3bee260 publicado y seguimiento exacto
+Revisión Backend del pin final sin bloqueo estático: hashactualmanifiesto coincide, comparaciónestricta preservada; rendercandidate no consume hashmanifest y SQLaprobado intacto. Commitd3bee2605395b74ea5d0df8e7d26136868757a10 publicado en rama/PR234. Incluye5ba5aa00(manifest) y50906457(navegaciónE2E). CI41756349206, Static41756349227, Directory41756349247 y proposal/rehearsal41756343182 iniciados automáticamente por workflowsexistentes, sin despliegue. Nueva revisión externa requerida; no solicitarla hasta cerrar gates completos. CI509sustituida podrá cancelarse automáticamente por concurrency, no se emite cancelación manual.
+Run9f terminadoFAIL: unitarias5350PASS/1FAIL/3skip, Chromium/WebKitPASS, FirefoxFAIL confirmado. Se conservaron todos sus jobs hasta concluir, no heredarPASS. Replay9f41753135839 no se repite: código funcional/catálogo/baseline/seed/runner no cambian con los tres ajustes. Rehearsalauto nuevo se vigilará porque el pin de su generador cambió. PRreescrita alrededor del candidatofinal y límites; preview permanece2599bf89. Legal/vaultdirty preservados fuera de commits.
+
+## 2026-11-04 — Corrección de navegación de grupos3e2ad57f
+CI d3terminóFAIL porFirefox583: POST201 y aviso de alta, lista0de2 vacía en captura. Chromium/WebKitPASS;5351unitariasPASS/3skip. Owner y Backend revisaron cliente/servidor; no encontraron exclusión porfiltro/estado. La carreraRSC es hipótesis a probar. Owner implementó SOLO OwnerGroupsManager.tsx y owner-groups-manager.test.tsx: grupo nuevo=>pushscoped único; replaygrupo seleccionado=>refreshúnico, preservando cuerpo/clave/guards y aserciónE2Evisibilidad. Revisión independiente Backend sinbloqueos estáticos, no testsMac.
+Commit3e2ad57f3ca68a835d06e7dd7986484bfaebbda5 publicado trasfinWebKit, CI41759144189 activa, Static41759142849 yDirectory41759142848SUCCESS. PRactualizada, REVIEW_REQUIRED; monitor d3eliminado y seguimiento único3eactivo. No repetir replayPG/SQLdeshechable sin cambios afectados. Preview2599intacta; sinSQLaplicado, producción, Live, ensayo, proveedores o builds/tests/servicios/instalaciones locales. Descargaalojada y permisosDBapp pendientes; no declarar devoluciónintegral/supresión/restore.
+
+
+### Corte verificado 4nov02:23UTC — unitarias3e cerradas
+CI41759144189 del SHA3e2ad57f confirma5352casosPASS/3omitidos y679archivosPASS/1omitido (logs job126342374274); build, Chromium, lint/tipos, móvil, seguridad/SBOM, RLS y migraciones SUCCESS. Static41759142849, Directory41759142848 y GitGuardian SUCCESS del mismoSHA. Firefox sigueactivo y WebKit encola; los cinco jobs omitidos no sonverificados y no hayPASSglobal. PR conservaREVIEW_REQUIRED y preview2599 intacta.
+Se retomaron los chats existentes Backend (actualización exclusiva del runbook, sin producto) y QA (revisión estática3e sin ediciones). No hay escritores concurrentes sobre producto ni cambios al head. No se volvió a ejecutar PG ni otraCI.
+
+
+### Revisión QA y runbook integrados —4nov
+QA del chat existente terminó revisión estática de3e sin defecto concreto/P0/P1: cuerpo/clave/scope/recibo conservados y las dos ramas push/refresh cubiertas; no ejecutó pruebas. Firefox3e terminóSUCCESS (job126342374305,1testPASS38.4s), además de5352unitarias/Chromium. WebKit sigueactivo; noPASSglobal ni nuevaaprobación. La hipótesis causal de carreraRSC no se da por demostrada.
+Backend actualizó únicamente tenant-data-return-erasure-runbook.md: diagnósticooriginalfechadohistórico, lanzamiento canónicoorganizationId ya decidido, crucelegacy solo para expedientes realmente mixtos. Export operativo46tablas/coverage.completefalse implementado; aceptaciónHTTP alojada pendiente. Supresión porcaso, retenciones efectivas/TTL y restoreselectivo/reaplicación siguen noimplementados o NOVERIFICADO;30/90días no soncompromisos aprobados. Coordinación revisó estado y límites del archivo. No se modificó producto/head ni se ejecutó SQL/proveedores/Live/ensayo/producción o pruebaslocales.
+
+
+### CI exacta3e2ad57f CERRADA —4nov02:32UTC
+Run41759144189 COMPLETED/SUCCESS del SHA3e2ad57f3ca68a835d06e7dd7986484bfaebbda5: build,5352unitariasPASS/3omitidas (679archivosPASS/1omitido), Chromium,Firefox,WebKit, gateE2Erequerido, lint/tipos,móvil,seguridad/SBOM,RLS y migracionesSUCCESS. WebKitjob126342374388 confirma1testPASS47.1s; Firefox1testPASS38.4s. Static41759142849 y Directory41759142848 terminalSUCCESS con el mismoSHA; GitGuardianSUCCESS en PR del mismohead. Los cincojobsomitidos no sonverificados. Snapshotexacto:ci-3e2ad57f-final.json.
+PR234head exacto yREVIEW_REQUIRED; ninguna revisión registrada aún de3e. CuerpoPR y aceptación/checklist actualizados sin cambiarhead; solicitar revisión externa antes de publicar. Preview2599 continúa intacta. La aceptaciónHTTPalojada del nuevoexport siguependiente y los resultados sintéticos no acreditan DBapp alojado. No repetirPG/SQLdeshechable sin cambiosafectados. Monitor deCI3e concluido para eliminar; seguimiento naturalensayo intacto. SinSQLaplicado, producción, Live, proveedores, ensayo o builds/tests/instalaciones/servicios locales.
+
+
+## 2026-11-04 — Impago natural: lectura acotada y acceso Stripe bloqueado
+Heartbeat separado del MVP: sandbox B persiste past_due, periodo terminado22oct19:01:02UTC y último evento firmado/processed26oct; no eventos posteriores de la suscripción/factura exactas en el ámbito consultado. GETaccount CLI perfilzaltyko falla con indicadores de caducidad/autenticación; no se leen factura/sub actuales ni se renuevan accesos. Terminalunpaid y agendaactualNOVERIFICADOS; requiere acceso humano de lectura a StripeTEST del ensayo. Fuente durable documentacion/Zaltyko/auditoria-2026-10-22/qa-impago-observation-2026-11-04.md. SoloSQLreadonly autorizado, sin escrituras/migración/prod/Live/alteraciónensayo/CI/MVP/buildsMac. Monitorobsoleto se cierra al no poder completar lecturaStripe; evidencia histórica conservada.
+
+
+## 2026-11-04 — 3e aprobado y publicado solo en entregas
+Aprobación elvisvaldes07:12:01UTC del SHA3e2ad57f; nueva compilación Git remota READY `dpl_SezhhY2yvU6X6oAmGdntJzkR6P2h`. 236 pruebas/tipos PASS, Next208569ms<360s, artefacto655trazas/973121referencias/0ausentes/CApresente. Health200/DB111.72ms. Alias delivery confirmado al nuevo artefacto; anterior conservado y protección intacta. La sesión Manager limitada real obtuvo403/private-no-store/sinattachment/datos en GET data-export; UI conserva sedeúnica y no muestra Plan. Owner QA A login preparado con correo existente y contraseña reservada al humano: descarga200/hashes, A→B404 y geometría alojada siguen pendientes. Fuente delivery-3e2ad57f-publication.md. No SQL/Live/producción/ensayo ni builds/pruebas pesadas locales. Esta actualización sustituye solo los pendientes de aprobación/publicación/403Manager; conserva el resto de límites históricos.
+
+
+## 2026-11-04 — Aceptación Owner del export 3e completada en su perímetro
+El humano inició OwnerQA A. Descarga real200/attachment/private-no-store/nosniff/CSPsandbox/CORPsame-origin:171210bytes,385filas,46tablas. Recalculados46hashes y bundle:todos coinciden.385filas con organización correcta y columnas exactas del catálogo; exclusiones explícitas/complete=false. OwnerA→B mostró problema404sin datos ni archivo; el buffer CDP no retuvo estado HTTP/cabeceras de transporte de ese GET, por lo que esas cabeceras quedan NO VERIFICADAS (sí observadas en200 y Manager403previo). Panel375/768/1280 sin desbordamiento y botón44px. Viewport restablecido y Ownerconservado. Fuente `delivery-3e2ad57f-owner-export-acceptance.md`, con evidencia JSON/capturas. Esta actualización sustituye los pendientes de sesión/descarga/hashes/perímetro/móvil del export en entregas; no cierra devolución integral, supresión/retención, restauración selectiva ni apertura productiva/comercial. SinSQL/Live/producción/ensayo ni builds/pruebas pesadas locales.
+
+
+## 2026-11-04 — Resultado independiente de derechos y candidato internacional congelado
+
+Backend/QA corrigieron y revisaron una fixture comercial de recuperación; dba6c7fb150e642809de6fe9011121a52c2a04c4 publicado en PR234 y CI remota41824497133/aislada41824521126 activas. No tests/builds locales ni cambios de producto/SQL alojado. Static/Directory/GitGuardian SUCCESS al corte; los demás gates siguen pendientes. Seguimiento acotado zaltyko-ci-internacional-dba6c7fb activo.
+
+Owner entregó revisión estática de derechos (código a687, sin cambios funcionales en dba): export parcial, archivo distinto de supresión, restore legacy distinto de recuperación canónica. Contrato mínimo preparado fuera del commit en `auditorias/2026-11-04/data-rights-next-increment-review.md`: devolución individual canónica por academia/titular, allowlist, checksums/exclusiones, fallo cerrado, cero escrituras; autoridad/titular a revisar. No se adoptan plazos 30/90 días propuestos ni se borra Auth compartido. Supresión/restauración siguen NO VERIFICADAS. Los originales dirty de legal/matriz/backlog/changelog permanecen conservados; esta entrada es aditiva y no se incluye en el candidato congelado.
+
+
+## 2026-11-04 — dba bloqueado y reproducción diagnóstica separada
+
+CI principal41824497133 dba6c7fb FAILURE por reapertura familiar Firefox tras PATCH tutor+reload; WebKit/Chromium y CI aislada41824521126 SUCCESS. Monitor dba eliminado; no se pide aprobación. Owner no encontró causa estática: botón ya tiene interactive y PATCH tutor no llama router.refresh. Coordinación envió76da559f y deltaad0817c7 de diagnóstico de prueba/artifact allowlist; Owner revisó filtro, ningún cambio de producto/aserciones/timeout/retry. CI41828974752/aislada41829000111/Static41828975022/Directory41828974676 pendientes del SHAad0817c7f865bdb0677b2a3798468cc43d6047b0. Monitor nuevo acotado, no declarará resuelto el fallo por un PASS posterior.
+
+Backend y QA congelaron verificador puro de consistencia de exportación parcial y sus pruebas en dos archivos nuevos fuera del commit, sin ejecutar tests ni conectar rutas. No restaura, no borra y no acredita autenticidad/autorización/integridad referencial. Conservados todos los dirty anteriores. Sin SQL alojado, producción/Live/ensayo/proveedores ni builds/tests/instalaciones/servicios locales. Fuente docs/qa/firefox-family-reopen-diagnostic-2026-11-04.md y auditoria durable international-first-delivery-status.md.
+
+
+## 2026-11-04 — OOM de CI corregido en configuración; ejecución pendiente
+
+Usuario autoriza ajuste y CIcompleta. Commit64dc93819a7cdf0895a7414334ab88cbbfb060ad publicado: old-space4096MiB solo pasosbuildprincipal/aislado, sin tocar next.config/producto/gates/runner/timeout/Sentry/TLS. OwnerrevisiónestáticaAPTO, no garantía de éxito. Se esperó al final de ad0817c7: tres navegadores+requiredgatePASS, buildprincipalFAIL V8heap~1960MiB/exit134; aislada41829000111PASS distinta configpreview. No se canceló/reinició CI.
+
+CI41832077180/aislada41832106108/Static41832077164/Directory41832077166 pendientes del nuevoSHA. Monitor `zaltyko-ci-memoria-build-64dc9381` activo para aviso al poder revisar/aprobar solo tras todosgates. No heredarPASS/omitidos ni cerrar causaFirefoxporunPASS. Fuente docs/qa/ci-build-memory-budget-2026-11-04.md. SinSQLalojado/producción/Live/ensayo/proveedores ni builds/testsMac. Verificador+tests nuevos y dirtyoriginales fuera delcommit.
+
+
+## 2026-11-04 — Build principal64dc9381 PASS observado
+
+GitHubAPI/log confirma Build126581494986SUCCESS con NODE_OPTIONS4096, compilación2.6min/300páginas/trazas y typecheckNextgeneradoSUCCESS. Sin controles desactivados. Firefox/WebKit y buildaislado41832106108 aúnpendientes al corte; no aprobación niPASSheredado. Fuente raíz auditorias/2026-11-04/ci-64dc9381-build-pass.md. Backend y QA revisiónreadonly de dos archivosverificador nuevos fuera delcommit; candidato64dc congelado. NoSQLalojado/producción/Live/ensayo/proveedores ni builds/testsMac. Monitor existente activo.
+
+
+### 2026-11-04 — CI64dc9381: ambos builds y Firefox correctos
+- Main41832077180 BuildSUCCESS y aislada41832106108SUCCESS del SHA64dc93819a7cdf0895a7414334ab88cbbfb060ad; FirefoxSUCCESS, WebKit en curso. GitGuardian/Static/DirectorySUCCESS. No aprobación todavía hasta finalizarWebKit y gate.
+- Backend/QA preparan correcciones y regresiones del verificador de exportaciones en dos archivos untracked separados; Owner revisa P2 ES/MX. Sin pruebas locales, sin integrar/cambiarHEAD.
+- Fuente: auditoria externa ci-64dc9381-build-pass.md y GitHubAPI. SinSQL alojado, Live, producción, ensayo o proveedores.
+
+
+### 2026-11-04 — 64dc9381 listo para revisión externa
+Main41832077180/aislada41832106108SUCCESS; ambosbuilds y3navegadores/gateSUCCESS, Static/Directory/GitGuardianSUCCESS mismoSHA. PRreviewREQUIREDsinaprobaciónactual. Monitorcerradoporexito; cuerpoPRactualizado sincambiarHEAD. Falta aprobaciónexternaantesdeentregas,SQLMXexactoautorizadoseparadoyaceptaciónalojada. VerificadorP1fechas bajo contrasteDrizzlepinned antesdeintegrar, archivosuntrackedseparados. NoejecucioneslocalesniSQL/producción/Live/ensayo/proveedores.
+
+
+### 2026-11-04 — Entregas64dc9381 aprobado y build remoto iniciado
+Aprobaciónelvisvaldesexacta20:16:15UTC ychecksverdes. UnbuildGitdpl_5w3nigQFeyYdpizHydeJ73LLQScL enpreview,autoAssignCustomDomains=false;sinárbollocal/variables/protecciónmodificados. Preflightaislamientobooleanostrue,240tests/13filesPASS ytypecheckPASS. Nextcompilando; aliasanteriorconservadohastasalud/artefacto. AuxiliarIABheredaOwnerQA A; pestañasoriginalesintactas. SQLMXyseñalesnoaplicados; sinproducción/Live/ensayo/buildMac. Fuenteauditoríaexternadelivery-64dc9381-publication.md.
+
+
+### 2026-11-04 — Entregas64dc9381 publicada y aceptación acotada
+- Aprobación exacta elvisvaldes; todas CI/checks del SHA SUCCESS. Un build Git remoto, READY y artifact0missing. Alias solo entregas; anterior conservado.
+- OwnerQA A: resumen/sedes/Clases, Cuotas EUR35 ya emitida bloqueada, móvil375/768/1280 sin overflow. Propuestas honestas, tres clics sinPOST; medición sigue deshabilitada. A→B usageHTTP404 sin datos.
+- Evidencia externa: auditorias/2026-11-04/delivery-64dc9381-publication.md y capturas. No equivale a aceptación internacional completa. SQLMX pendiente de autorización separada; verifier/tests fueraHEAD sin ejecutar. Sin producción/Live/ensayo/SQL/localbuild.
+
+
+### 2026-11-04 — SQL MX exacto autorizado y aplicado solo al sandbox
+- Aplicado una vez 20261104121000_mx_general_identity_candidate.sql SHA3abd3903f65b07cd7b133e60d28d1e283dc2dff0038f680b65b9dc0a819e57e6 a aeeootdmuiqkfeernskw tras revalidar proyecto/hash/catálogo/índice/triggers.
+- Postflight: dos perfiles MX identity_only sin reglas; perfiles fuera del objetivo2 filas y huella iguales. No DDL/ledger/permisos/academias/suscripciones/medición. No producción/Live/ensayo/localbuild.
+- Aceptación México sigue pendiente: cuenta QA sin academia, alta normal con contraseña/consentimiento humanos; luego MXN y zona por sede/recuperación. Fuente auditoría externa mx-identity-sql-applied.md.
+
+
+### 2026-11-04 — Resultado Backend de devolución y recuperación incorporado
+Backend cerró auditoría READONLY; ROOT contrastó límites/exclusiones/banderas en código. Documentado plan finito de disposición, inventario, contrato parcial, preflight, ensayo selectivo autorizado y supresión por almacén. No presentar verificador autocontenido como restauración ni exportar todos los excluidos sin clasificar. Backlog actualizado; fuente externa data-rights-closure-backlog.md. HEAD64dc y candidatos untracked conservados; ninguna ejecución/consultaDB/cambio de producto en este cierre.
+
+
+### 2026-11-04 — QA México registrada y aceptación alojada parcial64dc
+Registro/confirmación real y callbackPASS; academiaMX con MXN/AmericaTijuana y perfilesMXgenerales; 1persona/familia/grupo, sesiónlocal17h=UTCdía siguiente01h, inscripción/asistencia persistida despuésrecarga. Tarifa35025MXN verificadaSELECT, nofacturas/pagos. UIbloquea mes incompleto/fecha tarifaanterior e inscripción futura. Dashboard375/768 y Cuotas375/768/1280 sin overflow, GETusageMX→A404 sin datos. Backendidentificó brecha vigencia clase en quote/issue; Owner revisa creación segunda tarifa con catálogo existente; QAindependiente retomada, archivos exclusivos. Correcciones en curso sinCIlocal/SQLnuevo/Live/producción/ensayo/proveedores. Fuente externa qa-mx-64dc9381-hosted-acceptance.md. NoMVPcompleto ni cobroMXNverificado.
+
+
+## 2026-11-04 — candidato cuotas MX 507d3521
+
+- Hallazgo: la aceptación MX de64dc registró academia/moneda/zona/asistencia y rechazo MX→A404; cero facturas/pagos MXN. Evidencia externa qa-mx-64dc9381-hosted-acceptance.md.
+- Cambios coordinados: Owner permite tarifa adicional y borrador por ámbito con recuperación de creación; Backend exige vigencia completa de clase y rechaza emisión sin ledger parcial; ROOT añade explicación y regresión de interfaz. QA independiente sin P1/P2 en revisión estática, no ejecución.
+- Commit507d3521dfba88fd058b3a6e432d79b6aa5692d7, PR234. CI41924993382 +aislada41925017615 arrancadas, Static41924993682/Directory41924993967/GitGuardian pendientes. No heredar PASS.
+- Importancia/siguiente paso: esperar gates exactos, aprobación externa y publicación entregas; comprobar cuota350,25MXN/pago125,50MXN/saldo224,75MXN/replay. Son objetivos pendientes. Preview64dc intacta; sin producción/Live/ensayo/proveedores/SQL nuevo ni pruebas/builds locales.
+
+
+## 2026-11-04 — cierre incremental de CI507d y corrección dc14c61d
+
+- CI507d bloqueada por una prueba de recuperación que buscaba una asignación deshabilitada cuando la interfaz la oculta. Aislada41925017615:5428PASS/1FAIL/3skip; build aislado omitido. Principal41924993382:build/Chromium/FirefoxPASS, WebKit activo al corte. PostgreSQL desechable PASS; no aceptación HTTP del parche.
+- Owner corrigió solo el test: ausencia de Guardar tarifa durante incertidumbre, noPATCH/noPOST adicional tras remontar, cuerpo/clave originales conservados. QA revisó estáticamente sin bloqueos. Commit local dc14c61d002796cdd3bc40b9be0d93f3b85c8c4d, todavía no enviado para dejar terminar WebKit. Sin ejecución local de pruebas/builds.
+- Se cerró el monitor507d al materializarse el fallo; PR234 indica que no está lista para aprobación. Preview64dc y sesiónMX conservadas. Backend/Owner/QA preparan documentos separados de disposición, acceso internacional y aceptación financieraMX. Sin SQL alojado, producción, Live, ensayo ni cambios de proveedores.
+
+## Candidato sustituto dc14c61d — controles reiniciados sobre nuevo SHA
+
+La CI principal507d finalizó FAILURE únicamente por la prueba identificada, con5428PASS/1FAIL/3skip. Build y los tres navegadores SUCCESS. Se conservó el run completo antes del push.
+
+Owner corrigió únicamente tests/owner-monthly-invoice-resolution-panel.test.tsx y QA no encontró bloqueos estáticos. Commit dc14c61d002796cdd3bc40b9be0d93f3b85c8c4d enviado después del cierre anterior. CI41928195829, aislada41928205494 checks-and-build, Static41928195816, Directory41928195850 y GitGuardian requieren resultados de este SHA. No heredar resultados507d ni contar omitidos. La ejecución nueva aún está pendiente. PR234 actualizada; ninguna nueva aprobación solicitada.
+
+Preview64dc preservada. Brechas de devolución/supresión y acceso asistido siguen independientes; H1 de perfilesMX del informe estático se contrasta con el SQL específico ya aplicado y el alta201 real documentada en entregas. No acredita otro destino ni producción. H2 de la ruta legacy necesita seguimiento técnico separado.
+
+
+## Cierre ejecutado dc14c61d y siguiente integración
+
+Principal41928195829 terminó FAILURE:5429PASS/3skip, Chromium/Firefox/WebKit y gate E2E requerido SUCCESS. El proceso Next build acabó; `tsc --noEmit` del contrato generado agotó el heap predeterminado a unos2041MiB/exit134. Aislada41928205494 SUCCESS, incluido build y PostgreSQL efímero. No se heredan sus resultados al parche siguiente.
+
+ROOT preparó NODE_OPTIONS4096 exclusivamente para ese typecheck; QA revisión estática APTO. Continúan revisiones cruzadas del guard legacy de mercados, acceso asistido sin academia ficticia y verificador de exportaciones con fechas ISO. Ningún código nuevo se ha publicado ni probado localmente. La preview64dc, producción, Live y ensayo permanecen intactos. SQL alojado adicional no aplicado.
+
+
+## Candidato consolidado c343a6e9 — 4nov23:30UTC
+
+Enviados cuatro commits revisados por archivos:7b535273 memoria del typecheck generado;94bca683 guard administrativo de la ruta legacy;721476dd solicitud de acceso asistido y persistencia/replay transaccionales; c343a6e9 fechas civiles del export y verificador parcial acotado. Owner/Backend/QA realizaron revisiones cruzadas estáticas. Dos P2 int8/matrizDATE y P2 de cleanup fueron corregidos antes del envío. No pruebas ni builds locales. Borradores legales/vault/matriz preexistentes fuera de estos commits.
+
+SHA exacto c343a6e909e2797e6e93207e99add2d375dc897f. Principal41934222981, aislada41934264180 checks-and-build, Static41934222918 y Directory41934222932 arrancaron; GitGuardian exacto pendiente de revisar. Pruebas nuevas todavía NO VERIFICADAS. PG efímero incluye concurrencia de contacto y GETexport→verificador, sin SQL alojado. No cancelar/reiniciar para enviar otro candidato mientras corre la matriz completa.
+
+La preview permanece64dc9381. Falta CI completa, revisión GitHub externa exacta, publicación autorizada en entregas y aceptación incremental; no pedir aprobación antes de controles finales. Brevo ya autenticado no equivale a flujo canónico recibido. Live/producción/ensayo intactos. Ventana autónoma autorizada termina5nov06:49UTC.
+
+
+## 2026-11-05 — Copy público de acceso y asignación de entrenadores
+
+- Auditoría estática del candidato `ac3ab001`: el directorio Owner `Personal` crea perfiles sin cuenta; no se encontró invitación canónica `manager`/`coach`, escritura de scope por sede ni escritor/UI canónicos de `session_staff`. La asignación legacy por `coachId` no concede acceso canónico.
+- En el worktree aislado `/Users/elvisvaldesinerarte/Projects/Zaltyko/trabajos/Zaltyko-team-copy-reality-20261105` se ajustaron dos fuentes UI: `src/app/(site)/home/SocialProofSection.tsx` y `src/app/(site)/modules/clases-horarios/page.tsx`. Se retiraron claims de importación Excel/CSV, cuotas recurrentes, espera/avisos automáticos, portal de ausencias, alertas de abandono, disponibilidad inmediata, agenda de coaches y vistas/calendario no verificados. Se añadió `tests/public-team-access-copy-contract.test.ts` para fijar los límites honestos.
+- No se ejecutaron pruebas, build, CI ni revisión runtime; no hay commit ni publicación. Diff y límites en `auditorias/2026-11-05/team-self-service-readiness.md`. Siguiente paso: revisión independiente del diff y gates autorizados antes de integrar/publicar.
+
+
+## 2026-11-05 — Candidato nocturno df73ad3b con controles completos
+
+Sol coordinó Backend, Owner y QA con responsables separados. Candidato `df73ad3b43651794b248541cd09155c20a7c3e6e`: principal 41974780263 y aislada 41974786744 SUCCESS; ambos builds, 5670 unitarias PASS / 6 omitidas, PostgreSQL desechable, Chromium/Firefox/WebKit con 3 casos PASS cada uno, Static 41974780507, Directory 41974780157 y GitGuardian SUCCESS. Los cinco jobs condicionales principales y dos propuestas aisladas siguen omitidos, sin elevarlos a aceptación alojada.
+
+Incluye Personal sin cuenta/acceso, recuperación manual exacta y CAS/archivo/reactivación, cierre de telemetría opcional, bandeja de solicitudes asistidas de lectura, bloqueo de emisión por mezcla de monedas y guardas de borrado ligadas al recurso. El último delta ajusta dos fuentes de copy y su contrato; no concede acceso a entrenadores ni cambia precios/permisos. SocialProof sigue retirado de portada. El E2E sintético recorre HTTP/DB de GitHub hasta cuota, pago y dashboard; no acredita correo externo o publicación. Backup/restauración sintética separada 8fadaab3/run 41957938507 SUCCESS no equivale a copia productiva ni recuperación Auth/Storage/selectiva.
+
+Preview 64dc9381 intacta. Revisión externa del nuevo SHA requerida antes de publicación en entregas; protocolo `hosted-incremental-acceptance-df73ad3b.md` aún no ejecutado. Devolución integral/supresión, correo Brevo real desde app y preparación productiva/fiscal/contractual siguen pendientes. Sin SQL alojado adicional, Live, producción, ensayo, proveedores, correos o sesiones nuevos; cero builds/tests/instalaciones/servicios Mac. Fuentes externas: auditorias/2026-11-05/candidate-df73ad3b-ci-status.md y al-despertar-aprobaciones-y-apertura.md. Borradores legales, vault y matriz se conservan dirty fuera de commits.
+
+
+## 2026-11-05 — Cobros608a53bb publicado y medido en entregas
+
+Aprobación externa exacta608a53bb (elvisvaldes08:42UTC) y ambasCI/Static/Directory/GitGuardian SUCCESS. Vercel dpl_53RvAhTq4pj2rndTvuNVgTG4oaDF READY, alias delivery apunta al nuevo artefacto; padre df73 conservado. Build remoto240tests/typecheck/Next240891ms/artifactPASS, healthDBok.
+
+Con sesión Owner QA México existente, formulario Cobros de cargo mensual largo:375/768/1280PASS con anchos335/728/896 y límites20..355/20..748/192..1088; controles>=44px, sin solapes ni desbordes medidos, capturas inspeccionadas. Saldo22475MXN, sin nuevo pago; recarga observada sinPOST (captura final íntegra). Replay financiero previo df73 conservado como histórico aplicable a CSS sin delta funcional.
+
+Manager Personal/export: protocolo acotado de6peticiones403 preparado por QA, pendiente sesión limitada y snapshots pre/post para escrituras. Backend confirmó autoservicio de invitaciones canónicas no implementado; no confundir directorio sin login con acceso. Correo Brevo desde app, devolución/supresión y preparación productiva/comercial siguen abiertos. No SQL, Live, producción, ensayo o builds/tests locales. Fuente externa auditorias/2026-11-05/delivery-608a53bb-publication.md.
+
+
+## 2026-11-05 — Manager608a53bb: Personal y exportación alojados
+
+Sesión QA limitada existente: manager activo/selected/una sede, verificada en sandboxentregas. GETstaff/POSTcreate/PATCH/archive/reactivate paraQA A403; export propio403sinadjunto; GETstaff y reactivatecontraMX403; exportMX404sinadjunto; páginaPersonal404sincontenido. QA A no tiene staff_profiles: para tresmutaciones se usó UUIDreal de perfil sintéticoMX y versión persistida con organizationIdQA A, probando barrera de rol previa al lookup, no ciclo de vida de perfil propio. No se crearon fixtures ni permisos.
+
+SELECTsololectura acotadosA/MX antes/después del batch: people/staff/members/scopes/outbox idénticos; auditQA A215→215. AuditMX32→34 por exactamente2owner_surface.access_denied del actorlimitado, reasonmembership_or_role; las32filas previas mantienenhash. No afirmar igualdad global: 2auditsde seguridad esperados, sin registros operativos parciales. Baselineposterior al primer POSTdenegado, previo a repetición y otras mutaciones; AuthStorageglobal/RLSdirecto fuera de cobertura.
+
+Sin código ni gates nuevos, SQLaplicado/migraciones, Live, producción, ensayo o builds/tests/servicios locales. Sesión conservada en su sede. Evidencia externa: auditorias/2026-11-05/manager-staff-export-608a53bb-hosted-result.md y sus JSON/captura. Restan correo app, derechosdedatos/recuperación selectiva y acceso canónico de equipo autoservicio; apertura productiva/comercial separada.
+
+
+## 2026-11-05 — Acceso canónico de equipo, fase 1 preparada
+
+Sol coordinó Backend/Owner y QA independiente con archivos separados. Preparados DTO/servicio/6rutas, panel Owner y aceptación expresa para Manager/Coach selected, reemisión/revocación pendiente, credencial visible una vez y recuperación manual exacta. Feature servidor defaultfalse; Personal608 conserva su directorio. No vínculo de perfil, sesión Coach ni baja de miembro aceptado en esta fase.
+
+SQL candidato20261105120000 exige3tablas ausentes y restringe acceso directo; NOAPLICADO. Export parcial admite grupo opcional completo con contajes propios, sin valores de invitación/credencial/recibos. Bootstrap limpiafragmento antesSDK; sin correo automático. Tests fuente HTTP/UI/bootstrap/export y PostgreSQLloopback de carreras/rollback final añadidos al runner remoto existente. Revisión estática sinP1/P2 producto abiertos; tests/typecheck/build NOEJECUTADOS al integrar. Siguiente: CI remota completa y revisión exacta; no producción/Live/ensayo/proveedores ni builds/tests locales. Preview608 intacta. Fuente docs/qa/team-access-release-candidate-2026-11-05.md e informes externos de los3frentes.
+
+
+### 2026-11-05 — Invitaciones canónicas: implementación apagada2a9ebc24
+
+Fase1Ownerall→Manager/Coachselected con sedes explícitas, inspecciónAuthconfirmado, aceptaciónexpresa, reemisión y revocaciónpendiente. Backend/Owner/QA con archivosseparados; guardcatálogoRLS/ACL/constraints/enforcement y tokensvolátiles revisados. Flagdefaultfalse, candidatoSQLNOAPLICADO, sin correo ni concesiones alojadas. Export parcial admite3tablasopcionales por contajes/sinvalores.
+
+CIprincipal42015131740/aislada42015137260 en curso; PGdesecable, ensayo propuestaPG17,Static/Directory/GitGuardian yaSUCCESS exactos. No confundir con aceptación alojada ni con equipo completo: faltan vínculo de perfil/asignaciónCoach/baja de miembros, autorizaciónSQL/grantsexactos y prueba posterior. Preview608 intacta. B59 fallópin/stubAuth/lint, se conserva como fallo anterior; no heredarPASSni contabilizaromitidos. SinSQL/Live/producción/ensayo/proveedores/testsbuildslocales. Fuente externa team-access-first-phase-integration.md.
+
+
+## Fallo final WebKit de2a9 y ajuste acotado
+
+Principal42015131740FAIL: WebKit interrumpe gotoactive por navegaciónpending tras activationPATCH (testlínea563). Chromium/Firefox, buildprincipal,5814unitariasPASS/6omitidasSUCCESS; aislada42015137260SUCCESS inclPGysegundobuild. RequiredGateFAIL; no apto para aprobación/publicación. Artefacto sintético13410715760 y logjob127204066882 conservados temporalmente.
+
+Root cambia solo sincronización E2E: espera desaparición de la fila pendiente después del PATCH y usa combobox realActivas con URLscopeexacto. Preserva aserciones de estado/cantidad y replay; sin sleeps/retries/timeouts ni cambios producto/permisos. NuevoSHA/CI pendientes. No SQL/proveedores/producción/Live/ensayo/buildsMac.
+
+
+## Nuevo freeze0afff1c5
+
+HEAD0afff1c5d666698586c1e4dcce084a1e498bc657, único delta funcional del test: esperar refreshvisible y filtroUI. QA confirma filas exclusivamente delbundle, sin retiradaoptimista; sin defecto producto demostrado. Principal42018629871, aislada42018658829 (checks-and-build),Static42018629865,Directory42018629867 yGitGuardian exactos pendientes. SQL no cambia ni se aplica; preview608 sigueintacta.
+
+
+## Permisos mínimos: revisión fuente cerrada
+
+Backend entregó team-access-minimum-runtime-permissions-review.md sobre0afff1c5: 9relaciones, sinDELETEempresarial. FORSHAREAuth exige privilegioUPDATEadicional aunque noactualiceAuth; no se concederáporinferencia. Runtimerole/ACL/BYPASSactualesNO VERIFICADOS. Propuesta para revisión de identidadyopciónestrecha; sin SQL/grants/consultas alojadas. Noequivale a configuraciónlista. Invitacionessiguenoff; instalación/activación bloqueadas hasta resolverestecontrato, autorizaciónseparada y aceptaciónalojada.
+
+
+## Resultado0afff1c5 y freezeed77aa50
+
+Principal42018629871FAIL: el recorrido operativoWebKitPASS42,6s, luego market_access falla al marcarRítmica tras scroll, un tercer caso noejecutado. Chromium/FirefoxPASS;5814unitariasPASS/6omitidas, ambosbuilds yaislada42018658829/PG/static/directory/GitGuardianPASS. No heredar esos resultados. Root/Owner/QA revisaron estabilizaciónespacialsin afirmar causaexclusiva: scrollIntoViewinstantcentroantes del MISMOcheck real y toBeChecked nuevo, sinCSSglobal/force/sleeps/retries/timeout.
+
+HEADnuevoed77aa50de67c8ae24d3586d02b17d2a64b8e373; principal42021684927,Static42021684899,Directory42021684909 yaisladaautorizadachecks-and-build en curso. SQLno cambia/noseaplica; permisosactualesnoverificados, flagoff,preview608intacta.
+
+
+## Cierre CI ed77aa50 — listo para revisión externa, sin publicación
+
+HEADed77aa50de67c8ae24d3586d02b17d2a64b8e373. Principal42021684927SUCCESS: build/lint/tipos/seguridad/SBOM/móvil/RLS/migraciones,5814unitariasPASS/6omitidas,Chromium/Firefox/WebKit y RequiredGate. WebKit3/3: operativa36,3s, accesoasistido3,4s, recuperaciónPersonal7,3s; total54,4s. Aislada42021694595SUCCESS: estáticos/unidades5814PASS/6omitidas, PGdesecable ysegundobuild. Static42021684899,Directory42021684909,GitGuardianSUCCESS. Cinco jobsprincipalomitidos(credentials/readiness,authflows,public,smoke,Lighthouse) noacreditanE2Ealojado; dospropuestaslockfileaisladasomitidaspormodo.
+
+PRmerge47564ee374953ff4584530424d4fdb5902a11e01 yHEAD tienen mismotree4e25a03b665ea5b2c407b710c32657e4f18057b9, comprobadoAPI. PR234OPEN/REVIEW_REQUIRED; aprobación previa608 no cubre este código. Evidenciaestructurada team-access-ed77aa50-ci-evidence.json.
+
+Fase1 de invitaciones permaneceapagada; SQLcandidatoNOAPLICADO, runtimegrantsnoverificados ylockingAuth exige decisiónestrecha explícita antesdehabilitar. Preview608a53bb permanece. No nuevo despliegue, SQLalojado, producción, Live, ensayo, proveedores, correos, accesos o builds/tests/servicios locales. Pendientesfase2equipo/derechosdedatos/correoapp/preparaciónproductiva-comercial conservados en mvp-exit-gaps-2026-11-05.md. NoafirmarMVPcompleto.
+
+
+## 2026-11-05 — ed77aa50 publicado solo en entregas, equipo apagado
+
+Aprobación elvisvaldes exacta13:05:43UTC, CIprincipal42021684927/aislada42021694595/Static/Directory/GitGuardianSUCCESS (5814PASS/6skip; cincojobsprincipalomitidos). Buildremoto dpl_9q2zUGQQf4S2wj7G6NjL1qJsGsHR READY, Next244650ms,240prechecks/tiposPASS,670traces/994951refs/0ausencias. Aliasdeliveryreconsultado alSHAexacto; anterior608conservado, protecciónSSOintacta.
+
+FlagTEAM_ACCESSausente en configuraciónpreviewdelarama⇒defaultoff; SQL/grantsNOAPLICADOS. SesiónManagerselectedexistente: health200, equipo/access503FEATURE_NOT_AVAILABLE,accept404noindex/no-referrer,Personal/exportAPIs403sindescarga. PáginasPersonal/Planrenderizan404sinformulariosaunqueelstreamdocumentalsea200. Resumen375/768/1280sinwidthoverflow, navegaciónrestringidaausente, unasolasede; viewportrestaurado. Evidenciaexterna delivery-ed77aa50-publication.md, hosted-evidence.json ycapturas. Noatribuir aceptaciónOwnerpositiva, cicloON ni nuevossnapshotsdeescrituras.
+
+SiguientefrenteindependienteG7: Backendpreparapreflightpuroderecuperaciónsobrearchivosvalidados,destinodeclaradoydependencias; QArevisa negativosfinancieros/tenant. Sinimportador/ruta/SQLalojado/proveedores; restorablefalseycondicionesdesconocidasbloqueadas. Producción,Liveyensayoexcluidos,ceroejecuciónpesadaMac.
+
+
+## 2026-11-05 — G7 diagnóstico 63c64487: CI remota completa; sin publicar
+
+SHA63c64487cb2641c58871c351541e87543cb88dfb: contrato/política explícita46tablas y preflight puro sin ruta/importador/escrituras. Relaciones proyectadas, claves únicas/PK, UUID/tiempos y destino declarado; salida minimizada siempreblocked/restorablefalse. Backend/Owner/QA independientes; pruebas consumen export real sin resellar en PG, negativos sintéticos sí resellados/validados. No se verifican destino/autorización real/Auth/Storage/legacy/reglasSQLomitidas.
+
+Principal42036296990 y aislada42036330047SUCCESS, Static42036296894/Directory42036297058/GitGuardianSUCCESS. 5847PASS/6skip (33nuevas), ambosbuilds, PGefímero,3navegadores/gate; WebKit3/3en51s. Cincojobsprincipal ydospropuestaslockfile omitidos no acreditan ejecución. Merge7741a2ca yHEAD mismotreeb77a012d; PR234REVIEW_REQUIRED. Evidenciasexternas canonical-recovery-63c64487-ci-status.md y ci-evidence.json.
+
+Preview sigueed77aa50, invitacionesOFF ySQLNOAPLICADO. No nuevosdespliegues/producción/Live/ensayo/correos/proveedores ni pruebas/builds locales. Hoja data-rights-decision-sheet.md separa siete decisiones G5/G6/G7, técnica previa y resolución humana sin inventar plazos. Siguiente: revisión externa63; no anunciar recuperación ni MVPcompleto.
+
+
+## 2026-11-05 — 63c64487 publicado en entregas; invitaciones OFF
+
+Aprobaciónelvisvaldesexacta20:29:08UTC y CIprincipal42036296990/aislada42036330047/Static/Directory/GitGuardianSUCCESS revalidadas. Deploymentdpl_59g2u2LXynoEPHEdi6fZC4tT7nRA READY; aliasdeliveryasignado/reconsultado. Targetpreview, fuenteGit63c64487cb2641c58871c351541e87543cb88dfb ysin autoasignacióndominios. Anterior ed77/dpl_9q2zUGQQf4S2wj7G6NjL1qJsGsHR conservado. Next221462ms<360s,240prechecksPASS,artefacto670traces/994951refs/0ausentes/CApresente,buildtotal7min.
+
+Managerselectedexistente: recarga realcorrecta,unasede,menúrestringido; health200,staff/access503FEATURE_NOT_AVAILABLE privado/no-store/no-referrer,staff/accept404sinredirect/noindex. Viewport486doc486; no repeticiónfinanzas/3anchuras. Consolarecientesinchunk/hydration; dosFetchcancelados/0excepcionesobservadas,buffertruncadonoacreditaescaneoglobal. Evidencias delivery-63c64487-publication.md/hosted-evidence.json/captura.
+
+FlagTEAM_ACCESSausenteen46metadatospreviewrama⇒defaultOFF; SQL/grantsNOAPLICADOS. Sinproducción/Live/ensayonatural/proveedores/correos/accesosnuevos ni builds/tests/servicioslocales. DiagnósticoG7interno publicado mantieneblocked/restorablefalse. Backendpreparapruebarecuperaciónpeople+athletesprivados enPostgreSQLefímeroGitHub; aún NO EJECUTADA, no importadorruntime. Owneridentificólímiteprecisiónµs→ms, debe probarseydeclararse sin afirmarfidelidadarbitraria.
+
+
+## 2026-11-05 — Recuperación sintética c32a7e44 y preview preservada
+
+<!-- release-c32a7e44-20261105 -->
+
+**Hallazgos.** La preview de entregas sigue READY en63c64487, deployment dpl_59g2u2LXynoEPHEdi6fZC4tT7nRA, alias reconsultado; invitaciones OFF. El candidato c32a7e448572db642c177199f9e6d728b1643ec6 solo cambia siete archivos de pruebas, runner/pins y documentación. No src ni SQL baseline. Backend, Owner y QA participaron; hijos finalizados.
+
+**Fuentes.** CI principal42111483440 e aislada42111512274 del SHA exacto. Job PostgreSQL127540340564 SUCCESS: recuperación persona/gimnasta, conflictos same/cross-academy, replay, rollback y snapshots protegidos. La variante µs mide residuosSQL456 y diferencias0 contra el archivo intacto y recupera el snapshot completo. La hipótesis estática de pérdida de precisión se corrigió con evidencia real; no se fuerza truncamiento. Dos suites generales5847PASS/6omitidas; build principalPASS. Estado de gates c32a7e44: SUCCESS. Ambas CI, Static, Directory y GitGuardian del SHA exacto verdes; Chromium3/3, Firefox3/3, WebKit3/3(1.2min), Required Gate y ambos builds PASS. Merge35b9bd0312ee06009a3143b690ec60b18545f626 y HEAD comparten árbol c07e895ef09a3d5978b03394990aad0bf202ea39. GitHubREVIEW_REQUIRED; nuevo commit no desplegado.
+
+**Importancia.** Se acredita únicamente la fixture cerrada. Historial bootstrap Free validado y protegido; cleanup cierra handle sin SQL y el runner tiene asignado el teardown. No recuperación general ni respaldo integral, Auth/Storage/legacy, borrado/conservación o RPO/RTO; preflight general blocked/restorable=false. No se afirma un negativo de pérdida de precisión ejecutado. La aplicación publicada no incorpora un importador.
+
+**Siguiente paso.** CI exacta cerrada; revisión externa del nuevo SHA antes de otra publicación. G3/Personal completo, correo automático de aplicación, devolución/supresión/conservación/recuperación general, preflight productivo y hechos fiscales/contractuales siguen separados. Sin SQL alojado, Live, producción, ensayo, proveedores, accesos nuevos ni tests/builds/servicios/instalaciones Mac. Borradores legales y demás dirty preservados fuera del commit. Evidencia externa: auditorias/2026-11-05/canonical-athlete-recovery-c32a7e44-ci-status.md y delivery-63c64487-remaining-release-gates.md.
+
+
+## 2026-11-05 — c32a7e44 publicado; cierre incremental y avances G4/G5
+
+**Hallazgos.** Aprobación de elvisvaldes a las 21:46:47 UTC y controles del SHA exacto SUCCESS. Deployment dpl_hz8QVBK6n7CjQ5tzKdybscmhc9nV READY, alias de entregas reconsultado. Anterior 63c64487 / dpl_59g2u2LXynoEPHEdi6fZC4tT7nRA retenido y READY. Sin cambios de protección ni variables; flag de equipo ausente, por tanto OFF. Next terminó en 197022 ms dentro de 360 s; artefacto sin referencias ausentes.
+
+**Fuentes.** delivery-c32a7e44-publication.md y hosted-evidence.json: recarga del Manager existente, resumen y propuestas correctos, una sede y menú restringido. Health 200; staff/access 503 FEATURE_NOT_AVAILABLE privado/no-store/no-referrer; staff/accept 404 sin redirección ni formulario y noindex. Viewport real 486 px y documento 486 px. Sin repetir finanzas ni tres anchuras por este delta sin src. Cero excepciones observadas, dos Fetch cancelados y buffer truncado: no acredita un escaneo global.
+
+**Importancia.** Tres especialistas cerraron la revisión de publicación y los mapas de correo y datos, con revisión documental independiente. El correo tiene un bloqueo concreto: el preflight prohíbe BREVO_API_KEY; no basta autorizar un envío. El mapa de datos añade fuentes omitidas y mantiene explícita su cobertura parcial. Ninguno acredita recepción real, devolución integral, supresión o recuperación general.
+
+**Siguiente paso.** Usar delivery-c32a7e44-remaining-release-gates.md y la hoja D1–D7. Preparar el contrato aislado de correo y la clasificación de datos antes de proponer operaciones. Nada humano pendiente para esta publicación. Alta/datos fiscales, reglas del asesor, contratos, conservación y suplencia humana siguen pendientes para abrir. Sin SQL aplicado, Live, producción, ensayo, proveedores, correos, nuevos accesos o builds/tests/instalaciones/servicios en Mac. Sin merge ni nuevo commit; borradores legales y demás dirty preservados.
+
+
+## 2026-11-06 — Identidad documental y domicilio autorizados; preparación local
+
+**Hallazgos.** Alta censal y resolución RETA del 5 de noviembre revisadas documentalmente. El titular autoriza el domicilio de actividad en textos legales y facturas. Perfil común y borradores de privacidad/encargo preparados con identidad completa; no se incluyen originales, datos bancarios ni Seguridad Social en el repositorio. Los cortes anteriores de alta pendiente quedan históricos, sin reescribirlos.
+
+**Fuentes.** Documentos facilitados por el titular y autorización expresa del 6 de noviembre; docs/legal/facturacion-saas-preparacion.md; auditoría externa 2026-11-06/contractual-working-review-2026-11-06.md y su manifiesto local. Backend prepara la separación entre factura SaaS y cobros familiares; revisión independiente comprueba gates y copy. Propuesta G4 de correo aislado preparada por Release, todavía sin implementación, credencial ni envío.
+
+**Importancia.** Identidad y alta documentales no resuelven la fiscalidad del software. Flags de soporte, fiscalidad, Checkout fiscal, textos y publicación siguen false; Live permanece cerrado. Términos condiciona contratar capacidad a su habilitación; archivar sigue disponible. Tests ajustados solo como fuente local: NO ejecutados ni cubiertos por CI anterior. Los datos completos solo figuran en los borradores destinados a identificación, no en esta nota.
+
+**Siguiente paso.** Dictamen del asesor sobre actividad/regla fiscal y ejemplo de factura; revisión de conservación, proveedores, DPA y suplencia humana; contrato técnico de correo y procedimientos de datos antes de operaciones. Preparar un candidato separado para CI/revisión cuando el paquete esté cerrado. HEAD c32a7e44 sin cambio, borradores no publicados. Sin SQL aplicado, Live, producción, ensayo, proveedores, correos, accesos nuevos ni builds/tests/servicios/instalaciones Mac. Invitaciones OFF.
+
+
+## 2026-11-06 — Equipo y voz del club: candidato657393fd
+
+<!-- team-design-657393fd -->
+
+**Hallazgos.** El usuario pide corregir el aspecto anticuado y la comunicación corporativa del SaaS. Primer corte: Personal→Equipo, Mesa de dirección→Tu club, jerarquía/espacios/controles y estados vacíos de Equipo. Se conserva la advertencia de cuenta e invitación, sin habilitarlas. Navegación mantiene ruta, contexto, capacidades y foco; lógica de escritura/diario intacta.
+
+**Fuentes.** Commit657393fdb27982a2fe4f97b5bb8b0bdc2592ab4e, docs/qa/team-design-and-voice-2026-11-06.md, nota Diseño y voz de producto. Owner y Backend implementaron sus archivos; QA adaptó cuatro suites sin eliminar aserciones. Owner/QA agotaron su uso antes del cierre; integración/revisión final estática por coordinación. CI principal42183554004 y aislada42183562606 EN CURSO. PostgreSQL desechable/seguridad/móvil/RLS/Static/Directory/GitGuardian ya SUCCESS, no se extrapolan unitarias/build/navegadores pendientes.
+
+**Importancia.** Corte visual real y acotado; no se declara rediseñado todo el producto. La preview permanece51cf5272. No se heredan sus PASS ni su aprobación. GitHub exige revisión nueva; aceptación visual alojada posterior, sin operaciones ajenas al corte.
+
+**Siguiente paso.** Cerrar CI exacta y después solicitar revisión657393fd. Luego publicación solo en entregas y comprobar Equipo/menús/editor/errores a375/768/1280. Continuar rediseño por recorridos y preservar los gates de correo, datos y fiscalidad. Sin SQL, Live, producción, ensayo, proveedores, correos, accesos nuevos ni builds/tests/instalaciones/serviciosMac. Este apunte se deja local sin nuevo commit para no invalidar el candidato.
+
+
+## Resultado CI657393fd
+
+CI principal42183554004 e aislada42183562606 completas SUCCESS del mismoSHA; dos builds, unitarias5998PASS/6omitidas en ambas, Chromium3/3, Firefox3/3 y WebKit3/3, RequiredGate, PostgreSQL desechable, Static, Directory y GitGuardianSUCCESS. Los siete jobs condicionales omitidos no acreditan sus recorridos. Geometría del editor375/768/1280 sin desbordes/intersecciones/objetivos menores44px. Merge82170f28407de26d4fd5aec007feca2123873fdd y HEAD comparten árbol2f40a66009b81896210e8b50b18b83c04710ffa5; buildaisladoHEADexacto confirmado. GitHubREVIEW_REQUIRED. Preview51cf5272 intacta, aceptación visual alojada del diseño pendiente. Estado actualizado localmente sin nuevo commit para conservar el candidato. Evidencia externa team-design-657393fd-status.md; nota de diseño y backlog actualizados. Sin SQL/Live/producción/ensayo/proveedores/correos ni builds/testsMac.
+
+
+## Publicación y aceptación alojada657393fd
+
+**Hallazgos.** Revisión externa exacta APPROVED; deployment dpl_DRqwKTQE2LXXSe6gXHt1Yr5wFm9p READY publicado solo en el alias de entregas. Anterior51cf5272 conservado READY. Owner QA A comprueba Equipo, menú y formulario/editor a375/768/1280 sin desbordes ni objetivos menores44px. Una fixture sintética creada y archivada, Activos vacío después de recargar, historial conservado.
+
+**Fuente.** auditorias/2026-11-06/team-design-657393fd-publication.md, equipo-657393fd-hosted-metrics.json y capturas reales del SHA. CI y revisión exactas revalidadas. Buffer de red truncado: no afirma escaneo global. Manager autenticado de este SHA no repetido con esta sesión Owner; reglas sin cambios y regresiones CI conservadas.
+
+**Importancia.** Primer corte visible publicado, no rediseño completo ni MVP abierto. Invitaciones y correo aislado OFF; Live cerrado. Sin SQL, proveedores, producción, ensayo, nuevos accesos o builds/tests locales. Estado actualizado localmente sin nuevo commit para conservar el aprobado.
+
+**Siguiente paso.** Resumen y recorridos operativos con la misma voz del club; completar correo automático real, procedimientos de datos, suplencia y fiscalidad/contratos. Alta de autónomo documentada; fiscalidad del software pendiente del asesor.
+
+
+## 2026-11-06 — Resumen: candidato25d34d01
+
+**Hallazgos.** Resumen y panel de cifras alineados con Equipo; contexto academia/sede, permisos, números, monedas, fechas y estados conservados. Dos componentes y dos suites más documentación/vault en commit25d34d015712fe975d122f5881f419e4f2cef680. Owner implementó y revisó el delta QA; QA añadió regresiones. La relectura del propio producto no sustituye revisión independiente externa.
+
+**Fuente.** docs/qa/summary-design-and-scope-2026-11-06.md; CI principal42193459250, aislada42193471714, Static42193459265 y Directory42193459290 lanzadas. Estado pendiente, no se heredan PASS.
+
+**Importancia.** Sin SQL, proveedores, Live, producción, ensayo ni builds/tests/lint/tipos/servicios/instalacionesMac. Preview657393fd conservada. Borradores y dirty ajenos preservados.
+
+**Siguiente paso.** Cerrar CI exacta sin bajar controles y solicitar revisión externa del candidato. Después publicación delivery/aceptación visual afectada. Correo y procedimientos de datos siguen separados.
+
+
+## 2026-11-07 — Traspaso documental a Claude
+
+**Hallazgos.** Elvis solicita contexto integral para que Claude evalúe y continúe con criterio propio. Traspaso guardado fuera del checkout en /Users/elvisvaldesinerarte/projects/Zaltyko/traspasos/ZALTYKO-CONTEXTO-PARA-CLAUDE-2026-11-07.md: rutas actuales/históricas, visión internacional y deportiva, núcleo, diseño, pendientes, evidencia y límites.
+
+**Fuente.** HEAD y PR25d34d015712fe975d122f5881f419e4f2cef680 revalidados. CI42193459250/42193471714, Static, Directory, tres navegadores y GitGuardian SUCCESS; REVIEW_REQUIRED. Preview657393fd indicada como última evidencia6nov, no revalidada hoy en Vercel. Dirty preservado.
+
+**Importancia.** No confundir apertura comercial con diseño ni CI sintética con aceptación alojada. Alta autónomo documentada; fiscalidad y gates comerciales pendientes. Se preservan documentos y credenciales fuera de este traspaso; no contiene contraseñas o claves.
+
+**Siguiente paso.** Claude inspecciona y decide secuencia; ninguna publicación, SQL, proveedor, Live, producción, ensayo o prueba/build local por este traspaso. Sin commit/push.
+
+
+## 2026-11-07 — Claude: base visual compartida y Clases
+
+**Hallazgos.** Elvis autoriza a Claude a decidir la secuencia y pide rehacer el aspecto visual, que no le gusta. Equipo (657393fd) fija la dirección, pero sus estilos estaban copiados dentro de un único componente y 24 pantallas conservan el estilo anterior. Se crea `owner-ui.ts` como base común y se migra Clases sin tocar lógica ni textos verificados por tests.
+
+**Fuente.** docs/qa/classes-design-and-shared-ui-2026-11-07.md; diff local sobre 25d34d01. Revisión estática y `git diff --check`.
+
+**Importancia.** Evita copiar clases en cada archivo y permite rediseñar el resto de pantallas de forma consistente. Sin tests/build locales; CI, revisión y publicación pendientes. PR 234 (25d34d01) no se modifica.
+
+**Siguiente paso.** Validar la dirección visual con Elvis; después Grupos, Asistencia, Gimnastas/Familias, Cobros, Configuración, Suscripción y Resumen sobre la base común. En paralelo, gates de correo, datos y fiscalidad. Sin SQL, Live, producción, ensayo ni proveedores.
+
+
+## 2026-11-07 — Sistema visual nuevo del panel del club (supera la entrada anterior del mismo día)
+
+**Hallazgos.** Elvis rechaza también la dirección de Equipo y pide el nivel de los mejores SaaS adaptado al nicho. Claude propone maqueta (Resumen, Clases, pasar lista móvil, sistema) y Elvis la aprueba. Implementado: tokens `z-*`, base `owner-ui.ts`, menú lateral agrupado en escritorio y cabecera con accesos en móvil para las 20 páginas `/owner`, Resumen y Clases rediseñados, Equipo migrado y pasada de color/esquinas en los 28 componentes restantes.
+
+**Fuente.** docs/qa/classes-design-and-shared-ui-2026-11-07.md; maqueta en projects/Zaltyko/documentacion/diseno-2026-11-07/. Revisión estática y `git diff --check`.
+
+**Importancia.** Cambio visible en todo el panel sin tocar lógica, permisos ni datos; se conservan los contratos de navegación y textos de las suites. No ejecutado localmente: CI, revisión externa, publicación y aceptación visual pendientes. PR 234 sin modificar.
+
+**Siguiente paso.** Rama propia y CI remota; después «Hoy en el club», «Necesita tu atención» y pasar lista móvil (requieren consultas). Gates de correo, datos y fiscalidad siguen abiertos. Sin SQL, Live, producción, ensayo ni proveedores.
+
+
+## 2026-11-07 — PR 243 lista para revisión externa (head ac522419)
+
+**Hallazgos.** Implementado el plan de diseño aprobado: sistema visual común, menú lateral, Resumen con «Hoy en el club» y «Necesita tu atención», fecha y plan en el menú, Asistencia en un toque y marco común en el resto de pantallas `/owner`. Dos pasadas de `code-review` (15 hallazgos, 14 corregidos; pendiente test SQL de atención contra PostgreSQL desechable) y auditoría `impeccable` 15/20.
+
+**Fuente.** PR https://github.com/mentessaas/Zaltyko/pull/243 (base main, incluye 234). CI principal SUCCESS en `ac522419`: build, lint/tipos, unitarias, E2E Chromium/Firefox/WebKit con geometría, migraciones, RLS, SQL, SBOM, GitGuardian. CI aislada no aplicable desde esta rama (solo `codex/mvp-main-bridge-20261025`). docs/qa/classes-design-and-shared-ui-2026-11-07.md.
+
+**Importancia.** Revisión solicitada a elvisvaldes en 234 y 243; no se aprueba en su nombre ni se elude el gate. Nada publicado ni integrado. Sin SQL nuevo, migraciones, Live, producción, ensayo ni proveedores. Asistencia cambia la interacción (un toque) manteniendo el mismo comando idempotente.
+
+**Siguiente paso.** Tras aprobación: integrar en la rama del candidato, CI aislada del SHA exacto, publicación solo en entregas y aceptación visual 375/768/1280. Después: test SQL de atención, barra inferior móvil con su contrato de geometría, y gates de correo, datos y fiscalidad.
+
+
+## 2026-11-07 — PR 244: barra inferior móvil y test SQL del Resumen
+
+**Hallazgos.** Seguimiento en rama aparte para no mover `ac522419` (243 en revisión). Barra inferior fija <1280 px con Resumen/Asistencia/Clases/Grupos y «Más» hacia arriba; margen y `scroll-padding-bottom` para que nada quede tapado. Suite PostgreSQL desechable para «Hoy en el club» y «Necesita tu atención» registrada en el replay aislado.
+
+**Fuente.** https://github.com/mentessaas/Zaltyko/pull/244 (borrador, base main, incluye 243). Contratos cambiados a propósito: 5 objetivos móviles en vez de 6, nuevo orden, «Más» para manager; tests actualizados. Nada ejecutado en local; la suite PG solo corre en la CI aislada desde la rama del candidato.
+
+**Siguiente paso.** CI principal de 244; revisión de 243 primero, luego 244. Pendientes de producto fuera de diseño: correo transaccional, procedimientos de datos y fiscalidad.
+
+**Actualización 7 nov (PR 244, `50476dda`).** Con autorización expresa de Elvis se conecta `tests/owner-dashboard-today-attention-pg.test.ts` al replay aislado y se actualiza la cadena de procedencia: hash del script `b3667cf7…`→`405d7f32…` en `supabase/schema-snapshot-manifest.json` y hash del manifiesto `75e376fe…`→`c182b358…` en `scripts/ci/prepare-canonical-domain-proposal.py`. Ningún otro archivo fija esos hashes; sin cambios de esquema, SQL ni snapshot. El primer intento sin autorización rompió el contrato y se revirtió (`c39412fa`).
+
+
+## 2026-11-07 — PR 245: un `false` del emisor ya no se presenta como envío
+
+**Hallazgos.** Implementado el lote de `email-caller-next-batch-scope.md` y ampliado tras barrer `src`: ocho callers (invitaciones de personal y admin, notifications/send, mensaje de soporte superadmin, contacto público de evento y academia, invitación inicial por enlace mágico y activación de acceso) afirmaban envío ignorando `false`. Ahora propagan el resultado y la UI avisa sin revertir lo persistido. Test de contrato que barre `src` con lista explícita de siete avisos accesorios.
+
+**Fuente.** https://github.com/mentessaas/Zaltyko/pull/245 (desde `25d34d01`, independiente del rediseño); docs/qa/email-caller-acceptance-2026-11-07.md.
+
+**Importancia.** Corrige afirmaciones falsas al usuario sin activar invitaciones, proveedores ni envíos. Aceptación del proveedor ≠ recepción: G4 sigue abierto. Sin SQL. Nada ejecutado en local.
+
+**Siguiente paso.** CI y revisión externa de 245. Gates humanos pendientes: credencial aislada de correo (G4), plazos de conservación/supresión, dictamen fiscal, contratos y suplente de soporte.

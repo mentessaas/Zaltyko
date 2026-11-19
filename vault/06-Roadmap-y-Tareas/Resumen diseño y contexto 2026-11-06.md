@@ -15,3 +15,8 @@ Presentación no equivale a aceptación productiva. Ninguna migración o proveed
 ## Siguiente paso
 
 Ejecutar ambas CI remotas y controles del mismo SHA; resolver fallos sin quitar aserciones. Luego revisión externa y aceptación alojada. Correo automático real, proveedores aislados, consumidores de correo que ignoran false, datos integrales, suplencia y fiscalidad/contratos siguen pendientes independientes. Alta autónomo documentada; fiscalidad del software todavía pendiente del asesor.
+
+
+## Corte CI09:19UTC
+
+25d34d01 publicado en rama PR234, no en preview. Build principal, lint/tipos, seguridad, móvil, RLS/migraciones, Static, Directory y GitGuardian SUCCESS. PostgreSQL desechable aislado SUCCESS. Unitarias, navegadores y final de CI aislada pendientes, sin fallo observado al corte. No se heredan PASS ni se acreditan los jobs omitidos. Revisión externa pendiente; no se solicita aprobar aún. Ejecuciones42193459250/42193471714. Vault/PR actualizadas sin nuevo commit.

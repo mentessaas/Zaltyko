@@ -29,3 +29,15 @@ a197b740 pasa PostgreSQL desechable, build principal, tipos y Chromium; no compl
 ## Corte 2895f605 — WebKit
 
 Unitarias5998PASS/6omitidas, ambos builds y PostgreSQL desechable pasan, también Chromium y Firefox3/3, seguridad y controles estáticos. WebKit pasa Owner operativo pero falla esperando alert de contacto asistido; Personal queda sin ejecutar. Captura: botón detrás de cabecera fija. Sin evidencia del primer POST ni defecto funcional demostrado. Se ajusta únicamente posición antes del click nativo y observación/diagnóstico sintético, conservando todas las aserciones. No se atribuye una causa exclusiva ni se declara listo para publicar hasta conciliar el nuevo SHA.
+
+## Resultado final remoto51cf5272
+
+AmbasCI42139731024/42139740099SUCCESS, dos builds, unitarias5998PASS6omitidas, Chromium/Firefox/WebKit3/3 yRequiredGateSUCCESS. Static/Directory/GitGuardianSUCCESS. Siete jobs omitidos no acreditan sus recorridos. GitHubREVIEW_REQUIRED; no publicación ni SQL/Live/producción/ensayo. Resultado anotado localmente sin nuevo commit para conservar el candidato revisable. Brevo leído en cuenta exacta: dominio autenticado/verificado yremitenteactivo; no envío ni aislamiento de credencial acreditados. Expediente fiscal y factura borrador preparados para asesor. Recepción real y procedimientos integrales de datos siguen pendientes; diagnóstico no ejecuta supresión/recuperación.
+
+## Publicación de entregas y aceptación incremental
+
+Revisión externa APPROVED de elvisvaldes sobre51cf5272, 6nov06:53:13Z. Un único build remoto de entregas pasa aislamiento/240pruebas/tipos/Next237s/artefacto; READYdpl_4qZpB7d86oPmhXjNh2nN4DEoS9dp. Alias de entregas trasladado después de comprobar login directo hidratado; anteriorc32 conservado. Manager limitado mantiene su sede; Personal404 y APIs Personal/export403. Acceso de equipoFEATURE_NOT_AVAILABLE/503, invitacionesOFF. Panel sin desborde DOM a375/768/1280; no acredita editorOwner ni todos los formularios. Preparada sesiónOwnerQA A para aceptación pendiente. CorreoOFF, sin credencial/envío. Especialista entrega propuesta de alcance Brevo, sin configurar. Evidencia externa delivery-51cf5272-publication.md. Sin SQL/Live/producción/ensayo ni builds/testsMac; HEAD intacto.
+
+## Aceptación Owner QA A de Personal
+
+SesiónOwner disponible y conservada. Más→Personal abre contextoA, estado vacío y formulario sin acceso/invitación. APIAok/items0; filtrosArchivados/Todos/Activos yActualizar generan solo4GET deA. B ajena devuelveAPI403/página404. Controles44px dentro de375/768/1280, scrollWidth igual alviewport; capturas completas y overrides retirados. Sin crear perfiles ni enviar/invitar. La sesión solo autorizaA: el cambioSPA entre dos academias autorizadas continúa acreditado únicamente en la regresión sintética de CI; no se sustituye por hardnavigation/404. RevisiónQA independiente ratifica ese límite. Evidencia externa personal-51cf5272-owner-acceptance.md. No nuevos cambios de producto, CI, SQL, Live, producción, ensayo ni pruebasMac.

@@ -23,8 +23,13 @@ describe("live contracting requires verified seller and tax readiness", () => {
   };
 
   it("keeps real charges closed while test checkout remains available", () => {
-    expect(commercialLaunchProfile.registrationStatus).toBe("pending");
-    expect(commercialLaunchProfile.taxId).toBeNull();
+    expect(commercialLaunchProfile.registrationStatus).toBe("verified");
+    expect(commercialLaunchProfile.taxId?.trim()).toBeTruthy();
+    expect(commercialLaunchProfile.professionalAddress?.trim()).toBeTruthy();
+    expect(commercialLaunchProfile.taxTreatmentReviewed).toBe(false);
+    expect(commercialLaunchProfile.checkoutTaxVerified).toBe(false);
+    expect(commercialLaunchProfile.legalTextsApproved).toBe(false);
+    expect(commercialLaunchProfile.liveReleaseApproved).toBe(false);
     expect(isSaasCheckoutEnabled("live")).toBe(false);
     expect(isSaasCheckoutEnabled("test")).toBe(true);
   });
@@ -41,12 +46,13 @@ describe("live contracting requires verified seller and tax readiness", () => {
     expect(result.missing.length).toBeGreaterThan(0);
   });
 
-  it("does not treat identity completion as verification of registration, taxes or release", () => {
-    const result = getCommercialLaunchReadiness({
-      ...commercialLaunchProfile, taxId: complete.taxId, professionalAddress: complete.professionalAddress,
-    });
+  it("does not treat documented registration and identity as tax or release approval", () => {
+    const result = getCommercialLaunchReadiness();
     expect(result.ready).toBe(false);
-    expect(result.missing).toEqual(expect.arrayContaining(["registration", "checkout_tax", "tax_treatment", "legal_texts", "live_release"]));
+    expect(result.missing).not.toContain("registration");
+    expect(result.missing).not.toContain("seller_tax_id");
+    expect(result.missing).not.toContain("seller_address");
+    expect(result.missing).toEqual(expect.arrayContaining(["checkout_tax", "tax_treatment", "legal_texts", "live_release"]));
     expect(getCommercialLaunchReadiness(complete)).toEqual({ ready: true, missing: [] });
   });
 

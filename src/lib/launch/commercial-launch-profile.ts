@@ -15,15 +15,16 @@ export interface CommercialLaunchProfile {
   liveReleaseApproved: boolean;
 }
 
-// Human declaration, 26 October 2026: planned sole trader in Spain; not yet registered.
+// Registration documents dated 5 November 2026 reviewed; address use authorized 6 November.
+// Documentary registration verification is separate from software tax treatment and release.
 // Filling identity fields alone must not enable real charges or imply tax validation.
 export const commercialLaunchProfile: Readonly<CommercialLaunchProfile> = {
-  legalName: "Elvis Valdes Inerarte",
+  legalName: "Elvis Lazaro Valdes Inerarte",
   countryCode: "ES",
-  taxId: null,
-  professionalAddress: null,
+  taxId: "Z3452134T",
+  professionalAddress: "C/ Lagunillas 66, Piso 3, Puerta A, 29012, Málaga, España",
   supportEmail: "hola@zaltyko.com",
-  registrationStatus: "pending",
+  registrationStatus: "verified",
   supportMailboxVerified: false,
   taxTreatmentReviewed: false,
   checkoutTaxVerified: false,

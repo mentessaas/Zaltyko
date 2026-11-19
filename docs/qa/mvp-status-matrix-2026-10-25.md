@@ -8,6 +8,21 @@ y separa cuatro estados: **implementado**, **probado aisladamente**,
 demuestra que el flujo esté desplegado o validado contra un usuario y datos
 persistidos reales de sandbox.
 
+## Actualización 2026-11-05 — df73 publicado en entregas
+
+Actualización posterior08:24UTC: corrección CSS de Cobros congelada en608a53bbe9939e93d759bca3d91d4279a10dd09c, todavía NO publicada. CI41991471249 y aislada41991514265 SUCCESS:5670unitariasPASS/6skip, ambosbuilds y3casos por motor Chromium/Firefox/WebKit, incluidos límites geométricos375/768/1280 y gate agregado. Static/Directory/GitGuardian SUCCESS exactos. Revisión externa requerida por GitHub; la aceptación alojada del CSS sigue pendiente. El fallo móvil de df73 en la tabla siguiente continúa siendo el estado de la preview actual. Fuente externa manual-payment-width-608a53bb-status.md.
+
+Este corte posterior prevalece para la publicación actual: df73ad3b43651794b248541cd09155c20a7c3e6e aprobado y publicado solo en delivery, deployment dpl_As1F6hwJFAVETGkXMzW1oab8G5bx. CI principal41974780263 y aislada41974786744 exactasSUCCESS; cinco jobs condicionales omitidos no verificados. Vercel remoto240PASS/tipos/build245526ms/artefacto0faltantes/healthDBok. Ensayo y producción intactos.
+
+| Área incremental | Evidencia alojada actual | Límite |
+| --- | --- | --- |
+| Personal sin acceso | Alta201/respuesta perdida, recuperación carga nueva mismo body/key200/recibo original, una ficha, edición/archivo/reactivación | La recarga original de Personal fue bloqueada; no afirmar reload realizado. Manager nuevo aún pendiente. |
+| Cuota/pago MXN | Cuota diciembre35025, pago12550, recarga real1Document/0POST, replay exacto, saldo22475, dashboard1cobro12550 | Fixture vigente nueva; sin reinterpretar noviembre incompleto. Conciliación posterior en informe separado. |
+| Exportación | OwnerMéxico200,46checksums/bundle/scope/fechasPASS; intento sobreQA A404sinarchivo | Parcial complete=false; manager403 actual pendiente. |
+| Móvil | Personal y dashboard375/768/1280 sin recorte | Cobros FALLA375/768 con referencia larga; scrollWidthsolo no detecta el defecto. Corrección en preparación. |
+
+Fuente detallada externa: /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-11-05/delivery-df73ad3b-publication.md. No es cierre del MVP ni apertura comercial. Las secciones siguientes conservan cortes históricos y no deben reutilizarse como estado vigente del artefacto.
+
 ## Corte vigente de validación
 
 Control posterior: CI40234163820 de670d15a3 falla Chromium en signup y gate
@@ -462,3 +477,132 @@ usa fecha civil actual de la sede consultada en la DB desechable; la cuota sigue
 en el periodo siguiente. No se cambiaron aserciones/timeouts del paso WebKit
 históricamente intermitente. Suite PostgreSQL nativa ampliada de cinco a ocho
 archivos. Todo este lote sigue pendiente de ejecución remota al registrar la nota.
+
+
+## 2026-11-04 — Aceptación Owner del export 3e completada en su perímetro
+El humano inició OwnerQA A. Descarga real200/attachment/private-no-store/nosniff/CSPsandbox/CORPsame-origin:171210bytes,385filas,46tablas. Recalculados46hashes y bundle:todos coinciden.385filas con organización correcta y columnas exactas del catálogo; exclusiones explícitas/complete=false. OwnerA→B mostró problema404sin datos ni archivo; el buffer CDP no retuvo estado HTTP/cabeceras de transporte de ese GET, por lo que esas cabeceras quedan NO VERIFICADAS (sí observadas en200 y Manager403previo). Panel375/768/1280 sin desbordamiento y botón44px. Viewport restablecido y Ownerconservado. Fuente `delivery-3e2ad57f-owner-export-acceptance.md`, con evidencia JSON/capturas. Esta actualización sustituye los pendientes de sesión/descarga/hashes/perímetro/móvil del export en entregas; no cierra devolución integral, supresión/retención, restauración selectiva ni apertura productiva/comercial. SinSQL/Live/producción/ensayo ni builds/pruebas pesadas locales.
+
+
+## Corte 2026-11-04: entrega internacional64dc9381
+
+Solo preview de entregas publicada (dpl_5w3nigQFeyYdpizHydeJ73LLQScL), no producción. CI exacta principal/aislada/Static/Directory/GitGuardian y tres navegadores SUCCESS; omitidas no contadas. Aceptación alojada acotada ES: OwnerA resumen/sedes/navegaciónClases, cuotasEUR35 ya emitidas bloqueadas,375/768/1280 sin overflow; tres propuestas informativas sinPOST; APIusage A→B404. No nuevas escrituras ni concurrencia en este pase. Históricos conservados, no reetiquetados como actuales.
+
+MX requiere aprobación SQL específica y aceptación alojada alta/moneda/zona/recuperación. Medición no habilitada. Exportación parcial actual; nuevo verificador/tests fueraHEAD, sin ejecución. Incidencia Firefox intermitente previa no explicada por PASS posterior. MVP y producción no cerrados. Fuente externa: /Users/elvisvaldesinerarte/projects/Zaltyko/auditorias/2026-11-04/delivery-64dc9381-publication.md.
+
+
+### 2026-11-04 — Dependencia MX instalada con aprobación separada
+SQL exacto3abd3903…e57e6 aplicado a sandbox aeeootdmuiqkfeernskw; dos perfiles MX identity_only comprobados, catálogo ES intacto. Esto es instalación de datos de referencia, no recorrido México probado ni producción publicada. Alta autenticada/MXN/zonas/recuperación pendientes de cuenta QA independiente. Discovery sin habilitar. Fuente externa mx-identity-sql-applied.md.
+
+
+### 2026-11-04 — Aceptación México parcial64dc
+SQLMXexacto aprobado/aplicado; humano completó signup/consentimiento; confirmación/callback y academia MX/MXN/AmericaTijuana persistidos. Grupo/persona/familia, clase/inscripción/asistencia y tarifa35025MXN comprobados en entregas. Recarga asistenciaPASS; MX→Ausage404; dashboard375/768 y Cuotas375/768/1280 sin overflow. No emisión/pagoMXN, ni replay/concurrencia/escriturascruzadasMX en este corte. Cobertura mensual incompleta y activación futura bloqueadas correctamente. Backend detectó estáticamente falta de vigencia classTemplate en quote/issue; Owner revisa tarifa adicional; QAindependiente retomada. No declarar aceptación integral ni producciónlista. Evidencia raíz auditorias: qa-mx-64dc9381-hosted-acceptance.md (carpeta auditorias/2026-11-04).
+
+
+### Corte 2026-11-04 — cuotas MX, candidato507d3521
+
+Tarifa adicional y borrador por ámbito (Owner), vigencia mensual de clase en quote/issue (Backend), explicación y bloqueo en Cuotas (ROOT): implementados en507d3521 y revisados estáticamente por QA sin P1/P2. Ejecución remota pendiente: CI41924993382, aislada41925017615, Static41924993682, Directory41924993967 y GitGuardian. Preview conserva64dc9381. No atribuir al nuevo candidato la aceptación alojada parcial de64dc; no facturas ni pagos MXN creados. Después de gates/review, pendiente publicación y replay autenticado financiero. Ninguna migración nueva ni ejecución local.
+
+
+## Candidato consolidado c343a6e9 — 4nov23:30UTC
+
+Enviados cuatro commits revisados por archivos:7b535273 memoria del typecheck generado;94bca683 guard administrativo de la ruta legacy;721476dd solicitud de acceso asistido y persistencia/replay transaccionales; c343a6e9 fechas civiles del export y verificador parcial acotado. Owner/Backend/QA realizaron revisiones cruzadas estáticas. Dos P2 int8/matrizDATE y P2 de cleanup fueron corregidos antes del envío. No pruebas ni builds locales. Borradores legales/vault/matriz preexistentes fuera de estos commits.
+
+SHA exacto c343a6e909e2797e6e93207e99add2d375dc897f. Principal41934222981, aislada41934264180 checks-and-build, Static41934222918 y Directory41934222932 arrancaron; GitGuardian exacto pendiente de revisar. Pruebas nuevas todavía NO VERIFICADAS. PG efímero incluye concurrencia de contacto y GETexport→verificador, sin SQL alojado. No cancelar/reiniciar para enviar otro candidato mientras corre la matriz completa.
+
+La preview permanece64dc9381. Falta CI completa, revisión GitHub externa exacta, publicación autorizada en entregas y aceptación incremental; no pedir aprobación antes de controles finales. Brevo ya autenticado no equivale a flujo canónico recibido. Live/producción/ensayo intactos. Ventana autónoma autorizada termina5nov06:49UTC.
+
+
+## 2026-11-05 — Cobros608a53bb publicado y medido en entregas
+
+Aprobación externa exacta608a53bb (elvisvaldes08:42UTC) y ambasCI/Static/Directory/GitGuardian SUCCESS. Vercel dpl_53RvAhTq4pj2rndTvuNVgTG4oaDF READY, alias delivery apunta al nuevo artefacto; padre df73 conservado. Build remoto240tests/typecheck/Next240891ms/artifactPASS, healthDBok.
+
+Con sesión Owner QA México existente, formulario Cobros de cargo mensual largo:375/768/1280PASS con anchos335/728/896 y límites20..355/20..748/192..1088; controles>=44px, sin solapes ni desbordes medidos, capturas inspeccionadas. Saldo22475MXN, sin nuevo pago; recarga observada sinPOST (captura final íntegra). Replay financiero previo df73 conservado como histórico aplicable a CSS sin delta funcional.
+
+Manager Personal/export: protocolo acotado de6peticiones403 preparado por QA, pendiente sesión limitada y snapshots pre/post para escrituras. Backend confirmó autoservicio de invitaciones canónicas no implementado; no confundir directorio sin login con acceso. Correo Brevo desde app, devolución/supresión y preparación productiva/comercial siguen abiertos. No SQL, Live, producción, ensayo o builds/tests locales. Fuente externa auditorias/2026-11-05/delivery-608a53bb-publication.md.
+
+
+## 2026-11-05 — Manager608a53bb: Personal y exportación alojados
+
+Sesión QA limitada existente: manager activo/selected/una sede, verificada en sandboxentregas. GETstaff/POSTcreate/PATCH/archive/reactivate paraQA A403; export propio403sinadjunto; GETstaff y reactivatecontraMX403; exportMX404sinadjunto; páginaPersonal404sincontenido. QA A no tiene staff_profiles: para tresmutaciones se usó UUIDreal de perfil sintéticoMX y versión persistida con organizationIdQA A, probando barrera de rol previa al lookup, no ciclo de vida de perfil propio. No se crearon fixtures ni permisos.
+
+SELECTsololectura acotadosA/MX antes/después del batch: people/staff/members/scopes/outbox idénticos; auditQA A215→215. AuditMX32→34 por exactamente2owner_surface.access_denied del actorlimitado, reasonmembership_or_role; las32filas previas mantienenhash. No afirmar igualdad global: 2auditsde seguridad esperados, sin registros operativos parciales. Baselineposterior al primer POSTdenegado, previo a repetición y otras mutaciones; AuthStorageglobal/RLSdirecto fuera de cobertura.
+
+Sin código ni gates nuevos, SQLaplicado/migraciones, Live, producción, ensayo o builds/tests/servicios locales. Sesión conservada en su sede. Evidencia externa: auditorias/2026-11-05/manager-staff-export-608a53bb-hosted-result.md y sus JSON/captura. Restan correo app, derechosdedatos/recuperación selectiva y acceso canónico de equipo autoservicio; apertura productiva/comercial separada.
+
+
+### 2026-11-05 — Invitaciones canónicas: implementación apagada2a9ebc24
+
+Fase1Ownerall→Manager/Coachselected con sedes explícitas, inspecciónAuthconfirmado, aceptaciónexpresa, reemisión y revocaciónpendiente. Backend/Owner/QA con archivosseparados; guardcatálogoRLS/ACL/constraints/enforcement y tokensvolátiles revisados. Flagdefaultfalse, candidatoSQLNOAPLICADO, sin correo ni concesiones alojadas. Export parcial admite3tablasopcionales por contajes/sinvalores.
+
+CIprincipal42015131740/aislada42015137260 en curso; PGdesecable, ensayo propuestaPG17,Static/Directory/GitGuardian yaSUCCESS exactos. No confundir con aceptación alojada ni con equipo completo: faltan vínculo de perfil/asignaciónCoach/baja de miembros, autorizaciónSQL/grantsexactos y prueba posterior. Preview608 intacta. B59 fallópin/stubAuth/lint, se conserva como fallo anterior; no heredarPASSni contabilizaromitidos. SinSQL/Live/producción/ensayo/proveedores/testsbuildslocales. Fuente externa team-access-first-phase-integration.md.
+
+
+## Cierre CI ed77aa50 — listo para revisión externa, sin publicación
+
+HEADed77aa50de67c8ae24d3586d02b17d2a64b8e373. Principal42021684927SUCCESS: build/lint/tipos/seguridad/SBOM/móvil/RLS/migraciones,5814unitariasPASS/6omitidas,Chromium/Firefox/WebKit y RequiredGate. WebKit3/3: operativa36,3s, accesoasistido3,4s, recuperaciónPersonal7,3s; total54,4s. Aislada42021694595SUCCESS: estáticos/unidades5814PASS/6omitidas, PGdesecable ysegundobuild. Static42021684899,Directory42021684909,GitGuardianSUCCESS. Cinco jobsprincipalomitidos(credentials/readiness,authflows,public,smoke,Lighthouse) noacreditanE2Ealojado; dospropuestaslockfileaisladasomitidaspormodo.
+
+PRmerge47564ee374953ff4584530424d4fdb5902a11e01 yHEAD tienen mismotree4e25a03b665ea5b2c407b710c32657e4f18057b9, comprobadoAPI. PR234OPEN/REVIEW_REQUIRED; aprobación previa608 no cubre este código. Evidenciaestructurada team-access-ed77aa50-ci-evidence.json.
+
+Fase1 de invitaciones permaneceapagada; SQLcandidatoNOAPLICADO, runtimegrantsnoverificados ylockingAuth exige decisiónestrecha explícita antesdehabilitar. Preview608a53bb permanece. No nuevo despliegue, SQLalojado, producción, Live, ensayo, proveedores, correos, accesos o builds/tests/servicios locales. Pendientesfase2equipo/derechosdedatos/correoapp/preparaciónproductiva-comercial conservados en mvp-exit-gaps-2026-11-05.md. NoafirmarMVPcompleto.
+
+
+## 2026-11-05 — ed77aa50 publicado solo en entregas, equipo apagado
+
+Aprobación elvisvaldes exacta13:05:43UTC, CIprincipal42021684927/aislada42021694595/Static/Directory/GitGuardianSUCCESS (5814PASS/6skip; cincojobsprincipalomitidos). Buildremoto dpl_9q2zUGQQf4S2wj7G6NjL1qJsGsHR READY, Next244650ms,240prechecks/tiposPASS,670traces/994951refs/0ausencias. Aliasdeliveryreconsultado alSHAexacto; anterior608conservado, protecciónSSOintacta.
+
+FlagTEAM_ACCESSausente en configuraciónpreviewdelarama⇒defaultoff; SQL/grantsNOAPLICADOS. SesiónManagerselectedexistente: health200, equipo/access503FEATURE_NOT_AVAILABLE,accept404noindex/no-referrer,Personal/exportAPIs403sindescarga. PáginasPersonal/Planrenderizan404sinformulariosaunqueelstreamdocumentalsea200. Resumen375/768/1280sinwidthoverflow, navegaciónrestringidaausente, unasolasede; viewportrestaurado. Evidenciaexterna delivery-ed77aa50-publication.md, hosted-evidence.json ycapturas. Noatribuir aceptaciónOwnerpositiva, cicloON ni nuevossnapshotsdeescrituras.
+
+SiguientefrenteindependienteG7: Backendpreparapreflightpuroderecuperaciónsobrearchivosvalidados,destinodeclaradoydependencias; QArevisa negativosfinancieros/tenant. Sinimportador/ruta/SQLalojado/proveedores; restorablefalseycondicionesdesconocidasbloqueadas. Producción,Liveyensayoexcluidos,ceroejecuciónpesadaMac.
+
+
+## 2026-11-05 — G7 diagnóstico 63c64487: CI remota completa; sin publicar
+
+SHA63c64487cb2641c58871c351541e87543cb88dfb: contrato/política explícita46tablas y preflight puro sin ruta/importador/escrituras. Relaciones proyectadas, claves únicas/PK, UUID/tiempos y destino declarado; salida minimizada siempreblocked/restorablefalse. Backend/Owner/QA independientes; pruebas consumen export real sin resellar en PG, negativos sintéticos sí resellados/validados. No se verifican destino/autorización real/Auth/Storage/legacy/reglasSQLomitidas.
+
+Principal42036296990 y aislada42036330047SUCCESS, Static42036296894/Directory42036297058/GitGuardianSUCCESS. 5847PASS/6skip (33nuevas), ambosbuilds, PGefímero,3navegadores/gate; WebKit3/3en51s. Cincojobsprincipal ydospropuestaslockfile omitidos no acreditan ejecución. Merge7741a2ca yHEAD mismotreeb77a012d; PR234REVIEW_REQUIRED. Evidenciasexternas canonical-recovery-63c64487-ci-status.md y ci-evidence.json.
+
+Preview sigueed77aa50, invitacionesOFF ySQLNOAPLICADO. No nuevosdespliegues/producción/Live/ensayo/correos/proveedores ni pruebas/builds locales. Hoja data-rights-decision-sheet.md separa siete decisiones G5/G6/G7, técnica previa y resolución humana sin inventar plazos. Siguiente: revisión externa63; no anunciar recuperación ni MVPcompleto.
+
+
+## 2026-11-05 — 63c64487 publicado en entregas; invitaciones OFF
+
+Aprobaciónelvisvaldesexacta20:29:08UTC y CIprincipal42036296990/aislada42036330047/Static/Directory/GitGuardianSUCCESS revalidadas. Deploymentdpl_59g2u2LXynoEPHEdi6fZC4tT7nRA READY; aliasdeliveryasignado/reconsultado. Targetpreview, fuenteGit63c64487cb2641c58871c351541e87543cb88dfb ysin autoasignacióndominios. Anterior ed77/dpl_9q2zUGQQf4S2wj7G6NjL1qJsGsHR conservado. Next221462ms<360s,240prechecksPASS,artefacto670traces/994951refs/0ausentes/CApresente,buildtotal7min.
+
+Managerselectedexistente: recarga realcorrecta,unasede,menúrestringido; health200,staff/access503FEATURE_NOT_AVAILABLE privado/no-store/no-referrer,staff/accept404sinredirect/noindex. Viewport486doc486; no repeticiónfinanzas/3anchuras. Consolarecientesinchunk/hydration; dosFetchcancelados/0excepcionesobservadas,buffertruncadonoacreditaescaneoglobal. Evidencias delivery-63c64487-publication.md/hosted-evidence.json/captura.
+
+FlagTEAM_ACCESSausenteen46metadatospreviewrama⇒defaultOFF; SQL/grantsNOAPLICADOS. Sinproducción/Live/ensayonatural/proveedores/correos/accesosnuevos ni builds/tests/servicioslocales. DiagnósticoG7interno publicado mantieneblocked/restorablefalse. Backendpreparapruebarecuperaciónpeople+athletesprivados enPostgreSQLefímeroGitHub; aún NO EJECUTADA, no importadorruntime. Owneridentificólímiteprecisiónµs→ms, debe probarseydeclararse sin afirmarfidelidadarbitraria.
+
+
+## 2026-11-05 — Recuperación sintética c32a7e44 y preview preservada
+
+<!-- release-c32a7e44-20261105 -->
+
+**Hallazgos.** La preview de entregas sigue READY en63c64487, deployment dpl_59g2u2LXynoEPHEdi6fZC4tT7nRA, alias reconsultado; invitaciones OFF. El candidato c32a7e448572db642c177199f9e6d728b1643ec6 solo cambia siete archivos de pruebas, runner/pins y documentación. No src ni SQL baseline. Backend, Owner y QA participaron; hijos finalizados.
+
+**Fuentes.** CI principal42111483440 e aislada42111512274 del SHA exacto. Job PostgreSQL127540340564 SUCCESS: recuperación persona/gimnasta, conflictos same/cross-academy, replay, rollback y snapshots protegidos. La variante µs mide residuosSQL456 y diferencias0 contra el archivo intacto y recupera el snapshot completo. La hipótesis estática de pérdida de precisión se corrigió con evidencia real; no se fuerza truncamiento. Dos suites generales5847PASS/6omitidas; build principalPASS. Estado de gates c32a7e44: SUCCESS. Ambas CI, Static, Directory y GitGuardian del SHA exacto verdes; Chromium3/3, Firefox3/3, WebKit3/3(1.2min), Required Gate y ambos builds PASS. Merge35b9bd0312ee06009a3143b690ec60b18545f626 y HEAD comparten árbol c07e895ef09a3d5978b03394990aad0bf202ea39. GitHubREVIEW_REQUIRED; nuevo commit no desplegado.
+
+**Importancia.** Se acredita únicamente la fixture cerrada. Historial bootstrap Free validado y protegido; cleanup cierra handle sin SQL y el runner tiene asignado el teardown. No recuperación general ni respaldo integral, Auth/Storage/legacy, borrado/conservación o RPO/RTO; preflight general blocked/restorable=false. No se afirma un negativo de pérdida de precisión ejecutado. La aplicación publicada no incorpora un importador.
+
+**Siguiente paso.** CI exacta cerrada; revisión externa del nuevo SHA antes de otra publicación. G3/Personal completo, correo automático de aplicación, devolución/supresión/conservación/recuperación general, preflight productivo y hechos fiscales/contractuales siguen separados. Sin SQL alojado, Live, producción, ensayo, proveedores, accesos nuevos ni tests/builds/servicios/instalaciones Mac. Borradores legales y demás dirty preservados fuera del commit. Evidencia externa: auditorias/2026-11-05/canonical-athlete-recovery-c32a7e44-ci-status.md y delivery-63c64487-remaining-release-gates.md.
+
+
+## 2026-11-05 — c32a7e44 publicado; cierre incremental y avances G4/G5
+
+**Hallazgos.** Aprobación de elvisvaldes a las 21:46:47 UTC y controles del SHA exacto SUCCESS. Deployment dpl_hz8QVBK6n7CjQ5tzKdybscmhc9nV READY, alias de entregas reconsultado. Anterior 63c64487 / dpl_59g2u2LXynoEPHEdi6fZC4tT7nRA retenido y READY. Sin cambios de protección ni variables; flag de equipo ausente, por tanto OFF. Next terminó en 197022 ms dentro de 360 s; artefacto sin referencias ausentes.
+
+**Fuentes.** delivery-c32a7e44-publication.md y hosted-evidence.json: recarga del Manager existente, resumen y propuestas correctos, una sede y menú restringido. Health 200; staff/access 503 FEATURE_NOT_AVAILABLE privado/no-store/no-referrer; staff/accept 404 sin redirección ni formulario y noindex. Viewport real 486 px y documento 486 px. Sin repetir finanzas ni tres anchuras por este delta sin src. Cero excepciones observadas, dos Fetch cancelados y buffer truncado: no acredita un escaneo global.
+
+**Importancia.** Tres especialistas cerraron la revisión de publicación y los mapas de correo y datos, con revisión documental independiente. El correo tiene un bloqueo concreto: el preflight prohíbe BREVO_API_KEY; no basta autorizar un envío. El mapa de datos añade fuentes omitidas y mantiene explícita su cobertura parcial. Ninguno acredita recepción real, devolución integral, supresión o recuperación general.
+
+**Siguiente paso.** Usar delivery-c32a7e44-remaining-release-gates.md y la hoja D1–D7. Preparar el contrato aislado de correo y la clasificación de datos antes de proponer operaciones. Nada humano pendiente para esta publicación. Alta/datos fiscales, reglas del asesor, contratos, conservación y suplencia humana siguen pendientes para abrir. Sin SQL aplicado, Live, producción, ensayo, proveedores, correos, nuevos accesos o builds/tests/instalaciones/servicios en Mac. Sin merge ni nuevo commit; borradores legales y demás dirty preservados.
+
+
+## 2026-11-06 — Identidad documental y domicilio autorizados; preparación local
+
+**Hallazgos.** Alta censal y resolución RETA del 5 de noviembre revisadas documentalmente. El titular autoriza el domicilio de actividad en textos legales y facturas. Perfil común y borradores de privacidad/encargo preparados con identidad completa; no se incluyen originales, datos bancarios ni Seguridad Social en el repositorio. Los cortes anteriores de alta pendiente quedan históricos, sin reescribirlos.
+
+**Fuentes.** Documentos facilitados por el titular y autorización expresa del 6 de noviembre; docs/legal/facturacion-saas-preparacion.md; auditoría externa 2026-11-06/contractual-working-review-2026-11-06.md y su manifiesto local. Backend prepara la separación entre factura SaaS y cobros familiares; revisión independiente comprueba gates y copy. Propuesta G4 de correo aislado preparada por Release, todavía sin implementación, credencial ni envío.
+
+**Importancia.** Identidad y alta documentales no resuelven la fiscalidad del software. Flags de soporte, fiscalidad, Checkout fiscal, textos y publicación siguen false; Live permanece cerrado. Términos condiciona contratar capacidad a su habilitación; archivar sigue disponible. Tests ajustados solo como fuente local: NO ejecutados ni cubiertos por CI anterior. Los datos completos solo figuran en los borradores destinados a identificación, no en esta nota.
+
+**Siguiente paso.** Dictamen del asesor sobre actividad/regla fiscal y ejemplo de factura; revisión de conservación, proveedores, DPA y suplencia humana; contrato técnico de correo y procedimientos de datos antes de operaciones. Preparar un candidato separado para CI/revisión cuando el paquete esté cerrado. HEAD c32a7e44 sin cambio, borradores no publicados. Sin SQL aplicado, Live, producción, ensayo, proveedores, correos, accesos nuevos ni builds/tests/servicios/instalaciones Mac. Invitaciones OFF.
