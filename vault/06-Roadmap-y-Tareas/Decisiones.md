@@ -1287,3 +1287,16 @@ Se prepara una bandeja de gimnastas sin asignación operativa, exclusiva para Ow
 **Decisión e importancia:** publicar solo acceso, academia, gimnastas/familias, grupos/clases/inscripciones, asistencia, cuotas/pagos manuales y resumen. Health Score/Insights quedan sin navegación y sus páginas directas devuelven404. El resumen no consulta métricas avanzadas. Los embudos históricos /modules/* redirigen a /features y salen del sitemap. No se incluyen tareas programadas en el candidato. Se mantienen intactos contratos API, precios base, límites y esquema; no se activa un worker global.
 
 **Siguiente paso:** CI remota completa del nuevo commit, revisión externa vigente y comprobación en delivery con academias separadas; después controles productivos y comerciales. No equivale a un lanzamiento ni a validar producción. Se conserva el ensayo natural sin consultas ni escrituras en esta ronda.
+
+
+## 2026-11-05 — Bandeja de solicitudes sin estado de respuesta
+
+**Hallazgos:** las solicitudes públicas se guardan como interacciones inmutables; el aviso por correo es auxiliar y puede fallar después del commit.
+
+**Fuente:** revisión estática de `/api/contact`, `lead_interactions`, `email-service` y dashboard Growth en el checkout `Zaltyko-assisted-access-inbox-20261105`.
+
+**Decisión:** exponer la lectura solo a SuperAdmin. La acción `mailto` únicamente prepara un borrador; no envía, no registra una respuesta ni representa que se haya atendido. No añadir CRM, campañas, outbox ni reintentos automáticos en este alcance.
+
+**Consecuencia e importancia:** el operador puede leer la solicitud persistida aunque no llegue el aviso, pero esta interfaz no acredita que haya respondido.
+
+**Estado:** implementado en worktree local; pruebas y runtime pendientes. No se desplegó.

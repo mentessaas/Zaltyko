@@ -12922,3 +12922,11 @@ Aprobación externa exacta y CI completa SUCCESS (tres navegadores sintéticos).
 ## 2026-10-27 — QA A actual y corrección móvil demostrada
 
 QA A humana enab067043: resumen30/3/1/3pagos70EUR,usageFree30/3/10,2inscripciones activas,Presente persistido,cuota35EUR noviembre impide duplicado y cobros sin pendientes. Lecturas ajenas denegadasNOT_FOUND/403; no se atribuyen escrituras/snapshots actuales. A375px no hay scrollhorizontal pero capturaCDP demuestra solapamiento de Inscripciones/Asistencia. Se corrige grid móvil3columnas bajo640/6desde640, alineación de objetivos y etiquetas completas; nuevo E2E remoto mide texto contenido,44pxmínimo y nointersección. PendienteCI/revisión/publicación,ab067preview intacta. Sin producción/ensayo/builds locales. Matriz vigente del corte docs/qa/essential-release-current-2026-10-27.md separa gates técnicos, ensayo natural y bloqueos vendedor/fiscal/Live. Nota anterior de publicación se incorpora sin reescribir historia.
+
+
+## 2026-11-05 — Bandeja SuperAdmin de solicitudes de contacto
+
+- Se añadió una bandeja de solo lectura para SuperAdmin sobre `lead_interactions`, con GET protegido por `withSuperAdmin`, validación posterior a la autorización, paginación keyset `createdAt+id`, límite acotado, filtro allowlist por motivo y respuestas `private, no-store`. La consulta muestra los datos del touchpoint inmutable y no usa metadata de `leads`.
+- La UI incorpora estados de carga, error, vacío, actualización y paginación; representa el mensaje como texto y ofrece `mailto` escapado que solo abre un borrador. No registra respuesta, no confirma envío y explica que el aviso Brevo es auxiliar.
+- Se añadieron pruebas para orden auth→validación/lectura, roles no SuperAdmin, acceso SuperAdmin, límites/cursor/filtros, paginación/orden, caché/PII y estados/escape/mailto de UI.
+- Validación: `git diff --check` PASS. Pruebas y builds no ejecutados en este Mac; runtime, CI y despliegue no verificados. Sin cambios de esquema, migraciones, proveedores, correo, outbox ni reintentos automáticos.

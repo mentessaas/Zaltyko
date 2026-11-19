@@ -3,6 +3,13 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sql } from "drizzle-orm";
 import { NextRequest } from "next/server";
 
+// Authorization is covered with the real wrapper in the inbox route unit suite.
+// This disposable-PostgreSQL suite exercises the actual query and cursor SQL.
+vi.mock("@/lib/authz", () => ({
+  withSuperAdmin: (handler: (request: Request, context: unknown) => Promise<Response>) =>
+    (request: Request) => handler(request, { userId: "synthetic-super-admin" }),
+}));
+
 const effects = vi.hoisted(() => ({ mail: vi.fn(), event: vi.fn() }));
 vi.mock("@/lib/rate-limit", () => ({ withRateLimit: (handler: (request: NextRequest) => Promise<Response>) => handler }));
 vi.mock("@/lib/directory/contracts", () => ({ flag: () => false }));
@@ -17,6 +24,18 @@ vi.mock("@/db", async (importOriginal) => {
   const { sql: statement } = await import("drizzle-orm");
   return { ...actual, db: {
     execute: (...args: Parameters<typeof actual.db.execute>) => actual.db.execute(...args),
+    select: (projection: Parameters<typeof actual.db.select>[0]) => ({
+      from: (table: any) => ({
+        where: (condition: any) => ({
+          orderBy: (...ordering: any[]) => ({
+            limit: (limit: number) => actual.db.transaction(async (tx) => {
+              await tx.execute(statement.raw("set local search_path = ci_contact_contract, pg_catalog"));
+              return tx.select(projection).from(table).where(condition).orderBy(...ordering).limit(limit);
+            }),
+          }),
+        }),
+      }),
+    }),
     transaction: (action: (tx: unknown) => Promise<unknown>) => actual.db.transaction(async (tx) => {
       await tx.execute(statement.raw("set local search_path = ci_contact_contract, pg_catalog"));
       return action(tx);
@@ -26,6 +45,7 @@ vi.mock("@/db", async (importOriginal) => {
 
 import { db } from "@/db";
 import { POST } from "@/app/api/contact/route";
+import { GET as readInbox } from "@/app/api/super-admin/contact-requests/route";
 
 function assertDisposableTarget() {
   const connection = process.env.ZALTYKO_PG_INTEGRATION_DATABASE_URL;
@@ -118,6 +138,52 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("contact requests on
     expect(counts.rows).toEqual([{ leads: 1, interactions: 1 }]);
     expect(effects.event).toHaveBeenCalledTimes(1);
     expect(effects.mail).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads every persisted inbox request once across microseconds and equal-timestamp UUID ties", async () => {
+    const email = `ci-inbox-${randomUUID()}@example.invalid`;
+    const inserted = await db.execute(sql`
+      insert into ci_contact_contract.leads (email, name) values (${email}, 'Synthetic inbox owner') returning id
+    `);
+    const leadId = String(inserted.rows[0]!.id);
+    const ids = Array.from({ length: 3 }, () => randomUUID()).sort().reverse();
+    const timestamps = ["2026-11-05T13:00:00.123457Z", "2026-11-05T13:00:00.123456Z", "2026-11-05T13:00:00.123456Z"];
+    for (let index = 0; index < ids.length; index += 1) {
+      await db.execute(sql`
+        insert into ci_contact_contract.lead_interactions
+          (id, lead_id, submission_id, name, email, reason, source, message, created_at)
+        values (${ids[index]}::uuid, ${leadId}::uuid, ${randomUUID()}::uuid,
+          'Synthetic inbox owner', ${email}, 'billing', 'ci_inbox_cursor',
+          'Synthetic request: plain text only', ${timestamps[index]}::timestamptz)
+      `);
+    }
+    const before = await db.execute(sql`select count(*)::int as count from ci_contact_contract.lead_interactions`);
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    for (let page = 0; page < 3; page += 1) {
+      const query = new URLSearchParams({ limit: "1", reason: "billing" });
+      if (cursor) query.set("cursor", cursor);
+      const response = await readInbox(new Request(`https://synthetic.invalid/api/super-admin/contact-requests?${query}`));
+      expect(response.status).toBe(200);
+      expect(response.headers.get("cache-control")).toContain("no-store");
+      const result = (await response.json()).data;
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].email).toBe(email);
+      seen.push(result.items[0].id);
+      cursor = result.nextCursor;
+      if (page < 2) {
+        expect(cursor).not.toBeNull();
+        const decoded = JSON.parse(Buffer.from(cursor!, "base64url").toString("utf8"));
+        expect(decoded.createdAt).toBe(timestamps[page]);
+      }
+    }
+    expect(cursor).toBeNull();
+    expect(seen).toEqual(ids);
+    expect(new Set(seen).size).toBe(3);
+    const after = await db.execute(sql`select count(*)::int as count from ci_contact_contract.lead_interactions`);
+    expect(after.rows).toEqual(before.rows);
+    expect(effects.mail).not.toHaveBeenCalled();
+    expect(effects.event).not.toHaveBeenCalled();
   });
 
   it("rolls back the new lead when the interaction write fails", async () => {

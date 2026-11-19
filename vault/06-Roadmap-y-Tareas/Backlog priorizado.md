@@ -1233,3 +1233,10 @@ Elvis Valdes Inerarte prevé alta como autónomo en España, aún pendiente. Com
 - Completar aceptación visual375/768/1280: geometría correcta no sustituye revisión visual cuando la captura tiene escala distinta.
 - Defecto menor reproducido: enlace residual del directorio retirado en registro con flagfalse; guard y regresiones preparados, pendientes CI/revisión/publicación.
 - Mantener cierre fiscal/Live y primera academia externa como gates independientes; los rechazos Free sin parciales de e09 no equivalen a producción.
+
+
+## 2026-11-05 — Límite residual de avisos de contacto
+
+La bandeja SuperAdmin permite leer solicitudes persistidas desde `lead_interactions` y abrir manualmente un borrador `mailto`. No hay estado de respuesta ni constancia de envío. El aviso de Brevo continúa siendo best-effort y repetir el mismo `submissionId` no reintenta el aviso. Si más adelante se requiere recuperación de entrega, necesita un diseño y autorización separados; esta entrega no añade outbox, tareas automáticas ni CRM.
+
+Estado de esta entrega: cambio local en `codex/assisted-access-inbox-20261105`; pruebas/builds no ejecutados en Mac y runtime no verificado.
