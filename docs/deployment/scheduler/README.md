@@ -241,3 +241,20 @@ staging. Vuelta atrás en staging, después de la misma comprobación de
 intentos abiertos:
 `select cron.unschedule('zaltyko-collect-family-fees');` y
 `drop function if exists zaltyko_scheduler.call_cron_staging(text);`.
+
+## Conservación de los avisos sobre contenido (sin aplicar)
+
+`candidates/content-notices-retention.sql` programa el trabajo
+`zaltyko-content-notices-retention`, que llama a
+`/api/cron/content-notices-retention` (ADR-0029 §8.2). **No está aplicado en
+ningún entorno** y aplicarlo necesita la autorización expresa de Elvis.
+
+| Trabajo (`cron.job.jobname`) | Expresión (UTC) | España (Madrid) | México (Ciudad de México) |
+|---|---|---|---|
+| `zaltyko-content-notices-retention` | `15 3 * * *` | 04:15 (invierno) · 05:15 (verano) | 21:15 del día anterior |
+
+La ruta exige el secreto, toma el lease `cron:content-notices-retention` y
+borra nombre y correo de quien avisó en los avisos cerrados hace más de 730
+días, por lotes de 100. Sin la tabla de avisos responde `enabled: false` y no
+hace nada. En staging se programa con `call_cron_staging` y el mismo nombre de
+ruta.

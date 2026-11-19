@@ -315,6 +315,22 @@ const SUPER_ADMIN_NAV: NavigationDefinition[] = [
     roles: ["super_admin"],
   },
   {
+    // Revisión y retirada de elementos (ADR-0029 §1.6 y §8.3).
+    key: "element-library",
+    label: "Biblioteca",
+    icon: BookOpen,
+    href: "/super-admin/biblioteca",
+    roles: ["super_admin"],
+  },
+  {
+    // Avisos sobre contenido del formulario público (ADR-0029 §8.1 y §8.2).
+    key: "content-notices",
+    label: "Avisos",
+    icon: FileText,
+    href: "/super-admin/avisos",
+    roles: ["super_admin"],
+  },
+  {
     key: "founder-plans",
     label: "Fundadores",
     icon: CreditCard,
