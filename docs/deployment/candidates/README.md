@@ -1261,6 +1261,33 @@ recuento coincide, y anotar solo el recuento y la ubicación en el informe (nunc
 Sin ese respaldo verificado no se aplica la candidata; si se decide que no hace falta
 conservarlos, debe quedar escrito por Elvis.
 
+## Candidata pendiente: retirar las tablas antiguas de elementos y puntuaciones (19-11-2026)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261119122000_retire_legacy_skill_catalog_candidate.sql` | `94e2194832efcc8de4c086117bc0d3c6c6cfcf59a781a0bccd06d0d8bc38bb9c` | No aplicada | No aplicada |
+
+**Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
+autorización expresa de Elvis; la CI verde no equivale a autorización.
+Decisión: ADR-0029 §7.
+
+- **Qué borra.** `public.assessment_scores`, `public.athlete_skills` y
+  `public.skill_catalog`, en ese orden (las dos primeras apuntan a la tercera),
+  sin `CASCADE`. Ningún código las usa ya: las rutas `/api/assessments` dejaron
+  de escribir y leer puntuaciones por elemento (si llegan, responden 400), y se
+  quitaron el formulario antiguo y las semillas de elementos.
+- **Solo si están vacías.** Aborta salvo
+  `set local zaltyko.retire_legacy_skill_catalog = 'confirmado'`, y también si
+  no existe ninguna de las tres. Bloquea las tablas, cuenta sus filas y, si
+  alguna tiene filas, aborta sin borrar nada con el recuento por tabla.
+- **Si aborta por filas** (ADR-0029 §7.4): se informa a Elvis del recuento por
+  tabla y academia (consulta de solo lectura en la cabecera del archivo); las
+  tablas se quedan sin código que las use; Elvis decide exportarlas o
+  conservarlas y solo entonces se escribe otra candidata.
+- **Después de aplicarla**, en la misma PR: quitar los espejos Drizzle de las
+  tres tablas de `src/db/schema/` y sus referencias de RLS y CI.
+- **Pruebas.** `tests/legacy-skill-catalog-retirement-contract.test.ts`.
+
 ## Comprobar los hashes
 
 Antes de aplicar una candidata, comprueba que el SHA-256 del `.sql` coincide con el documentado aquí:
