@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 
 
 import {
   apparatusLabel,
+  CATALOG_LINK_APPARATUS_MISMATCH_LABEL,
   DESCRIPTION_MAX,
   ELEMENT_NAME_MAX,
   GENERAL_APPARATUS_LABEL,
@@ -15,13 +16,16 @@ import {
   skillDisciplineLabels,
   STARTER_TEMPLATE_NOTICE,
   TEMPLATE_NAME_MAX,
+  templateCatalogLinkLabels,
   type SkillApparatus,
   type SkillDiscipline,
   type SkillTemplateSummary,
   type SkillTemplatesListView,
   type SkillTemplateView,
+  type TemplateCatalogLink,
 } from "@/modules/skill-levels/domain/skill-levels";
 
+import { CatalogElementPicker } from "@/components/element-library/CatalogElementPicker";
 import { ownerTone, ownerUi } from "@/components/owner-dashboard/owner-ui";
 
 import {
@@ -396,6 +400,10 @@ type DraftElement = {
   apparatus: SkillApparatus | null;
   description: string | null;
   required: boolean;
+  /** Enlace con la biblioteca que se ve ahora (o null). */
+  catalogLink: TemplateCatalogLink | null;
+  /** Solo si cambió se manda `catalogElementId`; si no, el servidor conserva el guardado. */
+  linkChanged: boolean;
 };
 type DraftLevel = { key: string; id: string | null; name: string; description: string | null; elements: DraftElement[] };
 
@@ -412,9 +420,23 @@ function toDraft(template: SkillTemplateView): DraftLevel[] {
       apparatus: element.apparatus,
       description: element.description,
       required: element.required,
+      catalogLink: element.catalogLink ?? null,
+      linkChanged: false,
     })),
   }));
 }
+
+/** Aparato que comparten todos los elementos del nivel, para abrir el selector ya filtrado. */
+function levelApparatus(level: DraftLevel): SkillApparatus | null {
+  const apparatus = new Set(level.elements.map((element) => element.apparatus));
+  return apparatus.size === 1 ? ([...apparatus][0] ?? null) : null;
+}
+
+const linkChipClass = {
+  current: ownerTone.chipOutline,
+  withdrawn: ownerTone.chipWarning,
+  previous_edition: ownerTone.chipWarning,
+} as const;
 
 function move<T>(list: T[], index: number, delta: -1 | 1): T[] {
   const target = index + delta;
@@ -443,6 +465,7 @@ function TemplateEditor({
   const [loadError, setLoadError] = useState("");
   const [saveError, setSaveError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pickerLevel, setPickerLevel] = useState<number | null>(null);
   const nameId = useId();
   const descId = useId();
 
@@ -486,6 +509,9 @@ function TemplateEditor({
   const discipline = template.discipline;
   const apparatusOptions = SKILL_APPARATUS_BY_DISCIPLINE[discipline] as readonly SkillApparatus[];
   const editable = writable && !template.archived;
+  const catalogDiscipline = discipline === "artistic_female" || discipline === "artistic_male" ? discipline : null;
+  // La API solo lo indica con la biblioteca activa y una disciplina con catálogo.
+  const libraryEditable = editable && template.libraryAvailable && catalogDiscipline !== null;
 
   function updateLevel(index: number, patch: Partial<DraftLevel>) {
     setLevels((list) => list.map((level, i) => (i === index ? { ...level, ...patch } : level)));
@@ -519,6 +545,7 @@ function TemplateEditor({
           apparatus: element.apparatus,
           description: element.description,
           required: element.required,
+          ...(element.linkChanged ? { catalogElementId: element.catalogLink?.id ?? null } : {}),
         })),
       })),
     });
@@ -639,6 +666,48 @@ function TemplateEditor({
                       onChange={(event) => updateElement(levelIndex, elementIndex, { name: event.target.value })}
                     />
                   </div>
+                  {element.catalogLink ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={linkChipClass[element.catalogLink.status]}>
+                        {templateCatalogLinkLabels[element.catalogLink.status]}
+                      </span>
+                      {element.catalogLink.apparatusMismatch ? (
+                        <span className={ownerTone.chipWarning}>{CATALOG_LINK_APPARATUS_MISMATCH_LABEL}</span>
+                      ) : null}
+                      {libraryEditable && element.catalogLink.replacementId ? (
+                        <button
+                          type="button"
+                          className={ownerUi.secondaryButton}
+                          aria-label={`Actualizar enlace de ${element.name || "el elemento"}`}
+                          onClick={() => {
+                            const link = element.catalogLink!;
+                            updateElement(levelIndex, elementIndex, {
+                              catalogLink: {
+                                id: link.replacementId!,
+                                name: link.name,
+                                status: "current",
+                                replacementId: null,
+                                apparatusMismatch: false,
+                              },
+                              linkChanged: true,
+                            });
+                          }}
+                        >
+                          Actualizar enlace
+                        </button>
+                      ) : null}
+                      {libraryEditable ? (
+                        <button
+                          type="button"
+                          className={ownerUi.secondaryButton}
+                          aria-label={`Quitar enlace de ${element.name || "el elemento"}`}
+                          onClick={() => updateElement(levelIndex, elementIndex, { catalogLink: null, linkChanged: true })}
+                        >
+                          Quitar enlace
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <div className="flex flex-wrap items-end gap-3">
                     <div className="grid min-w-40 gap-1">
                       <label htmlFor={`${element.key}-app`} className={ownerUi.smallLabel}>
@@ -648,7 +717,7 @@ function TemplateEditor({
                         id={`${element.key}-app`}
                         className={ownerUi.field}
                         value={element.apparatus ?? ""}
-                        disabled={!editable}
+                        disabled={!editable || (libraryEditable && element.catalogLink !== null)}
                         onChange={(event) =>
                           updateElement(levelIndex, elementIndex, {
                             apparatus: (event.target.value || null) as SkillApparatus | null,
@@ -710,7 +779,7 @@ function TemplateEditor({
               ))}
             </ul>
             {editable ? (
-              <div>
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   className={ownerUi.secondaryButton}
@@ -719,13 +788,32 @@ function TemplateEditor({
                     updateLevel(levelIndex, {
                       elements: [
                         ...level.elements,
-                        { key: crypto.randomUUID(), id: null, name: "", apparatus: null, description: null, required: true },
+                        {
+                          key: crypto.randomUUID(),
+                          id: null,
+                          name: "",
+                          apparatus: null,
+                          description: null,
+                          required: true,
+                          catalogLink: null,
+                          linkChanged: false,
+                        },
                       ],
                     })
                   }
                 >
                   Añadir elemento
                 </button>
+                {libraryEditable ? (
+                  <button
+                    type="button"
+                    className={ownerUi.secondaryButton}
+                    disabled={level.elements.length >= MAX_ELEMENTS_PER_LEVEL}
+                    onClick={() => setPickerLevel(levelIndex)}
+                  >
+                    Añadir desde la biblioteca
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </li>
@@ -763,6 +851,49 @@ function TemplateEditor({
             </button>
           </div>
         </div>
+      ) : null}
+
+      {libraryEditable && catalogDiscipline && pickerLevel !== null && levels[pickerLevel] ? (
+        <CatalogElementPicker
+          organizationId={scope.organizationId}
+          locationId={scope.locationId}
+          discipline={catalogDiscipline}
+          apparatus={levelApparatus(levels[pickerLevel]!)}
+          onClose={() => setPickerLevel(null)}
+          onSelect={(picked) => {
+            const levelIndex = pickerLevel;
+            setPickerLevel(null);
+            setLevels((list) =>
+              list.map((level, i) =>
+                i === levelIndex && level.elements.length < MAX_ELEMENTS_PER_LEVEL
+                  ? {
+                      ...level,
+                      elements: [
+                        ...level.elements,
+                        {
+                          key: crypto.randomUUID(),
+                          id: null,
+                          // El nombre de la academia exige 2 caracteres: si el corto no llega, el largo.
+                          name: picked.shortName.trim().length >= 2 ? picked.shortName : picked.name,
+                          apparatus: picked.apparatus,
+                          description: null,
+                          required: true,
+                          catalogLink: {
+                            id: picked.id,
+                            name: picked.name,
+                            status: "current",
+                            replacementId: null,
+                            apparatusMismatch: false,
+                          },
+                          linkChanged: true,
+                        },
+                      ],
+                    }
+                  : level
+              )
+            );
+          }}
+        />
       ) : null}
     </div>
   );

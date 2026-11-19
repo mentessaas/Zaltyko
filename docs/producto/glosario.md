@@ -175,6 +175,26 @@ T='cuotas?' REV=origin/main; git grep -h -i -P "$T" "$REV" -- src/app/owner src/
 - **Prohibido:** «skill» o «habilidad» como título de pantalla; «grado», «cinturón» o «categoría» por nivel (la categoría es de competición); «examen» o «aprobar» por el paso de nivel; «certificado» por diploma; «reglamento», «programa oficial» o el nombre de una federación en las plantillas de ejemplo, que son orientativas.
 - **Dónde aparece:** `SkillTemplatesManager`, `SkillRosterEvaluator`, `SkillAthletePanel`, `SkillDiploma`, `FamilySkillsSection` y `docs/producto/niveles-y-progresion.md` (A6). En código y en la base se llaman `skill_templates`, `skill_levels`, `skill_elements`, `athlete_skill_progress` y `athlete_level_passes`.
 
+### Biblioteca de elementos
+- **Elegido:** «biblioteca de elementos» (o «biblioteca»), el catálogo común de Zaltyko con el grupo y el valor de cada elemento según el Código de Puntuación, un nombre en español y, si está encendida, una descripción breve propia. La academia «busca», «abre la ficha» del elemento y lo «añade desde la biblioteca» a una plantilla de niveles o lo enlaza en un bloque del guion. Avisos de un enlace antiguo: «Ya no está en la biblioteca», «Edición anterior» y la acción «Actualizar enlace».
+- **Prohibido:** «catálogo oficial», «elementos oficiales», «reglamento» o «Código» como nombre de la biblioteca, porque no es el texto oficial; «traducción» para las descripciones, que redacta Zaltyko. «Vídeo», «tutorial» o «ejemplo en vídeo»: no hay vídeos. La FIG solo se nombra en el pie de atribución, en texto y sin logos.
+- **Dónde aparece:** `/owner/skills/biblioteca` (`ElementLibraryBrowser`, `ElementCard`, `ElementAttribution`), «Añadir desde la biblioteca» en `SkillTemplatesManager` y `docs/producto/biblioteca-de-elementos.md` (ADR-0029, fase C). En código y en la base: `catalog_element_editions` y `catalog_elements`.
+
+### Nota de la academia
+- **Elegido:** «nota de la academia», el texto técnico que la academia guarda sobre un elemento de la biblioteca (hasta 500 caracteres). Su acción es «Guardar nota». La lee todo el equipo de la academia: «Esta nota la ve todo el equipo de la academia».
+- **Prohibido:** «comentario», «observación» (es la nota sobre una gimnasta, ver Objetivo y observación) o «nota pública». Las familias no la ven.
+- **Dónde aparece:** la ficha del elemento en `/owner/skills/biblioteca` y `docs/producto/biblioteca-de-elementos.md`. En la base: `academy_element_notes`.
+
+### Tanda
+- **Elegido:** «tanda», cada grupo de unos 50 elementos de la biblioteca que Zaltyko prepara y Elvis revisa de una vez, con su registro y su semilla («tanda 1: salto, grupos 1 a 3»). Estados del elemento: «borrador» y «revisado por Elvis».
+- **Prohibido:** «lote», «importación» o «actualización oficial». Es un término interno: no aparece en las pantallas de la academia.
+- **Dónde aparece:** `src/modules/element-library/data/<edición>/tandas/<n>.json`, las semillas `<ts>_element_catalog_seed_<edición>_<tanda>.sql`, la revisión del superadministrador (`/super-admin/biblioteca`) y `docs/producto/biblioteca-de-elementos.md`.
+
+### Aviso de contenido
+- **Elegido:** «aviso sobre contenido» (o «aviso de contenido»), lo que envía cualquier persona desde `/avisos-de-contenido` para señalar algo publicado en Zaltyko que cree que no debería estar, por ejemplo por derechos de autor. Estados: «Recibido», «En revisión» y «Cerrado». «Retirar» es la acción aparte del superadministrador que quita un elemento de la biblioteca.
+- **Prohibido:** «denuncia», «reclamación» o «queja»; decir que un aviso «retira» o «borra» algo, porque un aviso no retira nada por sí solo. No confundir con el «aviso a familias» (ver Aviso a familias).
+- **Dónde aparece:** `/avisos-de-contenido` (`ContentNoticeForm`), `/super-admin/avisos` y `docs/producto/biblioteca-de-elementos.md`. En la base: `content_notices`.
+
 ### Choque
 - **Elegido:** «choque», el aviso de que una misma entrenadora está en dos sesiones a la vez («Doble asignación»), sin tiempo para cambiar de sede («Sin tiempo entre sedes»), o de que una pista está ocupada por dos sesiones a la vez («Pista ocupada»). La lista se llama «Choques próximos» y, para la entrenadora, «Tus choques próximos». Tras guardar: «Guardado con aviso de choque».
 - **Prohibido:** conflicto o solapamiento en textos visibles; «error» o «bloqueo», porque solo avisa.

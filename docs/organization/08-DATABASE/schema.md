@@ -75,11 +75,11 @@ Drizzle ORM with PostgreSQL (Supabase). Schema in `src/db/schema/`.
 | Table | Description |
 |-------|-------------|
 | `athlete_assessments` | Assessment records |
-| `assessment_scores` | Scores |
+| `assessment_scores` | Retired per-element scores; no code uses it, dropped by a candidate once empty (ADR-0029 §7) |
 | `assessment_videos` | Video attachments |
 | `assessment_rubrics` | Rubric definitions |
 | `rubric_criteria` | Criteria |
-| `skill_catalog` | Skills catalog |
+| `skill_catalog` | Retired skills catalog; replaced by the element library (ADR-0029 §7) |
 
 ### Communication
 | Table | Description |

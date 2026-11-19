@@ -14,6 +14,8 @@ import {
   exportOmissionsFor,
   OPTIONAL_EXPORT_MODULE_GROUPS,
   OPTIONAL_INCLUDED_EXPORT_MODULES,
+  OPTIONAL_SHARED_CATALOG_TABLES,
+  withLaterCandidateColumns,
   type CanonicalExportTableSpec,
 } from "./catalog";
 
@@ -191,6 +193,16 @@ async function verifyCatalog(tx: TransactionClient) {
         exactSetMatches(observed, [...table.columns, ...table.laterCandidateColumns]));
     if (!matches) throw failClosed();
   }
+  // Catálogos globales de la biblioteca: todos o ninguno, con sus columnas
+  // exactas. Sin organization_id, nunca se cuentan ni se leen sus valores.
+  const sharedCatalogPresent = OPTIONAL_SHARED_CATALOG_TABLES.filter(table => actualColumns.has(table.table));
+  if (sharedCatalogPresent.length !== 0 && sharedCatalogPresent.length !== OPTIONAL_SHARED_CATALOG_TABLES.length) {
+    throw failClosed();
+  }
+  for (const table of sharedCatalogPresent) {
+    if (!exactSetMatches(actualColumns.get(table.table) ?? [], table.columns)) throw failClosed();
+  }
+  const sharedCatalogs = sharedCatalogPresent.map(({ table, category, reason }) => ({ table, category, reason }));
   // Activated academy modules: all of a module's tables or none. A partial
   // module or an unclassified column fails closed before any tenant read.
   const optionalIncludedTables = OPTIONAL_INCLUDED_EXPORT_MODULES.flatMap(module => {
@@ -200,6 +212,7 @@ async function verifyCatalog(tx: TransactionClient) {
   });
   const requiredColumns = [...actualColumns.keys()].filter(name =>
     !optionalModules.some(table => table.table === name) &&
+    !sharedCatalogs.some(table => table.table === name) &&
     !optionalIncludedTables.some(table => table.name === name)
   );
   if (
@@ -211,14 +224,17 @@ async function verifyCatalog(tx: TransactionClient) {
     throw failClosed();
   }
 
-  const includedTables = [...CANONICAL_EXPORT_TABLES, ...optionalIncludedTables];
-  for (const table of includedTables) {
+  // Con sus columnas, o con ellas más todas las de su candidata posterior
+  // (laterCandidateColumns), que entonces se exportan al final de cada fila.
+  const includedTables = [...CANONICAL_EXPORT_TABLES, ...optionalIncludedTables].map(table => {
     const observedColumns = actualColumns.get(table.name);
-    if (!observedColumns || !exactSetMatches(observedColumns, table.expectedColumns)) {
-      throw failClosed();
-    }
-  }
-  return { optionalModules, includedTables, dateColumnsByTable };
+    if (!observedColumns) throw failClosed();
+    if (exactSetMatches(observedColumns, table.expectedColumns)) return table;
+    const extended = withLaterCandidateColumns(table);
+    if (extended !== table && exactSetMatches(observedColumns, extended.expectedColumns)) return extended;
+    throw failClosed();
+  });
+  return { optionalModules, sharedCatalogs, includedTables, dateColumnsByTable };
 }
 
 async function verifyOwnerMembership(
@@ -419,7 +435,7 @@ export async function exportCanonicalAcademyData(input: {
 
     await verifyOwnerMembership(tx, input);
     assertWithinDuration(startedAt);
-    const { optionalModules, includedTables, dateColumnsByTable } = await verifyCatalog(tx);
+    const { optionalModules, sharedCatalogs, includedTables, dateColumnsByTable } = await verifyCatalog(tx);
     const excludedScopedTables = [...EXCLUDED_CANONICAL_SCOPED_TABLES, ...optionalModules.map(table => table.table)];
     assertWithinDuration(startedAt);
     const snapshotAt = await loadSnapshotTime(tx);
@@ -509,6 +525,7 @@ export async function exportCanonicalAcademyData(input: {
       tableManifest,
       excludedCountByTable,
       optionalModules,
+      sharedCatalogs,
       optionalIncludedTables: includedTables.slice(CANONICAL_EXPORT_TABLES.length),
     };
   });
@@ -536,7 +553,11 @@ export async function exportCanonicalAcademyData(input: {
       catalogPolicy:
         "Unknown or missing canonical tables and unclassified columns in included tables fail closed before row export.",
       includedTables: exportResult.tableManifest,
-      excludedTables: [...EXCLUDED_CANONICAL_TABLES, ...exportResult.optionalModules.map(({ table, category, reason }) => ({ table, category, reason }))].map((entry) => ({
+      excludedTables: [
+        ...EXCLUDED_CANONICAL_TABLES,
+        ...exportResult.optionalModules.map(({ table, category, reason }) => ({ table, category, reason })),
+        ...exportResult.sharedCatalogs,
+      ].map((entry) => ({
         ...entry,
         rowCount: exportResult.excludedCountByTable.get(entry.table) ?? null,
         countScope: exportResult.excludedCountByTable.has(entry.table)

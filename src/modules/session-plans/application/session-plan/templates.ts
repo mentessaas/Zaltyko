@@ -2,14 +2,17 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import type { TransactionClient } from "@/lib/db-transactions";
+import { elementLibraryUnavailable } from "@/modules/element-library/application/storage";
 import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
 import {
+  blockCatalogTarget,
   classPlanTemplateQuerySchema,
   CLASS_TEMPLATE_PLAN_ROLES,
   normalizeTemplateBlock,
   parseStoredTemplateBlocks,
   saveClassPlanTemplateCommandSchema,
   type ClassPlanTemplateView,
+  type SaveClassPlanTemplateCommand,
   type SessionPlanWriteResult,
   type TemplateBlock,
 } from "@/modules/session-plans/domain/session-plan";
@@ -21,6 +24,7 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { appendAuditEntry, lockCommand } from "@/modules/shared/infrastructure/transactional-records";
 
 import { authorizeMember, loadClassAtLocation, notFound, staleRevision, type Access, type ActorInput } from "./access";
+import { catalogLinkMismatch, catalogLinkNeedsApparatus, isBlockLibraryOn, isLinkable } from "./plans";
 
 /**
  * Plantilla de plan por clase (P2 #17, segunda parte). Uso interno: entra por
@@ -89,6 +93,7 @@ export async function getClassPlanTemplate(
   });
 }
 
+/** Compara también el enlace de cada bloque con la biblioteca: va dentro del jsonb. */
 function sameContent(
   row: ClassPlanTemplateRow,
   content: { focus: string | null; note: string | null; blocks: TemplateBlock[] }
@@ -100,16 +105,60 @@ function sameContent(
   );
 }
 
+/**
+ * Bloques del modelo con su enlace a la biblioteca (ADR-0029 §3.3). El modelo
+ * se reescribe entero y sus bloques no tienen id:
+ * - ausente (y, sin la biblioteca activa, también `null`): se conserva el
+ *   enlace del bloque guardado en la misma posición si tiene la misma
+ *   disciplina y el mismo aparato; si no, el bloque queda sin enlace;
+ * - `null` con la biblioteca activa: sin enlace;
+ * - un uuid que el modelo ya tenía en un bloque de la misma disciplina y
+ *   aparato se conserva sin comprobarlo de nuevo (aunque ya no esté en la
+ *   biblioteca); cualquier otro exige disciplina y aparato y un elemento
+ *   visible de ese aparato.
+ * Sin la biblioteca activa, un uuid ya se respondió con 503.
+ */
+async function resolveTemplateBlocks(
+  tx: TransactionClient,
+  input: { blocks: SaveClassPlanTemplateCommand["blocks"]; stored: TemplateBlock[]; libraryOn: boolean }
+): Promise<TemplateBlock[]> {
+  const targetKey = (link: string, block: { discipline?: string | null; apparatus?: string | null }) =>
+    `${link}:${block.discipline ?? ""}:${block.apparatus ?? ""}`;
+  const kept = new Set(
+    input.stored.flatMap((block) => (block.catalogElementId ? [targetKey(block.catalogElementId, block)] : []))
+  );
+  const checked = new Map<string, boolean>();
+  const resolved: TemplateBlock[] = [];
+  for (const [index, block] of input.blocks.entries()) {
+    const normalized = normalizeTemplateBlock({ ...block, catalogElementId: null });
+    let link: string | null = null;
+    if (block.catalogElementId === undefined || (block.catalogElementId === null && !input.libraryOn)) {
+      const previous = input.stored[index];
+      if (
+        previous?.catalogElementId &&
+        previous.discipline === normalized.discipline &&
+        previous.apparatus === normalized.apparatus
+      ) {
+        link = previous.catalogElementId;
+      }
+    } else if (block.catalogElementId !== null) {
+      link = block.catalogElementId;
+      if (!kept.has(targetKey(link, normalized))) {
+        const target = blockCatalogTarget(normalized);
+        if (!target) throw catalogLinkNeedsApparatus();
+        if (!(await isLinkable(tx, checked, link, target))) throw catalogLinkMismatch();
+      }
+    }
+    resolved.push(normalizeTemplateBlock({ ...block, catalogElementId: link }));
+  }
+  return resolved;
+}
+
 export async function saveClassPlanTemplate(
   input: ActorInput & { classTemplateId: string; command: unknown }
 ): Promise<SessionPlanWriteResult> {
   const command = saveClassPlanTemplateCommandSchema.parse(input.command);
   const organizationId = command.organizationId;
-  const content = {
-    focus: command.focus ?? null,
-    note: command.note ?? null,
-    blocks: command.blocks.map(normalizeTemplateBlock),
-  };
   return db.transaction(async (tx) => {
     const access = await authorizeMember(tx, {
       ...command,
@@ -126,6 +175,21 @@ export async function saveClassPlanTemplate(
       classTemplateId: classRow.id,
       forUpdate: true,
     });
+    // Enlaces con la biblioteca: solo con la biblioteca activa. Sin ella, pedir
+    // un enlace es 503 sin escribir nada.
+    const libraryOn = await isBlockLibraryOn(tx, access);
+    if (!libraryOn && command.blocks.some((block) => typeof block.catalogElementId === "string")) {
+      throw elementLibraryUnavailable();
+    }
+    const content = {
+      focus: command.focus ?? null,
+      note: command.note ?? null,
+      blocks: await resolveTemplateBlocks(tx, {
+        blocks: command.blocks,
+        stored: existing ? parseStoredTemplateBlocks(existing.blocks) : [],
+        libraryOn,
+      }),
+    };
 
     if (command.expectedRevision === null) {
       if (existing) {

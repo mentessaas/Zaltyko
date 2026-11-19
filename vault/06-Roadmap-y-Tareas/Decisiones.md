@@ -1,12 +1,36 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-11-18
+last_reviewed: 2026-11-19
 source:
   - ../AGENTS.md
 ---
 
 # Decisiones
+
+
+## 2026-11-19 — Biblioteca de elementos, fase C: decisiones del ADR-0029 aplicadas al construirla
+
+**Hallazgo/fuente:**
+- `docs/architecture/adr/0029-biblioteca-de-elementos-y-niveles.md`, «Decisiones de Elvis» (1–14, tomadas el 19-11-2026), §1–§3, §8, §9 y §11.
+- Informe legal `documentacion/Zaltyko/legal/biblioteca-y-niveles-federativos.md` (fuera del repo; es una investigación, no una opinión de abogado).
+- `docs/producto/biblioteca-de-elementos.md`.
+
+**Decisión/importancia:** fijan qué datos de federaciones puede publicar Zaltyko y cómo; un error aquí es un riesgo de derechos de autor en un repositorio público.
+
+- Biblioteca con artística femenina y masculina; la rítmica, después (decisión 1). Femenina primero, en tandas de unos 50 elementos (12).
+- Solo hechos del Código (nombre, aparato, grupo, valor); nunca su texto ni sus dibujos. Descripciones propias redactadas por Claude en «sala limpia», comprobación entre idiomas y revisión de Elvis con una muestra manual del 10 % por tanda; no esperan a L10 (2, 8).
+- Sin vídeo, sin imágenes y nada de Upgrade Gymnastics ni GymPro Atlas (4, 9).
+- Todos los planes, Free incluido (10). Datos en el repositorio público, con aviso de autoría en cada archivo (11).
+- Avisos sobre contenido en `/avisos-de-contenido`; un aviso no retira nada; «Retirar» es del superadministrador; nombre y correo de quien avisa, borrados 2 años después del cierre (14).
+- La prohibición de nombrar federaciones queda limitada a las plantillas de ejemplo; la FIG solo aparece en el pie de atribución, en texto.
+- Puntuaciones antiguas por elemento retiradas del código; la candidata que borra las tablas antiguas, después de la fase C y primero en staging (13).
+- Cada paso en producción, con permiso expreso (6). Orden obligatorio: código que acepta los dos conjuntos de columnas, candidatas en staging y luego en producción, y la bandera al final (§3.5).
+
+**Siguiente paso:**
+- Elvis revisa la tanda 1 (salto, grupos 1 a 3, 51 elementos en borrador) con el archivo de revisión entregado.
+- Permisos por entorno para las candidatas, la semilla y el trabajo programado; prueba en staging; después, las banderas.
+- Fase D (plantillas RFEG de solo hechos), en su propia PR.
 
 
 ## 2026-11-18 — Cobro automático de cuotas, Fase 4: respuestas D1–D13 (ADR-0028)

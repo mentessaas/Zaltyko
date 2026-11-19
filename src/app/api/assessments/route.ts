@@ -4,7 +4,7 @@ import { and, eq, desc, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { athleteAssessments, assessmentScores, assessmentVideos, athletes, coaches, groups } from "@/db/schema";
+import { athleteAssessments, assessmentVideos, athletes, coaches, groups } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
@@ -18,11 +18,8 @@ import {
   verifyAssessmentSessionContext,
 } from "@/lib/progress/session-context";
 
-const scoreSchema = z.object({
-  skillId: z.guid(),
-  score: z.number().int().min(1).max(10),
-  comments: z.string().nullable().optional(),
-});
+// Las puntuaciones por elemento se retiraron (ADR-0029 §7): si llegan, 400.
+const SCORES_RETIRED_MESSAGE = "Las puntuaciones por elemento ya no se guardan";
 
 const createAssessmentSchema = z.object({
   athleteId: z.guid(),
@@ -31,7 +28,6 @@ const createAssessmentSchema = z.object({
   assessmentType: z.enum(["technical", "artistic", "execution", "coach_feedback", "competition", "practice"]),
   apparatus: z.string().nullable().optional(),
   sportConfigId: z.guid().nullable().optional(),
-  scores: z.array(scoreSchema).optional(),
   overallComment: z.string().nullable().optional(),
   totalScore: z.number().nullable().optional(),
   visibleToGuardians: z.boolean().default(false),
@@ -39,7 +35,11 @@ const createAssessmentSchema = z.object({
 
 export const POST = withTenant(async (request, context) => {
   try {
-    const body = createAssessmentSchema.parse(await request.json());
+    const rawBody: unknown = await request.json();
+    if (rawBody !== null && typeof rawBody === "object" && "scores" in rawBody) {
+      return apiError("ASSESSMENT_SCORES_RETIRED", SCORES_RETIRED_MESSAGE, 400);
+    }
+    const body = createAssessmentSchema.parse(rawBody);
 
     if (!context.tenantId) {
       return apiError("TENANT_REQUIRED", "Tenant context is required", 400);
@@ -204,20 +204,6 @@ export const POST = withTenant(async (request, context) => {
         visibleToGuardians: body.visibleToGuardians,
         totalScore: body.totalScore?.toString() ?? null,
       });
-
-      // Insert scores if provided
-      if (body.scores && body.scores.length > 0) {
-        for (const score of body.scores) {
-          await tx.insert(assessmentScores).values({
-            id: crypto.randomUUID(),
-            tenantId: context.tenantId,
-            assessmentId,
-            skillId: score.skillId,
-            score: score.score,
-            comments: score.comments ?? null,
-          });
-        }
-      }
     });
 
     return apiSuccess({ id: assessmentId });

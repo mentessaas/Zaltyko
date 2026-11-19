@@ -9,7 +9,7 @@ vi.mock("@/db", () => ({ db: { transaction: mocks.transaction } }));
 import { exportCanonicalAcademyData } from "@/modules/data-rights/application/canonical-academy-return";
 import {
   ALL_KNOWN_CANONICAL_TABLE_NAMES, CANONICAL_EXPORT_TABLES, EXCLUDED_CANONICAL_SCOPED_TABLES,
-  EXCLUDED_CANONICAL_TABLES, OPTIONAL_DISCOVERY_EXPORT_TABLES, OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES, OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES, OPTIONAL_INCLUDED_EXPORT_TABLES, OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
+  EXCLUDED_CANONICAL_TABLES, OPTIONAL_DISCOVERY_EXPORT_TABLES, OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES, OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES, OPTIONAL_INCLUDED_EXPORT_TABLES, OPTIONAL_SHARED_CATALOG_TABLES, OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
 } from "@/modules/data-rights/application/catalog";
 import { activatedCatalogRows, activatedRowsByTable } from "./helpers/activated-module-rows";
 import { planCanonicalAcademyDisposition } from "@/modules/data-rights/application/plan-canonical-academy-disposition";
@@ -33,7 +33,7 @@ function fixture(): Rows {
   };
 }
 
-async function archive(options: { discovery?: boolean; team?: boolean; familyPaymentSetup?: boolean; familyCollection?: boolean; activated?: boolean; counts?: Record<string, number | string> } = {}): Promise<string> {
+async function archive(options: { discovery?: boolean; team?: boolean; familyPaymentSetup?: boolean; familyCollection?: boolean; activated?: boolean; sharedCatalogs?: boolean; counts?: Record<string, number | string> } = {}): Promise<string> {
   const rows: Rows = { ...fixture(), ...(options.activated ? activatedRowsByTable(organizationId) : {}) };
   const included = [...CANONICAL_EXPORT_TABLES, ...(options.activated ? OPTIONAL_INCLUDED_EXPORT_TABLES : [])];
   const optional = [
@@ -52,6 +52,7 @@ async function archive(options: { discovery?: boolean; team?: boolean; familyPay
       }),
       ...optional.flatMap((table) => table.columns.map((column_name) => ({ table_name: table.table, column_name, data_type: "text" }))),
       ...(options.activated ? activatedCatalogRows() : []),
+      ...(options.sharedCatalogs ? OPTIONAL_SHARED_CATALOG_TABLES.flatMap((table) => table.columns.map((column_name) => ({ table_name: table.table, column_name, data_type: "text" }))) : []),
     ] })
     .mockResolvedValueOnce({ rows: [{ snapshot_at: "2026-11-06T12:00:00.000Z" }] })
     .mockResolvedValueOnce({ rows: [...EXCLUDED_CANONICAL_SCOPED_TABLES, ...optional.map((table) => table.table)].map((table_name) => ({ table_name, row_count: options.counts?.[table_name] ?? 0 })) })
@@ -181,6 +182,29 @@ describe("pure canonical disposition review plan", () => {
     const serialized = JSON.stringify(present);
     expect(serialized).not.toContain("family@example.invalid");
     expect(serialized).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  });
+
+  it("reviews the global library catalogs as uncounted exclusions when reported, never as zero", async () => {
+    const absent = plan(await archive());
+    for (const table of OPTIONAL_SHARED_CATALOG_TABLES) {
+      expect(absent.tables.find((entry) => entry.table === table.table)).toMatchObject({ rowCount: null, coverage: "optional_not_reported", countEvidence: "optional_not_reported", eligibleForDeletion: false });
+    }
+    const present = plan(await archive({ sharedCatalogs: true, activated: true }));
+    for (const table of OPTIONAL_SHARED_CATALOG_TABLES) {
+      const entry = present.tables.find((item) => item.table === table.table);
+      expect(entry, table.table).toMatchObject({ category: table.category, rowCount: null, coverage: "excluded_values", countEvidence: "unknown", decision: "pending", eligibleForDeletion: false });
+      expect(entry?.missingDecisions, table.table).toContain("source_ownership_and_scope");
+    }
+    expect(present.tables.find((item) => item.table === "content_notices")?.category).toBe("internal_content_notices");
+    expect(present.tables.find((item) => item.table === "academy_element_notes")).toMatchObject({ rowCount: 1, coverage: "projected_values" });
+    expect(JSON.stringify(present)).not.toContain("Synthetic coaching note");
+  });
+
+  it("rejects a resealed partial group of library catalogs", async () => {
+    const body = reseal(await archive({ sharedCatalogs: true }), (value) => {
+      value.coverage.excludedTables = value.coverage.excludedTables.filter((table) => table.table !== "content_withdrawals");
+    });
+    refused({ body, organizationId });
   });
 
   it("reviews family payment setup attempts as provider-linked financial evidence, never deletable", async () => {

@@ -5,8 +5,6 @@ import { eq, inArray } from "drizzle-orm";
 
 import { seedEspanaGR } from "@/db/seeds/templates/espana-gr";
 import { seedEspanaGA } from "@/db/seeds/templates/espana-ga";
-import { seedEspanaGRElements } from "@/db/seeds/templates/espana-gr-elements";
-import { seedEspanaGAElements } from "@/db/seeds/templates/espana-ga-elements";
 
 import { db } from "@/db";
 import {
@@ -26,7 +24,6 @@ import {
   memberships,
   plans,
   profiles,
-  skillCatalog,
   subscriptions,
 } from "@/db/schema";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -769,61 +766,15 @@ async function seedTenantData(planIds: Record<PlanCode, string | undefined>) {
   console.log("✓ Tenant demo data seeded");
 }
 
-async function seedSkillCatalog() {
-  const tenantId = TENANT_ID;
-
-  const skills = [
-    {
-      tenantId,
-      apparatus: "suelo",
-      skillCode: "FX-A1",
-      name: "Rondada flick",
-      description: "Combinación básica para secuencias acrobáticas.",
-      difficulty: 2,
-    },
-    {
-      tenantId,
-      apparatus: "viga",
-      skillCode: "BB-B1",
-      name: "Giro completo",
-      description: "Giro de 360º en viga con control de salida.",
-      difficulty: 3,
-    },
-    {
-      tenantId,
-      apparatus: "barras",
-      skillCode: "UB-C1",
-      name: "Pak salto",
-      description: "Transición alta entre barras.",
-      difficulty: 4,
-    },
-  ];
-
-  for (const skill of skills) {
-    await db
-      .insert(skillCatalog)
-      .values({
-        id: randomUUID(),
-        ...skill,
-      })
-      .onConflictDoNothing();
-  }
-
-  console.log("✓ Skill catalog seeded (tenant:", tenantId, ")");
-}
-
 async function main() {
   await seedSportConfigurations();
   const superAdminUserId = await ensureSupabaseSuperAdminUser();
   const planIds = await seedPlans();
   await seedAdminProfile(superAdminUserId);
   await seedTenantData(planIds);
-  await seedSkillCatalog();
   // Seed España templates (GR y GA)
   await seedEspanaGR();
   await seedEspanaGA();
-  await seedEspanaGRElements(TENANT_ID);
-  await seedEspanaGAElements(TENANT_ID);
 }
 
 main()

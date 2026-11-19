@@ -715,6 +715,13 @@ const coachAllowed = new Set([
   "POST owner/athletes/[athleteId]/skills/level-passes/route.ts",
   "GET owner/groups/[groupId]/skills/route.ts",
   "GET owner/sessions/[sessionId]/skills/route.ts",
+  // Biblioteca de elementos (ADR-0029): el equipo técnico busca, abre fichas y
+  // escribe la nota de su academia desde una sede de su alcance, con la misma
+  // resolución que niveles. Responde 503 con las banderas apagadas
+  // (tests/element-library-*).
+  "GET owner/element-library/route.ts",
+  "GET owner/element-library/[elementId]/route.ts",
+  "PUT owner/element-library/[elementId]/note/route.ts",
 ]);
 
 function routeFiles(directory: string): string[] {

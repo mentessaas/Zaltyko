@@ -21,7 +21,7 @@ import {
   type SkillMemberRole,
 } from "@/modules/skill-levels/domain/skill-levels";
 
-import { assertSkillLevelsAvailable } from "./storage";
+import { assertSkillLevelsAvailable, type InstalledSkillLevelsShape } from "./storage";
 
 /**
  * Autorización de niveles y progresión. Uso interno: el resto del código entra
@@ -47,6 +47,8 @@ export type Access = {
   member: OrganizationMember;
   role: SkillMemberRole;
   location: { id: string; timezone: string | null };
+  /** Forma instalada: con «with_catalog_links» existe el enlace a la biblioteca. */
+  storageShape: InstalledSkillLevelsShape;
 };
 
 export type AthleteAccess = Access & {
@@ -72,7 +74,7 @@ export async function authorizeMember(
   tx: TransactionClient,
   input: { organizationId: string; locationId: string; actor: OperationalActor; intent?: "write" }
 ): Promise<Access> {
-  await assertSkillLevelsAvailable(tx);
+  const storageShape = await assertSkillLevelsAvailable(tx);
   const member = await assertOperationalAccess(tx, {
     organizationId: input.organizationId,
     locationId: input.locationId,
@@ -94,7 +96,7 @@ export async function authorizeMember(
     )
     .limit(1);
   if (!location) throw notFound("Sede no encontrada");
-  return { member, role: member.role as SkillMemberRole, location };
+  return { member, role: member.role as SkillMemberRole, location, storageShape };
 }
 
 /**

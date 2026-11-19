@@ -1131,6 +1131,84 @@ commit;
 - **Requiere autorización de Elvis para aplicarse.** No se ha aplicado en
   ningún entorno. La CI verde no equivale a autorización.
 
+## Candidatas de la biblioteca de elementos (fase C)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261119120000_element_library_candidate.sql` | `584d44defba1a8d54976f53bef07cbad9f4047b56094ed4d762a4ef99800d6d5` | No aplicada | No aplicada |
+| `20261119120500_element_library_notes_candidate.sql` | `e521dccf2731854da916f1986764e0e40b5823ec4bd3952dc86797d47a846abb` | No aplicada | No aplicada |
+| `20261119121000_element_catalog_seed_fig-wag-2025-2028_1.sql` (semilla de la tanda 1) | `22c07286674ef42b471ba2c46200b8e571ed0cdd6a34710c96ffcab813311a9a` | No aplicada | No aplicada |
+
+**Estado: No se ha aplicado en ningún entorno.** Cada entorno (staging y
+producción) necesita una autorización expresa de Elvis. La CI verde no
+equivale a autorización. Decisión:
+`docs/architecture/adr/0029-biblioteca-de-elementos-y-niveles.md` (§1, §2, §3
+y §8).
+
+**Orden de instalación** (cada archivo abre y cierra su transacción, con
+`lock_timeout` de 5 s, y aborta antes de tocar nada si falta lo anterior o si
+ya existe algo suyo):
+
+1. `20261111120000_athlete_progress_candidate.sql` y
+   `20261111200000_session_plans_candidate.sql` (guiones), y
+   `20261114121000_skill_levels_candidate.sql` (niveles), con la forma exacta
+   que instalan.
+2. `20261119120000_element_library_candidate.sql`.
+3. `20261119120500_element_library_notes_candidate.sql`.
+4. Las semillas por tanda (`<ts>_element_catalog_seed_<edición>_<tanda>.sql`).
+5. Con todo aplicado, encender `ZALTYKO_ELEMENT_LIBRARY_ENABLED` (apagada por
+   defecto; exige también `ZALTYKO_SKILL_LEVELS_ENABLED=true`).
+
+Antes de aplicar la candidata 1 hay que publicar el código que acepta los dos
+conjuntos de columnas en niveles, guiones y derechos de datos (ADR-0029 §3.5).
+
+- **Qué crea la candidata 1.** Cuatro tablas nuevas en `zaltyko`, sin
+  `organization_id`: `catalog_element_editions` y `catalog_elements`
+  (catálogo global de solo lectura: solo hechos y textos propios, sin imágenes,
+  vídeos ni URL de terceros), `content_notices` (registro interno de avisos,
+  con nombre y correo de quien avisa, que se borran dos años después del
+  cierre) y `content_withdrawals` (plantillas de federación retiradas). Añade
+  `catalog_element_id` (`uuid` nulo, sin valor por defecto ni relleno,
+  `on delete restrict`, con índice parcial) a `zaltyko.skill_elements` y
+  `zaltyko.session_plan_blocks`: las filas existentes no cambian.
+- **Qué crea la candidata 2.** `zaltyko.academy_element_notes`: la nota de
+  cada academia sobre un elemento (una por academia y elemento, hasta 500
+  caracteres), con autoría `on delete set null (columna)` (PostgreSQL 15 o
+  posterior) y borrado en cascada con la academia.
+- **Seguridad.** Las cinco tablas: RLS `ENABLE` + `FORCE` y `REVOKE` a
+  `public`, `anon` y `authenticated`, sin grants ni políticas. Restricciones
+  con nombre; el espejo Drizzle
+  (`src/modules/element-library/infrastructure/element-library-schema.ts`)
+  vive fuera de `src/db/schema/`.
+- **Pruebas.** `tests/element-library-contract.test.ts` (candidatas, espejo,
+  límites del dominio, RLS, banderas y estos hashes) y
+  `tests/element-library-pg.test.ts` (solo en el PostgreSQL desechable de
+  GitHub: orden, reinstalación sin efectos, RLS, CHECK de valor, semilla
+  idempotente, retiradas y revisiones que ninguna semilla deshace, claves
+  foráneas restrict y la vuelta atrás de abajo).
+- **Vuelta atrás.** Va comentada al final de cada `.sql` y requiere la misma
+  autorización. Antes, apagar `ZALTYKO_ELEMENT_LIBRARY_ENABLED`. Primero la de
+  las notas (borra las notas de todas las academias: exportarlas antes) y
+  después la del catálogo (quita los enlaces, que las filas de niveles y
+  guiones conservan sin enlace, y borra catálogo, avisos y retiradas):
+
+```sql
+begin;
+set local lock_timeout = '5s';
+drop table zaltyko.academy_element_notes;
+commit;
+
+begin;
+set local lock_timeout = '5s';
+alter table zaltyko.session_plan_blocks drop column catalog_element_id;
+alter table zaltyko.skill_elements drop column catalog_element_id;
+drop table zaltyko.content_withdrawals;
+drop table zaltyko.content_notices;
+drop table zaltyko.catalog_elements;
+drop table zaltyko.catalog_element_editions;
+commit;
+```
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.
@@ -1183,6 +1261,139 @@ de Elvis), guardado fuera del repositorio y de iCloud, comprobar que se descifra
 recuento coincide, y anotar solo el recuento y la ubicación en el informe (nunca los datos).
 Sin ese respaldo verificado no se aplica la candidata; si se decide que no hace falta
 conservarlos, debe quedar escrito por Elvis.
+
+## Candidata pendiente: retirar las tablas antiguas de elementos y puntuaciones (19-11-2026)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261119122000_retire_legacy_skill_catalog_candidate.sql` | `8a193ef4c2d154ff282520244fd8e6b6932b6e3b9fd251af662bfa607f217646` | No aplicada | No aplicada |
+
+**Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
+autorización expresa de Elvis; la CI verde no equivale a autorización.
+Decisión: ADR-0029 §7.
+
+- **Qué borra.** `public.assessment_scores`, `public.athlete_skills` y
+  `public.skill_catalog`, en ese orden (las dos primeras apuntan a la tercera),
+  sin `CASCADE`. Ningún código las usa ya: las rutas `/api/assessments` dejaron
+  de escribir y leer puntuaciones por elemento (si llegan, responden 400), y se
+  quitaron el formulario antiguo y las semillas de elementos.
+- **Solo si están vacías.** Aborta salvo que la sesión confirme antes de
+  ejecutar el archivo (que trae su propia transacción), y también si no existe
+  ninguna de las tres. Secuencia en psql: `set
+  zaltyko.retire_legacy_skill_catalog = 'confirmado';`, `\i` del archivo y
+  `reset zaltyko.retire_legacy_skill_catalog;`. Bloquea las tablas, cuenta sus
+  filas y, si alguna tiene filas, aborta sin borrar nada con el recuento por
+  tabla.
+- **Ventana tranquila.** Los `DROP` bloquean en exclusiva hasta el commit
+  también `athletes`, `academies`, `profiles` y `athlete_assessments` (las
+  tablas a las que apuntan sus claves foráneas); `lock_timeout` de 5 s.
+- **Si aborta por filas** (ADR-0029 §7.4): se informa a Elvis del recuento por
+  tabla y academia (consulta de solo lectura en la cabecera del archivo); las
+  tablas se quedan sin código que las use; Elvis decide exportarlas o
+  conservarlas y solo entonces se escribe otra candidata.
+- **Después de aplicarla**, en la misma PR: quitar los espejos Drizzle de las
+  tres tablas de `src/db/schema/` y sus referencias de RLS y CI.
+- **Pruebas.** `tests/legacy-skill-catalog-retirement-contract.test.ts`.
+
+## Candidata del evento de consulta a la biblioteca (uso habitual, 19-11-2026)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261119121500_element_library_usage_event_candidate.sql` | `fbdf191475e0f4772de62ed8a35c11c73d0fdf31098948c4acb19ad0e92ea7ad` | No aplicada | No aplicada |
+
+**Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
+autorización expresa de Elvis; la CI verde no equivale a autorización.
+Decisión: ADR-0029 §11.
+
+- **Qué cambia.** Solo `usage_events_event_name_check` de
+  `public.usage_events`: admite también `element_library_view` (consultas a la
+  biblioteca, contadas por academia, rol y día, sin identificar a nadie). No
+  cambia filas ni columnas ni `usage_events_role_event_check`: el evento nuevo
+  solo se cuenta para el equipo, nunca para una familia.
+- **Requiere antes** `20261114130000_habitual_use_candidate.sql`, con su
+  restricción de tipos de evento tal cual la instala. Abre y cierra su
+  transacción con `lock_timeout` de 5 s y aborta antes de tocar nada si falta
+  `public.usage_events` o si la restricción no tiene exactamente esa forma
+  (también al reinstalarla).
+- **Sin aplicarla**, la biblioteca funciona igual y no cuenta las consultas: la
+  restricción rechaza el evento y el registro, que nunca lanza, devuelve
+  `false`.
+- **Pruebas.** `tests/element-library-usage-event-contract.test.ts` (forma de
+  la candidata, nombres de evento y este hash) y
+  `tests/element-library-usage-event-pg.test.ts` (solo en el PostgreSQL
+  desechable de GitHub: el evento se rechaza sin la candidata, se guarda con
+  ella para el equipo y no para familias, la reinstalación aborta y la vuelta
+  atrás de abajo deja la restricción como estaba).
+- **Vuelta atrás.** Va comentada al final del `.sql` y requiere la misma
+  autorización. Borra los contadores de consultas a la biblioteca:
+
+```sql
+begin;
+set local lock_timeout = '5s';
+delete from public.usage_events where event_name = 'element_library_view';
+alter table public.usage_events
+  drop constraint usage_events_event_name_check,
+  add constraint usage_events_event_name_check
+    check (event_name in ('staff_visit', 'family_portal_view'));
+commit;
+```
+
+## Biblioteca de elementos (fase C): orden de aplicación y permisos
+
+Resumen de las secciones anteriores de la fase C (ADR-0029 §3.5 y §9). Producto:
+`docs/producto/biblioteca-de-elementos.md`.
+
+**Estado a 19-11-2026: ninguno de estos archivos se ha aplicado en ningún
+entorno** (ni sandbox compartido, ni staging, ni producción). Cada paso, en
+cada entorno, necesita un permiso expreso de Elvis sobre el archivo y su hash;
+la CI verde no equivale a autorización.
+
+| Paso | Archivo | SHA-256 | Producción | Staging |
+|---|---|---|---|---|
+| 1 | `20261119120000_element_library_candidate.sql` | `584d44defba1a8d54976f53bef07cbad9f4047b56094ed4d762a4ef99800d6d5` | No aplicada | No aplicada |
+| 2 | `20261119120500_element_library_notes_candidate.sql` | `e521dccf2731854da916f1986764e0e40b5823ec4bd3952dc86797d47a846abb` | No aplicada | No aplicada |
+| 3 | `20261119121000_element_catalog_seed_fig-wag-2025-2028_1.sql` | `22c07286674ef42b471ba2c46200b8e571ed0cdd6a34710c96ffcab813311a9a` | No aplicada | No aplicada |
+| 4 | `20261119121500_element_library_usage_event_candidate.sql` | `fbdf191475e0f4772de62ed8a35c11c73d0fdf31098948c4acb19ad0e92ea7ad` | No aplicada | No aplicada |
+| Aparte | `20261119122000_retire_legacy_skill_catalog_candidate.sql` | `8a193ef4c2d154ff282520244fd8e6b6932b6e3b9fd251af662bfa607f217646` | No aplicada | No aplicada |
+
+**Orden en cada entorno: primero staging, después producción.**
+
+0. **Código antes que nada.** Publicar el código que acepta los dos conjuntos
+   de columnas (con y sin `catalog_element_id`) en niveles, guiones y derechos
+   de datos, con las banderas apagadas. Comprobar que niveles, guiones y la
+   exportación de la academia responden 200 sin la migración.
+1. **Catálogo** (paso 1). Requiere antes, con su forma exacta, las candidatas
+   de objetivos y observaciones (`20261111120000`), guiones (`20261111200000`)
+   y niveles (`20261114121000`). Después, niveles y guiones siguen en 200.
+2. **Notas de la academia** (paso 2).
+3. **Semilla de la tanda 1** (paso 3): crea la edición `fig-wag-2025-2028` y
+   51 elementos de salto (grupos 1 a 3) **en borrador**. Las academias no ven
+   nada hasta que Elvis revise la tanda; el superadministrador sí, para
+   revisarla. Al revisarla se vuelve a generar la semilla con el mismo nombre
+   y **su hash cambia**: hay que actualizar esta tabla y la de arriba antes de
+   pedir el permiso. Cada tanda nueva trae su propia semilla y su fila.
+4. **Evento de consulta** (paso 4), opcional e independiente de 1–3. Requiere
+   `20261114130000_habitual_use_candidate.sql`. Sin él, la biblioteca funciona
+   y no cuenta las consultas.
+5. **Trabajo programado del borrado a los 2 años**:
+   `docs/deployment/scheduler/candidates/content-notices-retention.sql`, solo
+   para producción y después del paso 1 (en staging se programa con la función
+   propia de staging). Ver `docs/deployment/scheduler/README.md`,
+   «Conservación de los avisos sobre contenido (sin aplicar)». No aplicado.
+6. **Banderas**, con todo lo anterior aplicado y al menos una tanda revisada:
+   `ZALTYKO_ELEMENT_LIBRARY_ENABLED=true` (exige
+   `ZALTYKO_SKILL_LEVELS_ENABLED=true`). En producción, además, con el
+   formulario `/avisos-de-contenido` aprobado por Elvis. La bandera de
+   descripciones, `ZALTYKO_ELEMENT_LIBRARY_DESCRIPTIONS_ENABLED`, va aparte y
+   con su propio permiso.
+
+**Aparte: retirada de las tablas antiguas.** Destructiva; después de la fase
+C, primero en staging (decisión 13 de Elvis). Aborta sin borrar nada si alguna
+de las tres tablas tiene filas. Ver su sección.
+
+**Después, en una PR propia:** con la migración aplicada en todos los
+entornos, quitar el conjunto antiguo de columnas de las detecciones de
+niveles, guiones y derechos de datos.
 
 ## Comprobar los hashes
 

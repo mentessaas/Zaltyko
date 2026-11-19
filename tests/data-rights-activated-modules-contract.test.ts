@@ -11,6 +11,7 @@ import {
 import {
   ALL_KNOWN_CANONICAL_TABLE_NAMES,
   CLASS_PLAN_TEMPLATE_BLOCK_FIELDS,
+  CLASS_PLAN_TEMPLATE_BLOCK_OPTIONAL_FIELDS,
   INTERNAL_NON_CUSTOMER_TABLES,
   OPTIONAL_EXPORT_MODULE_GROUPS,
   OPTIONAL_FAMILY_COLLECTION_EVENTS_EXPORT_TABLES,
@@ -18,12 +19,15 @@ import {
   OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES,
   OPTIONAL_INCLUDED_EXPORT_MODULES,
   OPTIONAL_INCLUDED_EXPORT_TABLES,
+  OPTIONAL_SHARED_CATALOG_TABLES,
   OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
 } from "@/modules/data-rights/application/catalog";
 import {
   REVIEWED_DISPOSITION_OPTIONAL_GROUPS,
   REVIEWED_DISPOSITION_OPTIONAL_INCLUDED_MODULES,
+  REVIEWED_DISPOSITION_OPTIONAL_SHARED_CATALOGS,
 } from "@/modules/data-rights/application/canonical-disposition-policy";
+import { CONTENT_NOTICE_SENDER_RETENTION_DAYS } from "@/modules/element-library/domain/element-library";
 import { normalizeTemplateBlock } from "@/modules/session-plans/domain/session-plan";
 
 /**
@@ -51,7 +55,15 @@ const CANDIDATES = {
   team_access: "docs/deployment/candidates/20261105120000_canonical_team_access_candidate.sql",
   payment_reminders: "docs/deployment/candidates/20261114120500_payment_reminders_candidate.sql",
   family_access: "docs/deployment/candidates/20261114121500_family_access_notices_candidate.sql",
+  element_library: "docs/deployment/candidates/20261119120500_element_library_notes_candidate.sql",
 } as const;
+/**
+ * Biblioteca de elementos (sin aplicar): crea los catálogos globales y el
+ * registro de avisos (OPTIONAL_SHARED_CATALOG_TABLES) y añade
+ * catalog_element_id a skill_elements y session_plan_blocks
+ * (laterCandidateColumns de esas tablas incluidas).
+ */
+const ELEMENT_LIBRARY = "docs/deployment/candidates/20261119120000_element_library_candidate.sql";
 /**
  * Cobro automático, Fase 2 (sin aplicar). No es una función activada: su tabla
  * se clasifica como grupo opcional excluido (solo recuento) y no entra en la
@@ -248,6 +260,7 @@ describe("inventario de derechos de datos frente al SQL", () => {
   const classified = [
     ...ALL_KNOWN_CANONICAL_TABLE_NAMES,
     ...OPTIONAL_EXPORT_MODULE_GROUPS.flat().map((table) => table.table),
+    ...OPTIONAL_SHARED_CATALOG_TABLES.map((table) => table.table),
     ...OPTIONAL_INCLUDED_EXPORT_TABLES.map((table) => table.name),
   ];
 
@@ -361,6 +374,51 @@ describe("inventario de derechos de datos frente al SQL", () => {
     expect(ACTIVATED_MODULES_ERASURE_POLICY.some((entry) => entry.table === "family_collection_disputes")).toBe(false);
   });
 
+  it("biblioteca: catálogos globales y avisos fuera del paquete, sin recuento, con las columnas de la candidata", () => {
+    const candidate = parseCreateTables(ELEMENT_LIBRARY, "zaltyko");
+    expect([...candidate.keys()].sort()).toEqual(OPTIONAL_SHARED_CATALOG_TABLES.map((table) => table.table).sort());
+    for (const table of OPTIONAL_SHARED_CATALOG_TABLES) {
+      expect([...table.columns].sort(), table.table).toEqual([...candidate.get(table.table)!.columns].sort());
+      // Globales: sin organization_id, así que no hay recuento por academia.
+      expect(table.columns, table.table).not.toContain("organization_id");
+      expect(table.category, table.table).toBe(table.table === "content_notices" ? "internal_content_notices" : "shared_catalogs");
+    }
+    // El plazo de borrado del remitente sale de la constante del dominio (2 años).
+    expect(CONTENT_NOTICE_SENDER_RETENTION_DAYS).toBe(730);
+    const notices = OPTIONAL_SHARED_CATALOG_TABLES.find((table) => table.table === "content_notices")!;
+    expect(notices.reason).toContain(`${CONTENT_NOTICE_SENDER_RETENTION_DAYS} days`);
+    expect(notices.columns).toEqual(expect.arrayContaining(["sender_name", "sender_email", "closed_at", "sender_erased_at"]));
+    // Revisadas igual en el plan de disposición, sin recuento.
+    expect(REVIEWED_DISPOSITION_OPTIONAL_SHARED_CATALOGS).toEqual(
+      OPTIONAL_SHARED_CATALOG_TABLES.map((table) => ({ table: table.table, category: table.category, scoped: false }))
+    );
+    // Ni valores ni supresión de academia.
+    for (const table of OPTIONAL_SHARED_CATALOG_TABLES) {
+      expect(OPTIONAL_INCLUDED_EXPORT_TABLES.some((included) => included.name === table.table), table.table).toBe(false);
+      expect(ACTIVATED_MODULES_ERASURE_POLICY.some((entry) => entry.table === table.table), table.table).toBe(false);
+    }
+  });
+
+  it("acepta en las tablas incluidas exactamente las columnas que añaden las candidatas posteriores", () => {
+    // Columnas añadidas con alter table … add column, por la candidata que crea
+    // la tabla referenciada o por la que la amplía.
+    const added = [...clean(read(ELEMENT_LIBRARY)).matchAll(
+      /alter\s+table\s+zaltyko\.([a-z_]+)\s+add\s+column\s+([a-z_]+)\s+uuid\s+references\s+zaltyko\.catalog_elements\s*\(id\)\s+on\s+delete\s+restrict/g
+    )].map((match) => `${match[1]}.${match[2]}`);
+    expect(added).toEqual(["skill_elements.catalog_element_id", "session_plan_blocks.catalog_element_id"]);
+    expect([...clean(read(ELEMENT_LIBRARY)).matchAll(/add\s+column/g)]).toHaveLength(added.length);
+    const declared = OPTIONAL_INCLUDED_EXPORT_TABLES.flatMap((table) =>
+      (table.laterCandidateColumns ?? []).map((column) => `${table.name}.${column}`)
+    );
+    expect([...declared].sort()).toEqual([...added].sort());
+    for (const table of OPTIONAL_INCLUDED_EXPORT_TABLES.filter((item) => item.laterCandidateColumns)) {
+      // Las columnas posteriores se exportan con valores: nunca se omiten ni chocan con las base.
+      for (const column of table.laterCandidateColumns!) {
+        expect(table.expectedColumns, table.name).not.toContain(column);
+      }
+    }
+  });
+
   it("revisa en el plan de disposición los mismos módulos activados que exporta", () => {
     expect(REVIEWED_DISPOSITION_OPTIONAL_INCLUDED_MODULES).toEqual(
       OPTIONAL_INCLUDED_EXPORT_MODULES.map((module) => module.tables.map((table) => table.name))
@@ -382,12 +440,23 @@ describe("inventario de derechos de datos frente al SQL", () => {
   it("exporta los bloques del modelo de la clase solo con los campos clasificados", () => {
     const template = OPTIONAL_INCLUDED_EXPORT_TABLES.find((table) => table.name === "class_plan_templates")!;
     expect(template.exportColumns).toContain("blocks");
-    // Los campos clasificados son exactamente los que escribe el servidor.
+    // Los campos clasificados son exactamente los que escribe el servidor: los
+    // cinco de siempre y, solo si el bloque enlaza la biblioteca, catalogElementId.
     expect([...CLASS_PLAN_TEMPLATE_BLOCK_FIELDS].sort())
       .toEqual(Object.keys(normalizeTemplateBlock({ kind: "warmup", content: "x" })).sort());
+    expect([...CLASS_PLAN_TEMPLATE_BLOCK_FIELDS, ...CLASS_PLAN_TEMPLATE_BLOCK_OPTIONAL_FIELDS].sort())
+      .toEqual(Object.keys(normalizeTemplateBlock({
+        kind: "warmup", content: "x", catalogElementId: "a0000000-0000-4000-8000-000000000001",
+      })).sort());
     const projection = template.projections?.blocks ?? "";
-    for (const field of CLASS_PLAN_TEMPLATE_BLOCK_FIELDS) expect(projection).toContain(`'${field}'`);
-    expect(projection.match(/'[a-zA-Z]+', (?:element\.value|case when)/g)).toHaveLength(CLASS_PLAN_TEMPLATE_BLOCK_FIELDS.length);
+    for (const field of [...CLASS_PLAN_TEMPLATE_BLOCK_FIELDS, ...CLASS_PLAN_TEMPLATE_BLOCK_OPTIONAL_FIELDS]) {
+      expect(projection).toContain(`'${field}'`);
+    }
+    expect(projection.match(/'[a-zA-Z]+', (?:element\.value|case when)/g))
+      .toHaveLength(CLASS_PLAN_TEMPLATE_BLOCK_FIELDS.length + CLASS_PLAN_TEMPLATE_BLOCK_OPTIONAL_FIELDS.length);
+    // El enlace solo se añade si el bloque guardado lo trae.
+    expect(projection).toContain("case when jsonb_typeof(element.value -> 'catalogElementId') in ('string', 'null')");
+    expect(projection).toContain("else '{}'::jsonb end");
     // Ninguna otra tabla proyecta columnas a mano.
     expect(OPTIONAL_INCLUDED_EXPORT_TABLES.filter((table) => table.projections).map((table) => table.name)).toEqual(["class_plan_templates"]);
   });
@@ -421,10 +490,11 @@ describe("política de supresión de las funciones activadas", () => {
       // Con el candidato de supresión, la pertenencia no se borra (SET NULL):
       // solo cuentan las claves directas a auth.users, ya cambiadas.
       expect(entry.onAuthAccountErasure, "cuenta").toBe(effectOf(table, "auth.users", [], afterAccountErasure));
-      // La academia arrastra todas sus tablas; ninguna usa RESTRICT.
+      // La academia arrastra todas sus tablas; ninguna usa RESTRICT salvo hacia
+      // un elemento del catálogo global (un elemento con notas no se borra: se retira).
       const parsed = activated.get(table)!;
       expect(parsed.foreignKeys).toContainEqual({ columns: ["organization_id"], target: "zaltyko.organizations", action: "cascade" });
-      expect(parsed.foreignKeys.some((fk) => fk.action === "restrict")).toBe(false);
+      expect(parsed.foreignKeys.some((fk) => fk.action === "restrict" && fk.target !== "zaltyko.catalog_elements")).toBe(false);
       expect(entry.onAcademyErasure).toBe("cascade_delete");
     }
   );

@@ -4,10 +4,16 @@ import { join } from "node:path";
 import { PgDialect, getTableConfig } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
-import { SESSION_PLAN_TABLES } from "@/modules/session-plans/application/session-plan-service";
+import { ELEMENT_LIBRARY_LINK_COLUMNS } from "@/modules/element-library/infrastructure/element-library-schema";
+import {
+  SESSION_PLAN_CATALOG_LINK_COLUMNS,
+  SESSION_PLAN_TABLES,
+} from "@/modules/session-plans/application/session-plan-service";
 import {
   classPlanTemplates,
+  sessionPlanBlockBaseColumns,
   sessionPlanBlocks,
+  sessionPlanBlocksBaseInsert,
   sessionPlanObjectives,
   sessionPlans,
 } from "@/modules/session-plans/infrastructure/session-plan-schema";
@@ -26,6 +32,11 @@ const CANDIDATE_FILE = "20261111200000_session_plans_candidate.sql";
 const CANDIDATE = `docs/deployment/candidates/${CANDIDATE_FILE}`;
 const SCHEMA = "src/modules/session-plans/infrastructure/session-plan-schema.ts";
 const TABLES = Object.keys(SESSION_PLAN_TABLES).sort();
+/** La candidata de la biblioteca añade columnas de enlace a tablas de guiones. */
+const LIBRARY_CANDIDATE = "docs/deployment/candidates/20261119120000_element_library_candidate.sql";
+const LIBRARY_ALTER_LINES = [
+  "alter table zaltyko.session_plan_blocks add column catalog_element_id uuid references zaltyko.catalog_elements(id) on delete restrict;",
+];
 
 function stripSqlComments(sql: string): string {
   return sql.replace(/--[^\n]*/g, "");
@@ -82,6 +93,28 @@ function candidateChecks(block: string): Map<string, string> {
   return checks;
 }
 
+/** `alter table zaltyko.<tabla> add column ...` de una candidata, por tabla. */
+function addedColumns(sql: string): Map<string, CandidateColumn[]> {
+  const added = new Map<string, CandidateColumn[]>();
+  for (const match of stripSqlComments(sql).matchAll(
+    /^alter table zaltyko\.([a-z_]+) add column ([a-z_]+) (uuid|text|integer|jsonb|timestamptz)\b(.*);$/gm
+  )) {
+    added.set(match[1], [
+      ...(added.get(match[1]) ?? []),
+      {
+        name: match[2],
+        type: SQL_TYPES[match[3]],
+        notNull: /\bnot null\b|\bprimary key\b/.test(match[4]),
+        hasDefault: /\bdefault\b/.test(match[4]),
+      },
+    ]);
+  }
+  return added;
+}
+
+const byName = (left: { name: string }, right: { name: string }) =>
+  left.name < right.name ? -1 : left.name > right.name ? 1 : 0;
+
 function candidateUniques(block: string): string[] {
   return [...block.matchAll(/constraint ([a-z_]+) unique \(/g)].map((match) => match[1]).sort();
 }
@@ -120,6 +153,10 @@ describe("candidato SQL de planificación sobre sesiones", () => {
   );
   const dialect = new PgDialect();
 
+  const libraryAdded = new Map(
+    [...addedColumns(read(LIBRARY_CANDIDATE))].filter(([table]) => TABLES.includes(table))
+  );
+
   it("crea exactamente las tablas, columnas, tipos, NOT NULL y defaults del espejo y de la detección", () => {
     expect([...blocks.keys()].sort()).toEqual(TABLES);
     expect([...drizzleTables.keys()].sort()).toEqual(TABLES);
@@ -127,9 +164,11 @@ describe("candidato SQL de planificación sobre sesiones", () => {
       const columns = candidateColumns(blocks.get(table)!);
       const config = drizzleTables.get(table)!;
       expect(config.schema, table).toBe("zaltyko");
+      // La detección conserva las columnas de la candidata de guiones tal cual.
       expect(columns.map((column) => column.name), table).toEqual([
         ...SESSION_PLAN_TABLES[table as keyof typeof SESSION_PLAN_TABLES],
       ]);
+      // El espejo = candidata de guiones ∪ columnas que añade la de la biblioteca.
       const drizzleColumns = config.columns
         .map((column) => ({
           name: column.name,
@@ -137,9 +176,64 @@ describe("candidato SQL de planificación sobre sesiones", () => {
           notNull: column.notNull,
           hasDefault: column.hasDefault,
         }))
-        .sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
-      expect(drizzleColumns, table).toEqual(columns);
+        .sort(byName);
+      expect(drizzleColumns, table).toEqual([...columns, ...(libraryAdded.get(table) ?? [])].sort(byName));
     }
+  });
+
+  it("las columnas de enlace son las que añade la candidata de la biblioteca: nulas y sin valor por defecto", () => {
+    const library = read(LIBRARY_CANDIDATE).toLowerCase();
+    for (const line of LIBRARY_ALTER_LINES) expect(library).toContain(line);
+    const fromCandidate = Object.fromEntries(
+      [...libraryAdded].map(([table, columns]) => [table, columns.map((column) => column.name)])
+    );
+    expect(fromCandidate).toEqual(SESSION_PLAN_CATALOG_LINK_COLUMNS);
+    expect(Object.keys(fromCandidate).length).toBeGreaterThan(0);
+    for (const columns of libraryAdded.values()) {
+      for (const column of columns) expect(column, column.name).toMatchObject({ notNull: false, hasDefault: false });
+    }
+    // La misma lista que la biblioteca, sin que los guiones importen su aplicación.
+    for (const [table, columns] of Object.entries(SESSION_PLAN_CATALOG_LINK_COLUMNS)) {
+      expect(columns, table).toEqual(ELEMENT_LIBRARY_LINK_COLUMNS[table as keyof typeof ELEMENT_LIBRARY_LINK_COLUMNS]);
+    }
+    expect(
+      Object.keys(ELEMENT_LIBRARY_LINK_COLUMNS).filter((table) => TABLES.includes(table))
+    ).toEqual(Object.keys(SESSION_PLAN_CATALOG_LINK_COLUMNS));
+  });
+
+  it("lee y da de alta bloques sin nombrar la columna de enlace", () => {
+    // Con la forma «base» la columna no existe: lecturas con lista explícita
+    // y altas con la tabla sin enlace.
+    const base = [...SESSION_PLAN_TABLES.session_plan_blocks];
+    expect(Object.values(sessionPlanBlockBaseColumns).map((column) => column.name).sort()).toEqual(base);
+    expect(getTableConfig(sessionPlanBlocksBaseInsert).columns.map((column) => column.name).sort()).toEqual(base);
+    expect(getTableConfig(sessionPlanBlocksBaseInsert)).toMatchObject({ name: "session_plan_blocks", schema: "zaltyko" });
+    for (const path of [
+      "src/modules/session-plans/application/session-plan/plans.ts",
+      "src/modules/session-plans/application/session-plan/templates.ts",
+    ]) {
+      const source = read(path);
+      expect(source, path).not.toMatch(/\.select\(\)\s*\.from\(sessionPlanBlocks\)/);
+      expect(source, path).not.toMatch(/\.returning\(\)/);
+    }
+    expect(read("src/modules/session-plans/application/session-plan/templates.ts")).not.toMatch(
+      /\.insert\(sessionPlanBlocks\)/
+    );
+    // La columna de enlace solo se nombra con la biblioteca activa (que exige la
+    // forma «with_catalog_links»): un único alta con la tabla completa, tras esa
+    // guarda, y la lectura de enlaces vuelve sin consultar con la forma «base».
+    const plans = read("src/modules/session-plans/application/session-plan/plans.ts");
+    expect(plans.match(/\.insert\(sessionPlanBlocks\)/g)).toHaveLength(1);
+    const write = plans.slice(plans.indexOf("async function writeBlocks"), plans.indexOf("async function writeObjectives"));
+    expect(write.indexOf("if (input.libraryOn && insertLinks.some")).toBeGreaterThan(-1);
+    expect(write.indexOf("if (input.libraryOn && insertLinks.some")).toBeLessThan(write.indexOf(".insert(sessionPlanBlocks)"));
+    expect(write).toContain("await tx.insert(sessionPlanBlocksBaseInsert).values(inserts);");
+    expect(plans).toContain('return access.storageShape === "with_catalog_links" && (await isElementLibraryAvailable(tx));');
+    const links = plans.slice(plans.indexOf("async function loadBlockLinks"), plans.indexOf("export async function isBlockLibraryOn"));
+    expect(links.indexOf('if (access.storageShape !== "with_catalog_links") return links;')).toBeLessThan(
+      links.indexOf("sessionPlanBlocks.catalogElementId")
+    );
+    expect(links.indexOf('if (access.storageShape !== "with_catalog_links") return links;')).toBeGreaterThan(-1);
   });
 
   it("repite en Drizzle cada CHECK con el mismo nombre y la misma expresión", () => {
@@ -275,7 +369,12 @@ describe("rutas API de planificación", () => {
     const storage = read("src/modules/session-plans/application/session-plan/storage.ts");
     expect(storage).toContain("con.condeferrable and con.condeferred");
     expect(storage).toContain("con.conname = 'session_plan_blocks_position_uq'");
-    expect(storage).toMatch(/\$\{allColumnsMatch\}\s+and \$\{positionDeferred\}/);
+    // Las dos formas válidas exigen la unicidad diferida, RLS y la revocación.
+    expect(storage).toMatch(
+      /when \$\{positionDeferred\}[\s\S]*?then\s+case\s+when \$\{allColumnsMatch\} then 'base'\s+when \$\{allColumnsMatchWithCatalogLinks\} and \$\{catalogLinkColumnsTyped\} then 'with_catalog_links'\s+else 'absent'/
+    );
+    // La columna de enlace, además de existir, es uuid y admite nulos.
+    expect(storage).toContain("and data_type = 'uuid' and is_nullable = 'YES'");
     const plans = read("src/modules/session-plans/application/session-plan/plans.ts");
     const mapping = plans.slice(plans.indexOf("function uniqueViolation"), plans.indexOf("async function loadPlan"));
     expect(mapping).toContain('cause.constraint === "session_plans_session_uq"');

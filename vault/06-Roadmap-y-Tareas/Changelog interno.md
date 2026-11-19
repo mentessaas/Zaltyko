@@ -1,11 +1,36 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-11-18
+last_reviewed: 2026-11-19
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
   - ../docs/architecture/zaltyko-domain-model.md
 ---
+
+## 2026-11-19 — Biblioteca de elementos, fase C (ADR-0029): catálogo, nota de la academia, avisos y primera tanda (apagado)
+
+**Contexto.** ADR-0029, aceptado el 19-11-2026 con las decisiones 1–14 de Elvis. Rama `biblioteca/fase-c-catalogo`, sin push.
+
+**Cambio.**
+- Tabla única de equivalencias de disciplina (`src/modules/shared/domain/discipline-keys.ts`).
+- Dominio, archivos de datos con esquema estricto y script que genera la semilla de cada tanda (`scripts/element-library/build-seed.ts`).
+- Candidatas `20261119120000_element_library_candidate.sql` (catálogo, avisos, retiradas y columnas de enlace) y `20261119120500_element_library_notes_candidate.sql` (nota de la academia), con espejo Drizzle dentro del módulo.
+- Primera tanda: GAF salto, grupos 1 a 3, 51 elementos **en borrador**, su registro `tandas/1.json` (sala limpia, comprobación entre idiomas con máximo 0,4 sobre umbral 0,5, ningún elemento redactado de nuevo) y la semilla `20261119121000_element_catalog_seed_fig-wag-2025-2028_1.sql`. Archivo de revisión entregado a Elvis.
+- Niveles y guiones aceptan los dos conjuntos de columnas (con y sin enlace) y siguen en 200 sin la migración; derechos de datos clasifican catálogo, notas, avisos y enlaces.
+- Puntuaciones antiguas por elemento retiradas del código; candidata destructiva `20261119122000_retire_legacy_skill_catalog_candidate.sql` aparte.
+- Evento de uso `element_library_view` con su candidata `20261119121500_element_library_usage_event_candidate.sql`.
+- Búsqueda, ficha y nota de la academia (API y pantalla `/owner/skills/biblioteca`) para dirección y entrenadoras, todos los planes; pie de atribución fijo; sin vídeo ni imágenes.
+- «Añadir desde la biblioteca» en las plantillas de niveles y el enlace opcional en los bloques del guion: en curso en la misma rama cuando se escribe esta entrada (documentados en el producto).
+- Formulario público `/avisos-de-contenido`, bandeja y «Retirar» del superadministrador, y trabajo de borrado a los 2 años con su candidata del programador `content-notices-retention.sql`.
+- Docs: `docs/producto/biblioteca-de-elementos.md` (nuevo), glosario («biblioteca de elementos», «nota de la academia», «tanda», «aviso de contenido»), `docs/producto/niveles-y-progresion.md` (decisión 7: la prohibición de nombrar federaciones queda limitada a las plantillas de ejemplo) y README de candidatas (semilla con su SHA-256 y resumen «orden de aplicación y permisos»).
+
+**No se ejecutó.** Ninguna candidata, semilla ni trabajo programado se ha aplicado en ningún entorno; las banderas `ZALTYKO_ELEMENT_LIBRARY_ENABLED` y `ZALTYKO_ELEMENT_LIBRARY_DESCRIPTIONS_ENABLED` siguen apagadas (`.env.example`). Cada paso necesita el permiso de Elvis por entorno.
+
+**Pendiente.** Revisión de Elvis de la tanda 1; tanda 2 (salto, grupos 4 y 5); asimétricas, barra y suelo; GAM; prueba en staging con permiso; fase D (plantillas RFEG); quitar el conjunto antiguo de columnas cuando la migración esté en todos los entornos.
+
+**Pruebas.** Ninguna en local (sin dependencias instaladas, por orden del coordinador); las valida la CI remota, incluido el PostgreSQL desechable. El test que prohíbe nombrar federaciones (`tests/skill-levels-domain.test.ts`) ya solo recorre las plantillas de ejemplo y no se tocó.
+
+Vault: actualizados este `Changelog interno.md`, `Decisiones.md` y `Backlog priorizado.md`; no cambian `Pricing.md` ni `Mensajes aprobados.md`.
 
 ## 2026-11-18 — Cobro automático de cuotas, Fase 4: eventos de Stripe, confirmación con el banco, devoluciones, disputas y justificante (apagado)
 

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, asc, eq, inArray, notInArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, notInArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import type { TransactionClient } from "@/lib/db-transactions";
@@ -9,8 +9,15 @@ import {
   findObjectivesForPlanning,
   type PlanningObjective,
 } from "@/modules/athlete-progress/application/athlete-progress-service";
+// Directo y no desde la fachada de la biblioteca: lecturas sin autorización
+// propia que se hacen dentro de la transacción ya autorizada del guion.
+import { findLinkableCatalogElement, getCatalogLinkView } from "@/modules/element-library/application/catalog-reads";
+import { elementLibraryUnavailable, isElementLibraryAvailable } from "@/modules/element-library/application/storage";
 import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
 import {
+  BLOCK_CATALOG_LINK_MISMATCH_MESSAGE,
+  BLOCK_CATALOG_LINK_NEEDS_APPARATUS_MESSAGE,
+  blockCatalogTarget,
   BLOCKS_MAX,
   canManageClassPlanTemplate,
   canMarkBlocks,
@@ -19,6 +26,7 @@ import {
   saveSessionPlanCommandSchema,
   sessionPlanQuerySchema,
   SESSION_PLAN_ROLES,
+  type BlockCatalogLink,
   type BlockMarkResult,
   type SaveSessionPlanCommand,
   type SessionPlanObjectiveView,
@@ -29,10 +37,12 @@ import {
 } from "@/modules/session-plans/domain/session-plan";
 import {
   classPlanTemplates,
+  sessionPlanBlockBaseColumns,
   sessionPlanBlocks,
+  sessionPlanBlocksBaseInsert,
   sessionPlanObjectives,
   sessionPlans,
-  type SessionPlanBlockRow,
+  type SessionPlanBlockBaseRow,
   type SessionPlanRow,
 } from "@/modules/session-plans/infrastructure/session-plan-schema";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -121,13 +131,81 @@ async function loadPlan(
   return row ?? null;
 }
 
-async function loadBlocks(tx: TransactionClient, organizationId: string, planId: string): Promise<SessionPlanBlockRow[]> {
+/** Columnas explícitas: leen igual con o sin la columna de enlace a la biblioteca. */
+async function loadBlocks(
+  tx: TransactionClient,
+  organizationId: string,
+  planId: string
+): Promise<SessionPlanBlockBaseRow[]> {
   return tx
-    .select()
+    .select(sessionPlanBlockBaseColumns)
     .from(sessionPlanBlocks)
     .where(and(eq(sessionPlanBlocks.organizationId, organizationId), eq(sessionPlanBlocks.planId, planId)))
     .orderBy(asc(sessionPlanBlocks.position))
     .limit(BLOCKS_MAX);
+}
+
+/**
+ * Enlaces con la biblioteca de los bloques de un guion: id del bloque → id del
+ * elemento. Solo con la forma «with_catalog_links»; con la «base» la columna
+ * no existe y no se nombra.
+ */
+async function loadBlockLinks(
+  tx: TransactionClient,
+  access: Access,
+  input: { organizationId: string; planId: string }
+): Promise<Map<string, string>> {
+  const links = new Map<string, string>();
+  if (access.storageShape !== "with_catalog_links") return links;
+  const rows = await tx
+    .select({ id: sessionPlanBlocks.id, catalogElementId: sessionPlanBlocks.catalogElementId })
+    .from(sessionPlanBlocks)
+    .where(
+      and(
+        eq(sessionPlanBlocks.organizationId, input.organizationId),
+        eq(sessionPlanBlocks.planId, input.planId),
+        isNotNull(sessionPlanBlocks.catalogElementId)
+      )
+    )
+    .limit(BLOCKS_MAX);
+  for (const row of rows) if (row.catalogElementId) links.set(row.id, row.catalogElementId);
+  return links;
+}
+
+/**
+ * La biblioteca está activa para los bloques: banderas, tablas de la
+ * biblioteca y forma «with_catalog_links». Con las banderas apagadas no
+ * consulta nada más.
+ */
+export async function isBlockLibraryOn(tx: TransactionClient, access: Access): Promise<boolean> {
+  return access.storageShape === "with_catalog_links" && (await isElementLibraryAvailable(tx));
+}
+
+export function catalogLinkNeedsApparatus(): OperationalError {
+  return new OperationalError("INVALID_RELATION", BLOCK_CATALOG_LINK_NEEDS_APPARATUS_MESSAGE, 400);
+}
+
+export function catalogLinkMismatch(): OperationalError {
+  return new OperationalError("INVALID_RELATION", BLOCK_CATALOG_LINK_MISMATCH_MESSAGE, 400);
+}
+
+/**
+ * ¿Lo ve la academia y es de esa disciplina y aparato? `checked` guarda las
+ * respuestas de la misma petición: cada elemento y aparato, una consulta.
+ */
+export async function isLinkable(
+  tx: TransactionClient,
+  checked: Map<string, boolean>,
+  catalogElementId: string,
+  target: { discipline: string; apparatus: string }
+): Promise<boolean> {
+  const key = `${catalogElementId}:${target.discipline}:${target.apparatus}`;
+  let linkable = checked.get(key);
+  if (linkable === undefined) {
+    linkable = (await findLinkableCatalogElement(tx, catalogElementId, target)) !== null;
+    checked.set(key, linkable);
+  }
+  return linkable;
 }
 
 /** Todos los vínculos del guion, también los de sedes que quien lee no ve. */
@@ -166,6 +244,17 @@ async function readPlanView(
 ): Promise<SessionPlanView> {
   const blocks = await loadBlocks(tx, input.organizationId, input.plan.id);
   const objectives = await loadLinkedObjectives(tx, input.organizationId, input.plan.id);
+  const links = await loadBlockLinks(tx, access, { organizationId: input.organizationId, planId: input.plan.id });
+  const linkViews = links.size > 0 ? await getCatalogLinkView(tx, [...links.values()]) : null;
+  const catalogLinkOf = (blockId: string): BlockCatalogLink | null => {
+    const catalogId = links.get(blockId);
+    if (!catalogId) return null;
+    const view = linkViews?.get(catalogId);
+    // La clave foránea impide que desaparezca; si aun así faltara, se avisa como retirado.
+    return view
+      ? { id: catalogId, name: view.name, status: view.status, replacementId: view.replacementId }
+      : { id: catalogId, name: "Elemento de la biblioteca", status: "withdrawn", replacementId: null };
+  };
   return {
     id: input.plan.id,
     revision: input.plan.revision,
@@ -182,6 +271,7 @@ async function readPlanView(
       durationMinutes: block.durationMinutes,
       done: block.doneAt !== null,
       doneAt: block.doneAt ? new Date(block.doneAt).toISOString() : null,
+      catalogLink: catalogLinkOf(block.id),
     })),
     // Un objetivo de una sede que esta persona no ve no se muestra; al guardar,
     // el servidor lo conserva (resolveObjectiveLinks).
@@ -247,14 +337,23 @@ export async function getSessionPlan(
       template: { exists: Boolean(template), revision: template?.revision ?? null },
       canManageTemplate: canManageClassPlanTemplate(access.role),
       objectiveOptions: [...options.values()].sort(byAthleteThenTitle),
+      // Sin las banderas de la biblioteca no consulta nada más.
+      libraryAvailable: await isBlockLibraryOn(tx, access),
     };
   });
 }
 
+/**
+ * `catalogElementId`: ausente conserva el enlace guardado del bloque, `null`
+ * lo quita y un uuid lo pone (ADR-0029 §3.2). Solo se escribe con la
+ * biblioteca activa.
+ */
+type PlanBlock = Omit<TemplateBlock, "catalogElementId"> & { id: string | null; catalogElementId?: string | null };
+
 type PlanContent = {
   focus: string | null;
   note: string | null;
-  blocks: Array<TemplateBlock & { id: string | null }>;
+  blocks: PlanBlock[];
   fromTemplateRevision: number | null;
 };
 
@@ -269,15 +368,32 @@ function manualContent(command: SaveSessionPlanCommand): PlanContent {
       apparatus: block.apparatus ?? null,
       content: block.content,
       durationMinutes: block.durationMinutes ?? null,
+      ...(block.catalogElementId !== undefined ? { catalogElementId: block.catalogElementId } : {}),
     })),
     fromTemplateRevision: null,
   };
 }
 
+/**
+ * Enlace de un bloque copiado del modelo de la clase: se conserva solo si el
+ * elemento sigue visible y es de su disciplina y aparato (ADR-0029 §3.3); si
+ * no, o sin la biblioteca activa, el bloque se copia sin enlace.
+ */
+async function copiedLink(
+  tx: TransactionClient,
+  block: TemplateBlock,
+  input: { libraryOn: boolean; checked: Map<string, boolean> }
+): Promise<string | null> {
+  if (!input.libraryOn || !block.catalogElementId) return null;
+  const target = blockCatalogTarget(block);
+  if (!target) return null;
+  return (await isLinkable(tx, input.checked, block.catalogElementId, target)) ? block.catalogElementId : null;
+}
+
 async function contentFor(
   tx: TransactionClient,
   access: Access,
-  input: { organizationId: string; session: PlannedSession; command: SaveSessionPlanCommand }
+  input: { organizationId: string; session: PlannedSession; command: SaveSessionPlanCommand; libraryOn: boolean }
 ): Promise<PlanContent> {
   if (input.command.source !== "template") return manualContent(input.command);
   const [template] = await tx
@@ -293,12 +409,59 @@ async function contentFor(
     .limit(1);
   if (!template) throw notFound("Esta clase no tiene modelo");
   // Copia: cambiar el modelo después no toca este guion.
+  const checked = new Map<string, boolean>();
+  const blocks: PlanBlock[] = [];
+  for (const stored of parseStoredTemplateBlocks(template.blocks)) {
+    blocks.push({
+      id: null,
+      kind: stored.kind,
+      discipline: stored.discipline,
+      apparatus: stored.apparatus,
+      content: stored.content,
+      durationMinutes: stored.durationMinutes,
+      catalogElementId: await copiedLink(tx, stored, { libraryOn: input.libraryOn, checked }),
+    });
+  }
   return {
     focus: template.focus,
     note: template.note,
-    blocks: parseStoredTemplateBlocks(template.blocks).map((block) => ({ ...block, id: null })),
+    blocks,
     fromTemplateRevision: template.revision,
   };
+}
+
+/**
+ * Comprueba los enlaces pedidos de un guion manual (ADR-0029 §3.2), antes de
+ * escribir nada. Solo con la biblioteca activa: sin ella, un uuid ya se ha
+ * respondido con 503 y `null` o la ausencia no tocan la columna.
+ * - ausente: se conserva el enlace guardado, pero no si el bloque cambia de
+ *   disciplina o de aparato;
+ * - `null`: se quita;
+ * - el mismo enlace sin cambiar de disciplina ni de aparato no se comprueba de
+ *   nuevo (así se guarda un bloque cuyo elemento ya no está en la biblioteca);
+ * - otro uuid: disciplina y aparato del bloque, y elemento visible de ese aparato.
+ */
+async function assertBlockLinks(
+  tx: TransactionClient,
+  input: { blocks: PlanBlock[]; previous: SessionPlanBlockBaseRow[]; links: Map<string, string> }
+): Promise<void> {
+  const previousById = new Map(input.previous.map((block) => [block.id, block] as const));
+  const checked = new Map<string, boolean>();
+  for (const block of input.blocks) {
+    const previous = block.id ? previousById.get(block.id) : undefined;
+    const stored = block.id ? input.links.get(block.id) : undefined;
+    const sameTarget =
+      previous !== undefined && previous.discipline === block.discipline && previous.apparatus === block.apparatus;
+    if (block.catalogElementId === undefined) {
+      if (stored && !sameTarget) throw catalogLinkMismatch();
+      continue;
+    }
+    if (block.catalogElementId === null) continue;
+    if (stored === block.catalogElementId && sameTarget) continue;
+    const target = blockCatalogTarget(block);
+    if (!target) throw catalogLinkNeedsApparatus();
+    if (!(await isLinkable(tx, checked, block.catalogElementId, target))) throw catalogLinkMismatch();
+  }
 }
 
 /**
@@ -309,13 +472,18 @@ async function contentFor(
 async function storedMatches(
   tx: TransactionClient,
   access: Access,
-  input: { organizationId: string; plan: SessionPlanRow; command: SaveSessionPlanCommand }
+  input: { organizationId: string; plan: SessionPlanRow; command: SaveSessionPlanCommand; libraryOn: boolean }
 ): Promise<boolean> {
   if (input.command.source === "template") return true;
   const content = manualContent(input.command);
   if (input.plan.focus !== content.focus || input.plan.note !== content.note) return false;
   const blocks = await loadBlocks(tx, input.organizationId, input.plan.id);
   if (blocks.length !== content.blocks.length) return false;
+  // El enlace solo cuenta si la petición lo trae y la biblioteca está activa
+  // (sin ella, `null` no toca la columna).
+  const links = input.libraryOn
+    ? await loadBlockLinks(tx, access, { organizationId: input.organizationId, planId: input.plan.id })
+    : new Map<string, string>();
   const sameBlocks = blocks.every((stored, index) => {
     const wanted = content.blocks[index]!;
     return (
@@ -324,7 +492,10 @@ async function storedMatches(
       stored.discipline === wanted.discipline &&
       stored.apparatus === wanted.apparatus &&
       stored.content === wanted.content &&
-      stored.durationMinutes === wanted.durationMinutes
+      stored.durationMinutes === wanted.durationMinutes &&
+      (!input.libraryOn ||
+        wanted.catalogElementId === undefined ||
+        (links.get(stored.id) ?? null) === wanted.catalogElementId)
     );
   });
   if (!sameBlocks) return false;
@@ -390,7 +561,14 @@ async function resolveObjectiveLinks(
  */
 async function writeBlocks(
   tx: TransactionClient,
-  input: { organizationId: string; planId: string; blocks: PlanContent["blocks"]; previousIds: Set<string> }
+  input: {
+    organizationId: string;
+    planId: string;
+    blocks: PlanContent["blocks"];
+    previousIds: Set<string>;
+    /** Biblioteca activa: solo entonces se nombra la columna de enlace. */
+    libraryOn: boolean;
+  }
 ): Promise<void> {
   const keptIds = input.blocks.map((block) => block.id).filter((id): id is string => Boolean(id));
   const removed = [...input.previousIds].filter((id) => !keptIds.includes(id));
@@ -405,7 +583,8 @@ async function writeBlocks(
         )
       );
   }
-  const inserts: Array<typeof sessionPlanBlocks.$inferInsert> = [];
+  const inserts: Array<typeof sessionPlanBlocksBaseInsert.$inferInsert> = [];
+  const insertLinks: Array<string | null> = [];
   for (const [index, block] of input.blocks.entries()) {
     const values = {
       position: index + 1,
@@ -415,10 +594,13 @@ async function writeBlocks(
       content: block.content,
       durationMinutes: block.durationMinutes,
     };
+    // La columna de enlace solo se nombra con la biblioteca activa y si el campo llega.
+    const link =
+      input.libraryOn && block.catalogElementId !== undefined ? { catalogElementId: block.catalogElementId } : null;
     if (block.id) {
       await tx
         .update(sessionPlanBlocks)
-        .set(values)
+        .set(link ? { ...values, ...link } : values)
         .where(
           and(
             eq(sessionPlanBlocks.organizationId, input.organizationId),
@@ -428,9 +610,18 @@ async function writeBlocks(
         );
     } else {
       inserts.push({ organizationId: input.organizationId, planId: input.planId, ...values });
+      insertLinks.push(link?.catalogElementId ?? null);
     }
   }
-  if (inserts.length > 0) await tx.insert(sessionPlanBlocks).values(inserts);
+  if (inserts.length === 0) return;
+  if (input.libraryOn && insertLinks.some((id) => id !== null)) {
+    await tx
+      .insert(sessionPlanBlocks)
+      .values(inserts.map((block, index) => ({ ...block, catalogElementId: insertLinks[index] ?? null })));
+  } else {
+    // Sin la columna de enlace: el INSERT vale con o sin ella (queda nula).
+    await tx.insert(sessionPlanBlocksBaseInsert).values(inserts);
+  }
 }
 
 async function writeObjectives(
@@ -470,13 +661,26 @@ export async function saveSessionPlan(
       const session = await loadSession(tx, access, { organizationId, sessionId: input.sessionId });
       // Un solo escritor por sesión: alta, ediciones y marcas se serializan.
       await lockCommand(tx, organizationId, planLockKey(session.id));
+      // Enlaces con la biblioteca (ADR-0029 §3.2): solo con la biblioteca activa
+      // (banderas, tablas y forma «with_catalog_links»). Sin ella, pedir un
+      // enlace es 503 sin escribir nada, y `null` o la ausencia no tocan nada.
+      const libraryOn = await isBlockLibraryOn(tx, access);
+      if (
+        !libraryOn &&
+        command.source === "manual" &&
+        command.blocks.some((block) => typeof block.catalogElementId === "string")
+      ) {
+        throw elementLibraryUnavailable();
+      }
       const existing = await loadPlan(tx, { organizationId, sessionId: session.id, forUpdate: true });
 
       if (command.expectedRevision === null) {
         if (existing) {
           // Reintento del mismo alta: devuelve lo ya creado.
           if (existing.clientRequestId === command.clientRequestId) {
-            if (!(await storedMatches(tx, access, { organizationId, plan: existing, command }))) throw idempotencyConflict();
+            if (!(await storedMatches(tx, access, { organizationId, plan: existing, command, libraryOn }))) {
+              throw idempotencyConflict();
+            }
             return { id: existing.id, revision: existing.revision, replayed: true };
           }
           throw alreadyHasPlan();
@@ -494,7 +698,9 @@ export async function saveSessionPlan(
           existing.lastRequestId === command.clientRequestId &&
           existing.revision === command.expectedRevision + 1
         ) {
-          if (!(await storedMatches(tx, access, { organizationId, plan: existing, command }))) throw idempotencyConflict();
+          if (!(await storedMatches(tx, access, { organizationId, plan: existing, command, libraryOn }))) {
+            throw idempotencyConflict();
+          }
           return { id: existing.id, revision: existing.revision, replayed: true };
         }
         if (existing.revision !== command.expectedRevision) throw staleRevision();
@@ -502,10 +708,13 @@ export async function saveSessionPlan(
 
       await assertOrganizationOperationalWritable(tx, organizationId);
       assertSessionEditable(session);
-      const content = await contentFor(tx, access, { organizationId, session, command });
+      const content = await contentFor(tx, access, { organizationId, session, command, libraryOn });
       const memberId = access.member.id;
 
       if (!existing) {
+        if (libraryOn && command.source === "manual") {
+          await assertBlockLinks(tx, { blocks: content.blocks, previous: [], links: new Map() });
+        }
         const objectives = await resolveObjectiveLinks(tx, access, {
           organizationId,
           session,
@@ -528,7 +737,13 @@ export async function saveSessionPlan(
           })
           .returning({ id: sessionPlans.id, revision: sessionPlans.revision });
         if (!created) throw new OperationalError("FEATURE_NOT_AVAILABLE", "No se pudo guardar el guion", 503);
-        await writeBlocks(tx, { organizationId, planId: created.id, blocks: content.blocks, previousIds: new Set() });
+        await writeBlocks(tx, {
+          organizationId,
+          planId: created.id,
+          blocks: content.blocks,
+          previousIds: new Set(),
+          libraryOn,
+        });
         await writeObjectives(tx, { organizationId, planId: created.id, objectives, previousIds: new Set() });
         await appendAuditEntry(tx, {
           organizationId,
@@ -549,6 +764,10 @@ export async function saveSessionPlan(
       if (content.blocks.some((block) => block.id && !previousIds.has(block.id))) {
         throw new OperationalError("INVALID_RELATION", "Algún bloque no es de este guion.", 422);
       }
+      if (libraryOn) {
+        const links = await loadBlockLinks(tx, access, { organizationId, planId: existing.id });
+        await assertBlockLinks(tx, { blocks: content.blocks, previous: previousBlocks, links });
+      }
       const existingObjectives = await loadLinkedObjectives(tx, organizationId, existing.id);
       const objectives = await resolveObjectiveLinks(tx, access, {
         organizationId,
@@ -556,7 +775,7 @@ export async function saveSessionPlan(
         requested: command.objectiveIds,
         existing: existingObjectives,
       });
-      await writeBlocks(tx, { organizationId, planId: existing.id, blocks: content.blocks, previousIds });
+      await writeBlocks(tx, { organizationId, planId: existing.id, blocks: content.blocks, previousIds, libraryOn });
       await writeObjectives(tx, {
         organizationId,
         planId: existing.id,

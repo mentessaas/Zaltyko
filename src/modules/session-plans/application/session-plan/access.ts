@@ -14,7 +14,7 @@ import type { OperationalActor } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
 
-import { assertSessionPlanStorageAvailable } from "./storage";
+import { assertSessionPlanStorageAvailable, type InstalledSessionPlanShape } from "./storage";
 
 /**
  * Autorización de la planificación (P2 #17, segunda parte). Uso interno: el
@@ -40,6 +40,8 @@ export type Access = {
   location: { id: string; timezone: string | null };
   /** null = todas las sedes de la academia. */
   visibleLocationIds: string[] | null;
+  /** Forma instalada: con «with_catalog_links» existe el enlace de los bloques a la biblioteca. */
+  storageShape: InstalledSessionPlanShape;
 };
 
 export function notFound(message: string): OperationalError {
@@ -63,7 +65,7 @@ export async function authorizeMember(
     allowedRoles: readonly PlanMemberRole[];
   }
 ): Promise<Access> {
-  await assertSessionPlanStorageAvailable(tx);
+  const storageShape = await assertSessionPlanStorageAvailable(tx);
   const member = await assertOperationalAccess(tx, {
     organizationId: input.organizationId,
     locationId: input.locationId,
@@ -99,7 +101,7 @@ export async function authorizeMember(
       );
     visibleLocationIds = [...new Set(scoped.map((row) => row.locationId))].sort();
   }
-  return { member, role: member.role as PlanMemberRole, location, visibleLocationIds };
+  return { member, role: member.role as PlanMemberRole, location, visibleLocationIds, storageShape };
 }
 
 export function isVisible(access: Access, locationId: string): boolean {

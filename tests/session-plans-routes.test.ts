@@ -166,6 +166,10 @@ describe("PUT plan de la sesión", () => {
     ["con más de 20 bloques", { ...planBody, blocks: Array.from({ length: 21 }, () => ({ kind: "other", content: "x" })) }],
     ["con un aparato de otra disciplina", { ...planBody, blocks: [{ kind: "technique", discipline: "gr", apparatus: "beam", content: "x" }] }],
     ["con un campo desconocido", { ...planBody, sessionStaffOnly: true }],
+    [
+      "con un enlace a la biblioteca sin disciplina ni aparato",
+      { ...planBody, blocks: [{ kind: "technique", content: "x", catalogElementId: blockId }] },
+    ],
   ])("valida el cuerpo (%s) antes del alcance", async (_label, body) => {
     const { PUT } = await loadPlan();
     const response = await PUT(request("PUT", path, body), params({ sessionId }));

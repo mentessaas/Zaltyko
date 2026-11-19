@@ -8,6 +8,7 @@ import { SkillTemplatesManager } from "@/components/skill-levels/SkillTemplatesM
 import { PageHeader } from "@/components/ui/page-header";
 import { db } from "@/db";
 import { groups } from "@/db/zaltyko-schema";
+import { isElementLibraryAvailableForPage } from "@/modules/element-library/application/element-library-service";
 
 import { requireSkillsScope } from "./_lib/skills-scope";
 
@@ -42,6 +43,8 @@ export default async function OwnerSkillsPage({
     )
     .orderBy(asc(groups.name))
     .limit(100);
+  // El acceso a la biblioteca solo aparece cuando está activada e instalada.
+  const libraryAvailable = await isElementLibraryAvailableForPage(db);
 
   const query = (extra: Record<string, string> = {}) =>
     new URLSearchParams({ organizationId, locationId, ...extra }).toString();
@@ -58,6 +61,13 @@ export default async function OwnerSkillsPage({
           title="Niveles y progresión"
           description="Plantillas de niveles por aparato, evaluación rápida por grupo o clase y progreso de cada gimnasta."
           className={ownerUi.pageHeader}
+          actions={
+            libraryAvailable ? (
+              <Link href={`/owner/skills/biblioteca?${query()}`} className={ownerUi.secondaryButton}>
+                Biblioteca de elementos
+              </Link>
+            ) : undefined
+          }
         />
         <div className="grid gap-8">
           {scope.locations.length > 1 ? (

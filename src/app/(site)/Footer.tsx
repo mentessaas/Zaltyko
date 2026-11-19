@@ -25,6 +25,9 @@ const footerLinks: { title: string; links: { label: string; href: string }[] }[]
       { label: "Términos del servicio", href: "/terminos" },
       { label: "Política de privacidad", href: "/politica-privacidad" },
       { label: "Cookies", href: "/politica-privacidad" },
+      // Al instalar las tablas de la biblioteca de elementos, volver a añadir
+      // { label: "Avisar de un contenido", href: "/avisos-de-contenido" }:
+      // hasta entonces el formulario no existe (ADR-0029 §8.1).
     ],
   },
 ];

@@ -6,6 +6,7 @@ import {
   EXCLUDED_CANONICAL_TABLES,
   OPTIONAL_EXPORT_MODULE_GROUPS,
   OPTIONAL_INCLUDED_EXPORT_MODULES,
+  OPTIONAL_SHARED_CATALOG_TABLES,
 } from "./catalog";
 
 /** Reviewed inventory boundary, NOT a retention policy or delete allowlist. */
@@ -79,6 +80,18 @@ export const REVIEWED_DISPOSITION_OPTIONAL_GROUPS: readonly (readonly ExcludedPo
   [e("family_collection_disputes", "payment_provider_attempts")],
 ];
 
+/**
+ * Biblioteca de elementos (candidato 20261119120000, sin aplicar): catálogos
+ * globales sin organization_id (sin recuento) y el registro interno de avisos
+ * de terceros. Todos o ninguno.
+ */
+export const REVIEWED_DISPOSITION_OPTIONAL_SHARED_CATALOGS: readonly ExcludedPolicy[] = [
+  e("catalog_element_editions", "shared_catalogs", false),
+  e("catalog_elements", "shared_catalogs", false),
+  e("content_notices", "internal_content_notices", false),
+  e("content_withdrawals", "shared_catalogs", false),
+];
+
 /** Activated academy modules whose rows are projected when installed (2026-11-12). */
 export const REVIEWED_DISPOSITION_OPTIONAL_INCLUDED_MODULES: readonly (readonly string[])[] = [
   ["athlete_objectives", "athlete_objective_status_history", "athlete_observations"],
@@ -89,6 +102,8 @@ export const REVIEWED_DISPOSITION_OPTIONAL_INCLUDED_MODULES: readonly (readonly 
   ["payment_reminder_settings", "payment_reminders"],
   // Familias: acceso al portal y avisos (candidato 20261114121500, sin aplicar).
   ["guardian_access_invitations", "family_notices", "family_notice_recipients", "guardian_notification_preferences"],
+  // Biblioteca de elementos: notas de la academia (candidato 20261119120500, sin aplicar).
+  ["academy_element_notes"],
 ];
 
 const sourceNames = ["Supabase Auth identities and credentials", "Supabase Storage objects and metadata", "Legacy public schema"];
@@ -108,6 +123,9 @@ export function assertCanonicalDispositionPolicy(): void {
       !same(REVIEWED_DISPOSITION_EXCLUSIONS.filter((entry) => entry.scoped).map((entry) => entry.table), EXCLUDED_CANONICAL_SCOPED_TABLES) ||
       REVIEWED_DISPOSITION_EXCLUSIONS.some((policy) => EXCLUDED_CANONICAL_TABLES.find((entry) => entry.table === policy.table)?.category !== policy.category) ||
       OPTIONAL_EXPORT_MODULE_GROUPS.length !== REVIEWED_DISPOSITION_OPTIONAL_GROUPS.length ||
+      !same(REVIEWED_DISPOSITION_OPTIONAL_SHARED_CATALOGS.map((entry) => entry.table), OPTIONAL_SHARED_CATALOG_TABLES.map((entry) => entry.table)) ||
+      REVIEWED_DISPOSITION_OPTIONAL_SHARED_CATALOGS.some((policy) => policy.scoped ||
+        OPTIONAL_SHARED_CATALOG_TABLES.find((entry) => entry.table === policy.table)?.category !== policy.category) ||
       OPTIONAL_INCLUDED_EXPORT_MODULES.length !== REVIEWED_DISPOSITION_OPTIONAL_INCLUDED_MODULES.length ||
       OPTIONAL_INCLUDED_EXPORT_MODULES.some((module, index) =>
         !same(REVIEWED_DISPOSITION_OPTIONAL_INCLUDED_MODULES[index]!, module.tables.map((table) => table.name)))) {

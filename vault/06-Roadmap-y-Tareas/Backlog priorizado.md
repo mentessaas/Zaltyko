@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-10-25
+last_reviewed: 2026-11-19
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -28,11 +28,22 @@ Fuente: `docs/research/competencia/plan-validacion-30-dias.md`. No construir nad
 - Pendiente de autorización · Aplicar `20261110180000_competitive_intelligence_candidate.sql` para usar el panel fuera de local.
 
 
+## Biblioteca de elementos (ADR-0029), pendientes tras la fase C (2026-11-19)
+
+Producto: `docs/producto/biblioteca-de-elementos.md`. Orden y hashes: `docs/deployment/candidates/README.md`, «Biblioteca de elementos (fase C): orden de aplicación y permisos». Nada aplicado en ningún entorno.
+- P1 · Revisión de Elvis de la tanda 1 (GAF salto, grupos 1 a 3, 51 elementos en borrador) con la muestra del 10 %; después, volver a generar la semilla y actualizar su hash.
+- P1 · Tanda 2: salto, grupos 4 y 5.
+- P1 · Siguientes tandas de GAF: asimétricas, barra y suelo; después, GAM (`fig-mag-2025-2028`).
+- Pendiente de autorización · Prueba en staging (buscar, añadir desde la biblioteca, evaluar, ver en el guion, retirar un elemento), con permiso de Elvis para cada candidata, la semilla y la bandera.
+- P2 · Fase D: plantillas de niveles de la RFEG (GAF Base B1–B10 y GAM Base B1–B5, edición 2027), solo con hechos, en su propia PR.
+- Deuda · Con la migración de la biblioteca en todos los entornos, quitar el conjunto antiguo de columnas de las detecciones de niveles, guiones y derechos de datos (PR propia).
+- Pendiente de autorización · Retirada de las tablas antiguas (`20261119122000_retire_legacy_skill_catalog_candidate.sql`), después de la fase C y primero en staging.
+
 ## A6 — Niveles y progresión por aparato, pendientes (2026-11-14)
 
 - Aplicar el candidato `20261114121000_skill_levels_candidate.sql` en staging y activar `ZALTYKO_SKILL_LEVELS_ENABLED` (necesita autorización de Elvis); después, producción.
 - Marca de la academia en el diploma (logotipo y color por academia) y anulación de un paso de nivel: decisiones abiertas.
-- Plantillas basadas en el programa de una federación (RFEG, FMG): exige citar la fuente pública y revisar la licencia.
+- Plantillas basadas en el programa de una federación (RFEG, FMG): exige citar la fuente pública y revisar la licencia. Encauzado por ADR-0029: RFEG de solo hechos en la fase D; FMG bloqueada hasta el abogado o una licencia.
 - Aviso a la familia al pasar de nivel (depende de la sesión de avisos).
 
 ## P2 #17 — Objetivos y observaciones, pendientes tras la primera parte (2026-11-11)

@@ -16,10 +16,14 @@ export { getClassPlanTemplate, saveClassPlanTemplate } from "./session-plan/temp
 /**
  * Disponibilidad: las páginas deciden con isSessionPlanAvailableForPage si
  * muestran los accesos; las pruebas de contrato y de PostgreSQL leen el
- * catálogo de tablas y la comprobación completa.
+ * catálogo de tablas y la comprobación completa, y la biblioteca de
+ * elementos, la forma instalada (con o sin columnas de enlace).
  */
 export {
+  getSessionPlanStorageShape,
   isSessionPlanAvailableForPage,
   isSessionPlanStorageAvailable,
+  SESSION_PLAN_CATALOG_LINK_COLUMNS,
   SESSION_PLAN_TABLES,
+  type SessionPlanStorageShape,
 } from "./session-plan/storage";
