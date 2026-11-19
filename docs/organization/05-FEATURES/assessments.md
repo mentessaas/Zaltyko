@@ -30,13 +30,18 @@ src/components/assessments/
 ### Tables (DB)
 ```
 athlete_assessments  - Assessment records
-assessment_scores    - Score per criterion
+assessment_scores    - Retired: no code reads or writes it (ADR-0029 §7)
 assessment_videos    - Video attachments
 assessment_rubrics   - Rubric definitions
 rubric_criteria     - Evaluation criteria
 assessment_types     - Type definitions
-skill_catalog        - Skills catalog
+skill_catalog        - Retired: no code reads or writes it (ADR-0029 §7)
 ```
+
+Per-element scores are no longer stored: `POST /api/assessments` and
+`POST /api/assessments/[athleteId]` answer 400 if the body carries `scores`, and
+the old tables are dropped by a separate candidate once they are empty
+(ADR-0029 §7). Elements now live in the element library.
 
 ## Assessment Types
 
@@ -70,7 +75,7 @@ RubricCriterion {
 AthleteAssessment {
   athleteId: string;
   date: Date;
-  scores: AssessmentScore[];
+  totalScore?: number;  // per-element scores retired (ADR-0029 §7)
   videoUrl?: string;
 }
 ```

@@ -1265,7 +1265,7 @@ conservarlos, debe quedar escrito por Elvis.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261119122000_retire_legacy_skill_catalog_candidate.sql` | `94e2194832efcc8de4c086117bc0d3c6c6cfcf59a781a0bccd06d0d8bc38bb9c` | No aplicada | No aplicada |
+| `20261119122000_retire_legacy_skill_catalog_candidate.sql` | `8a193ef4c2d154ff282520244fd8e6b6932b6e3b9fd251af662bfa607f217646` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1276,10 +1276,16 @@ Decisión: ADR-0029 §7.
   sin `CASCADE`. Ningún código las usa ya: las rutas `/api/assessments` dejaron
   de escribir y leer puntuaciones por elemento (si llegan, responden 400), y se
   quitaron el formulario antiguo y las semillas de elementos.
-- **Solo si están vacías.** Aborta salvo
-  `set local zaltyko.retire_legacy_skill_catalog = 'confirmado'`, y también si
-  no existe ninguna de las tres. Bloquea las tablas, cuenta sus filas y, si
-  alguna tiene filas, aborta sin borrar nada con el recuento por tabla.
+- **Solo si están vacías.** Aborta salvo que la sesión confirme antes de
+  ejecutar el archivo (que trae su propia transacción), y también si no existe
+  ninguna de las tres. Secuencia en psql: `set
+  zaltyko.retire_legacy_skill_catalog = 'confirmado';`, `\i` del archivo y
+  `reset zaltyko.retire_legacy_skill_catalog;`. Bloquea las tablas, cuenta sus
+  filas y, si alguna tiene filas, aborta sin borrar nada con el recuento por
+  tabla.
+- **Ventana tranquila.** Los `DROP` bloquean en exclusiva hasta el commit
+  también `athletes`, `academies`, `profiles` y `athlete_assessments` (las
+  tablas a las que apuntan sus claves foráneas); `lock_timeout` de 5 s.
 - **Si aborta por filas** (ADR-0029 §7.4): se informa a Elvis del recuento por
   tabla y academia (consulta de solo lectura en la cabecera del archivo); las
   tablas se quedan sin código que las use; Elvis decide exportarlas o

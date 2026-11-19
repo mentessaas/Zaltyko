@@ -34,7 +34,7 @@ function at(fragment: string): number {
 describe("candidata de borrado de las tablas antiguas de elementos", () => {
   it("es solo candidata, fuera de supabase/migrations y documentada como no aplicada", () => {
     expect(sql).toContain("CANDIDATE ONLY");
-    expect(sql).toContain("No aplicado en");
+    expect(sql).toContain("No aplicado en ningún entorno.");
     expect(sql).toContain("ADR-0029 §7");
     expect(existsSync(join(ROOT, "supabase/migrations", CANDIDATE_NAME))).toBe(false);
   });
@@ -49,7 +49,13 @@ describe("candidata de borrado de las tablas antiguas de elementos", () => {
     expect(code).toContain("<> 'confirmado'");
     expect(confirmation).toBeLessThan(at("to_regclass('public.assessment_scores') is null"));
     expect(confirmation).toBeLessThan(at("lock table public.assessment_scores"));
-    expect(sql).toContain("set local zaltyko.retire_legacy_skill_catalog = 'confirmado'");
+    // El archivo trae su propio begin;: la confirmación se fija en la sesión antes
+    // de ejecutarlo, y se retira después.
+    const header = sql.slice(0, sql.indexOf("begin;"));
+    expect(header).toMatch(
+      /--\s+set zaltyko\.retire_legacy_skill_catalog = 'confirmado';\n--\s+\\i docs\/deployment\/candidates\/20261119122000_retire_legacy_skill_catalog_candidate\.sql\n--\s+reset zaltyko\.retire_legacy_skill_catalog;/
+    );
+    expect(sql).not.toContain("set local zaltyko.retire_legacy_skill_catalog");
   });
 
   it("aborta si no existe ninguna de las tres tablas", () => {
@@ -86,6 +92,9 @@ describe("candidata de borrado de las tablas antiguas de elementos", () => {
     expect(header).toMatch(/group by tenant_id, academy_id/);
     expect(header).toContain("ADR-0029 §7.4");
     expect(header).toContain("no se ha borrado nada");
+    expect(header).toContain("ACCESS EXCLUSIVE");
+    expect(header).toMatch(/athletes, academies, profiles y athlete_assessments/);
+    expect(code).toContain("set local lock_timeout = '5s';");
     const start = header.indexOf("Recuento previo por tabla y academia");
     const query = header
       .slice(start, header.indexOf("\n--\n", start))

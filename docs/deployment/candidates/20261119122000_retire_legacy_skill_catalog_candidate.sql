@@ -1,6 +1,7 @@
 -- CANDIDATE ONLY. Requiere autorización expresa de Elvis antes de cualquier
--- aplicación alojada (staging o producción), una por entorno. No aplicado en
--- ningún entorno. No está en supabase/migrations a propósito.
+-- aplicación alojada (staging o producción), una por entorno.
+-- No aplicado en ningún entorno.
+-- No está en supabase/migrations a propósito.
 -- Decisión: ADR-0029 §7 (docs/architecture/adr/0029-biblioteca-de-elementos-y-niveles.md).
 --
 -- Qué hace: borra las tres tablas antiguas de elementos y puntuaciones del
@@ -53,9 +54,20 @@
 --      alojada aún las tiene: quitarlas del esquema antes que de la base crearía
 --      deriva.
 --
--- Protección: la migración aborta salvo que la sesión confirme la intención con
---   set local zaltyko.retire_legacy_skill_catalog = 'confirmado';
--- dentro de la misma transacción.
+-- Ventana tranquila: los DROP toman bloqueos ACCESS EXCLUSIVE sobre las tablas
+-- antiguas y también sobre las tablas a las que apuntan sus claves foráneas
+-- (athletes, academies, profiles y athlete_assessments) hasta el commit. Aplicar
+-- en un momento sin uso y con lock_timeout corto (el archivo fija 5 s): si no
+-- consigue un bloqueo, aborta entero y se reintenta más tarde.
+--
+-- Protección: el archivo abre y cierra su propia transacción, así
+-- que la confirmación se fija a nivel de sesión, antes de ejecutarlo, y el
+-- bloque DO la lee con current_setting(…, true). Secuencia exacta en psql:
+--   set zaltyko.retire_legacy_skill_catalog = 'confirmado';
+--   \i docs/deployment/candidates/20261119122000_retire_legacy_skill_catalog_candidate.sql
+--   reset zaltyko.retire_legacy_skill_catalog;
+-- Sin el set previo, aborta sin tocar nada. El reset va siempre, también si
+-- abortó, para que la confirmación no quede viva en la sesión.
 begin;
 
 set local lock_timeout = '5s';
@@ -68,7 +80,7 @@ declare
 begin
   if coalesce(current_setting('zaltyko.retire_legacy_skill_catalog', true), '') <> 'confirmado' then
     raise exception
-      'Candidata destructiva: confirmar con set local zaltyko.retire_legacy_skill_catalog = ''confirmado'' tras revisar el recuento previo';
+      'Candidata destructiva: antes de ejecutar el archivo, confirmar en la sesión con set zaltyko.retire_legacy_skill_catalog = ''confirmado'' tras revisar el recuento previo (secuencia en la cabecera)';
   end if;
 
   if to_regclass('public.assessment_scores') is null
