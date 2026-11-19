@@ -19,6 +19,7 @@ import {
   organizations,
   zaltyko,
 } from "@/db/schema/zaltyko-core";
+import { catalogElements } from "@/modules/element-library/infrastructure/element-library-schema";
 
 /**
  * Niveles y progresión por aparato.
@@ -37,7 +38,8 @@ import {
  * (columna)` en el SQL (Drizzle no expresa la lista de columnas): el espejo
  * solo las declara, y por eso esas columnas son opcionales.
  * tests/skill-levels-contract.test.ts comprueba que el candidato, este archivo
- * y la detección de almacenamiento describen las mismas tablas y columnas.
+ * y la detección de almacenamiento describen las mismas tablas y columnas, más
+ * la columna de enlace que añade la candidata de la biblioteca de elementos.
  */
 
 /**
@@ -127,23 +129,40 @@ export const skillLevels = zaltyko.table(
   ]
 );
 
+/**
+ * Columnas de skill_elements que instala la candidata de niveles. Una función
+ * y no un objeto: cada tabla de Drizzle necesita sus propios constructores.
+ */
+const skillElementBaseColumnBuilders = () => ({
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  templateId: uuid("template_id").notNull(),
+  levelId: uuid("level_id").notNull(),
+  position: integer("position").notNull(),
+  apparatus: text("apparatus"),
+  name: text("name").notNull(),
+  description: text("description"),
+  isRequired: boolean("is_required").notNull().default(true),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * catalog_element_id: enlace opcional a un elemento de la biblioteca. Lo añade
+ * la candidata docs/deployment/candidates/20261119120000_element_library_candidate.sql
+ * (`uuid` nulo, FK a zaltyko.catalog_elements on delete restrict). Con la forma
+ * «base» la columna no existe: ninguna consulta la nombra salvo con la forma
+ * «with_catalog_links» (getSkillLevelsStorageShape). Por eso las lecturas usan
+ * skillElementBaseColumns y las altas skillElementsBaseInsert.
+ */
 export const skillElements = zaltyko.table(
   "skill_elements",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: uuid("organization_id")
-      .notNull()
-      .references(() => organizations.id, { onDelete: "cascade" }),
-    templateId: uuid("template_id").notNull(),
-    levelId: uuid("level_id").notNull(),
-    position: integer("position").notNull(),
-    apparatus: text("apparatus"),
-    name: text("name").notNull(),
-    description: text("description"),
-    isRequired: boolean("is_required").notNull().default(true),
-    archivedAt: timestamp("archived_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    ...skillElementBaseColumnBuilders(),
+    catalogElementId: uuid("catalog_element_id").references(() => catalogElements.id, { onDelete: "restrict" }),
   },
   (table) => [
     unique("skill_elements_org_id_uq").on(table.organizationId, table.id),
@@ -172,6 +191,30 @@ export const skillElements = zaltyko.table(
     }).onDelete("cascade"),
   ]
 );
+
+/**
+ * La misma tabla sin la columna de enlace, solo para insertar: Drizzle nombra
+ * en el INSERT todas las columnas del espejo (las que no reciben valor van
+ * como DEFAULT), y con la forma «base» catalog_element_id no existe. Sin
+ * restricciones: el espejo completo es skillElements.
+ */
+export const skillElementsBaseInsert = zaltyko.table("skill_elements", skillElementBaseColumnBuilders());
+
+/** Lista explícita de columnas para leer skill_elements con cualquiera de las dos formas. */
+export const skillElementBaseColumns = {
+  id: skillElements.id,
+  organizationId: skillElements.organizationId,
+  templateId: skillElements.templateId,
+  levelId: skillElements.levelId,
+  position: skillElements.position,
+  apparatus: skillElements.apparatus,
+  name: skillElements.name,
+  description: skillElements.description,
+  isRequired: skillElements.isRequired,
+  archivedAt: skillElements.archivedAt,
+  createdAt: skillElements.createdAt,
+  updatedAt: skillElements.updatedAt,
+};
 
 export const athleteSkillProgress = zaltyko.table(
   "athlete_skill_progress",
@@ -271,5 +314,7 @@ export const athleteLevelPasses = zaltyko.table(
 export type SkillTemplateRow = typeof skillTemplates.$inferSelect;
 export type SkillLevelRow = typeof skillLevels.$inferSelect;
 export type SkillElementRow = typeof skillElements.$inferSelect;
+/** Fila leída con skillElementBaseColumns (sin la columna de enlace). */
+export type SkillElementBaseRow = Omit<SkillElementRow, "catalogElementId">;
 export type AthleteSkillProgressRow = typeof athleteSkillProgress.$inferSelect;
 export type AthleteLevelPassRow = typeof athleteLevelPasses.$inferSelect;

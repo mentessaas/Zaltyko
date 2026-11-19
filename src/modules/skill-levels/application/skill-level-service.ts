@@ -30,11 +30,15 @@ export {
 /**
  * Disponibilidad: las páginas deciden con isSkillLevelsAvailableForPage si
  * muestran los accesos; las pruebas de contrato y de PostgreSQL leen el
- * catálogo de tablas y la comprobación de las tablas sin la bandera.
+ * catálogo de tablas y la comprobación de las tablas sin la bandera, y la
+ * biblioteca de elementos, la forma instalada (con o sin columnas de enlace).
  */
 export {
+  getSkillLevelsStorageShape,
   isSkillLevelsAvailable,
   isSkillLevelsAvailableForPage,
   isSkillLevelsStorageInstalled,
+  SKILL_LEVELS_CATALOG_LINK_COLUMNS,
   SKILL_LEVELS_TABLES,
+  type SkillLevelsStorageShape,
 } from "./skill-levels/storage";

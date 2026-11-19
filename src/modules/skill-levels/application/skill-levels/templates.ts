@@ -25,7 +25,9 @@ import {
 } from "@/modules/skill-levels/domain/skill-levels";
 import { findStarterTemplate, starterTemplateSummaries } from "@/modules/skill-levels/domain/starter-templates";
 import {
+  skillElementBaseColumns,
   skillElements,
+  skillElementsBaseInsert,
   skillLevels,
   skillTemplates,
   type SkillTemplateRow,
@@ -98,9 +100,10 @@ export async function loadTemplateLevels(
       )
     )
     .orderBy(asc(skillLevels.position), asc(skillLevels.id));
+  // Columnas explícitas: leen igual con o sin la columna de enlace a la biblioteca.
   // unbounded-read-ok: ver arriba; los archivados se excluyen aquí.
   const elementRows = await tx
-    .select()
+    .select(skillElementBaseColumns)
     .from(skillElements)
     .where(
       and(
@@ -252,7 +255,7 @@ async function insertStructure(
   input: { organizationId: string; templateId: string; levels: StructureInput }
 ): Promise<void> {
   const levelRows: Array<typeof skillLevels.$inferInsert> = [];
-  const elementRows: Array<typeof skillElements.$inferInsert> = [];
+  const elementRows: Array<typeof skillElementsBaseInsert.$inferInsert> = [];
   input.levels.forEach((level, levelIndex) => {
     const levelId = randomUUID();
     levelRows.push({
@@ -278,7 +281,8 @@ async function insertStructure(
     });
   });
   if (levelRows.length > 0) await tx.insert(skillLevels).values(levelRows);
-  if (elementRows.length > 0) await tx.insert(skillElements).values(elementRows);
+  // Sin la columna de enlace: el INSERT vale con o sin ella (queda nula).
+  if (elementRows.length > 0) await tx.insert(skillElementsBaseInsert).values(elementRows);
 }
 
 async function assertNameFree(
@@ -480,7 +484,7 @@ export async function saveSkillTemplate(
       .where(and(eq(skillLevels.organizationId, command.organizationId), eq(skillLevels.templateId, row.id)));
     // unbounded-read-ok: ver arriba.
     const existingElements = await tx
-      .select()
+      .select(skillElementBaseColumns)
       .from(skillElements)
       .where(and(eq(skillElements.organizationId, command.organizationId), eq(skillElements.templateId, row.id)));
     const activeLevelIds = new Set(existingLevels.filter((level) => !level.archivedAt).map((level) => level.id));
@@ -566,7 +570,7 @@ export async function saveSkillTemplate(
             .set(values)
             .where(and(eq(skillElements.organizationId, command.organizationId), eq(skillElements.id, element.id)));
         } else {
-          await tx.insert(skillElements).values({
+          await tx.insert(skillElementsBaseInsert).values({
             id: randomUUID(),
             organizationId: command.organizationId,
             templateId: row.id,

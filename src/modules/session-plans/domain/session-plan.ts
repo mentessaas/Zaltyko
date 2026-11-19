@@ -20,7 +20,10 @@ export const BLOCK_KINDS = [
 ] as const;
 export type BlockKind = (typeof BLOCK_KINDS)[number];
 
-/** GAF, GAM y rítmica. Sin biblioteca de elementos: el contenido es texto libre. */
+/**
+ * GAF, GAM y rítmica. El contenido es texto libre y obligatorio; el enlace
+ * opcional a la biblioteca de elementos no lo sustituye.
+ */
 export const PLAN_DISCIPLINES = ["gaf", "gam", "gr"] as const;
 export type PlanDiscipline = (typeof PLAN_DISCIPLINES)[number];
 
@@ -164,6 +167,12 @@ const blockShape = {
   apparatus: z.enum(PLAN_APPARATUS).nullable().optional(),
   content: blockContentSchema,
   durationMinutes: z.number().int().min(1).max(BLOCK_DURATION_MAX).nullable().optional(),
+  /**
+   * Enlace opcional a un elemento de la biblioteca (ADR-0029 §3.2 y §3.3).
+   * Aquí solo se valida la forma; qué elemento se puede enlazar lo decide la
+   * aplicación con la biblioteca instalada.
+   */
+  catalogElementId: z.string().uuid().nullable().optional(),
 };
 
 function refineApparatus(
@@ -194,6 +203,8 @@ export type TemplateBlock = {
   apparatus: PlanApparatus | null;
   content: string;
   durationMinutes: number | null;
+  /** Solo si el bloque está enlazado: sin enlace no hay clave, y el jsonb queda como antes. */
+  catalogElementId?: string;
 };
 
 export function normalizeTemplateBlock(block: z.infer<typeof templateBlockSchema>): TemplateBlock {
@@ -203,10 +214,14 @@ export function normalizeTemplateBlock(block: z.infer<typeof templateBlockSchema
     apparatus: block.apparatus ?? null,
     content: block.content,
     durationMinutes: block.durationMinutes ?? null,
+    ...(block.catalogElementId ? { catalogElementId: block.catalogElementId } : {}),
   };
 }
 
-/** Lee el jsonb guardado; cualquier bloque que ya no valide se descarta. */
+/**
+ * Lee el jsonb guardado; cualquier bloque que ya no valide se descarta. Un
+ * bloque con enlace a la biblioteca (catalogElementId) es válido.
+ */
 export function parseStoredTemplateBlocks(value: unknown): TemplateBlock[] {
   if (!Array.isArray(value)) return [];
   return value.slice(0, BLOCKS_MAX).flatMap((item) => {

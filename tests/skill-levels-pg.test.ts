@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { sql } from "drizzle-orm";
+import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { db } from "@/db";
@@ -15,6 +16,7 @@ import {
   getGroupSkillRoster,
   getLevelPassDiploma,
   getSessionSkillRoster,
+  getSkillLevelsStorageShape,
   getSkillTemplate,
   isSkillLevelsAvailableForPage,
   isSkillLevelsStorageInstalled,
@@ -31,7 +33,9 @@ import { SKILL_LEVELS_ENV_FLAG, type SkillTemplateView } from "@/modules/skill-l
  * función dormida (bandera y tablas), RLS/REVOKE, aislamiento entre academias,
  * plantillas (alta, copia, edición, archivo y roles), evaluación en bloque con
  * idempotencia, paso de nivel con sus reglas, listas de grupo y de sesión,
- * diploma y lectura de familias.
+ * diploma y lectura de familias. Al final instala encima la candidata de la
+ * biblioteca de elementos (y las de objetivos y guiones si faltan), comprueba
+ * que todo responde igual con la columna de enlace y la retira.
  */
 const disposablePgEnabled =
   process.env.ZALTYKO_PG_INTEGRATION === "1" &&
@@ -80,6 +84,49 @@ const candidate = () =>
   readFileSync(resolve(process.cwd(), "docs/deployment/candidates/20261114121000_skill_levels_candidate.sql"), "utf8");
 
 const TABLES = ["skill_templates", "skill_levels", "skill_elements", "athlete_skill_progress", "athlete_level_passes"];
+
+const candidateFile = (name: string) => readFileSync(resolve(process.cwd(), "docs/deployment/candidates", name), "utf8");
+const PROGRESS = "20261111120000_athlete_progress_candidate.sql";
+const PLANS = "20261111200000_session_plans_candidate.sql";
+const LIBRARY = "20261119120000_element_library_candidate.sql";
+
+/**
+ * Las candidatas abren su propia transacción (`begin; … commit;`): se
+ * ejecutan en una conexión propia que nunca vuelve al pool de `db`. Solo se
+ * llama después de assertDisposableTarget().
+ */
+async function runOnOwnConnection(text: string): Promise<void> {
+  const client = new Client({ connectionString: process.env.ZALTYKO_PG_INTEGRATION_DATABASE_URL });
+  await client.connect();
+  try {
+    await client.query(text);
+  } finally {
+    await client.end();
+  }
+}
+
+async function exists(table: string): Promise<boolean> {
+  const result = await db.execute(sql`select to_regclass(${`zaltyko.${table}`}::text) is not null as present`);
+  return (result.rows[0] as { present: boolean }).present;
+}
+
+/**
+ * Aplica `statement` dentro de una transacción que se deshace siempre y
+ * devuelve la forma que ve la detección mientras tanto.
+ */
+async function shapeWith(statement: string): Promise<string> {
+  const rollback = new Error("rollback");
+  let shape = "";
+  const seen = await db
+    .transaction(async (tx) => {
+      await tx.execute(sql.raw(statement));
+      shape = await getSkillLevelsStorageShape(tx);
+      throw rollback;
+    })
+    .catch((error: unknown) => error);
+  expect(seen).toBe(rollback);
+  return shape;
+}
 
 async function expectPgCode(promise: Promise<unknown>, code: string) {
   const error = (await promise.then(
@@ -302,6 +349,7 @@ describe.skipIf(!disposablePgEnabled)("niveles y progresión en PostgreSQL desec
 
     // Función dormida: con la bandera apagada, o sin el candidato, todo responde 503 sin escribir.
     expect(await isSkillLevelsStorageInstalled(db)).toBe(false);
+    expect(await getSkillLevelsStorageShape(db)).toBe("absent");
     await expect(listSkillTemplates({ actor: ownerA, query: s1() })).rejects.toMatchObject({
       code: "FEATURE_NOT_AVAILABLE",
       status: 503,
@@ -335,6 +383,12 @@ describe.skipIf(!disposablePgEnabled)("niveles y progresión en PostgreSQL desec
 
   it("fuerza RLS, niega el acceso directo de anon/authenticated y rechaza reinstalar", async () => {
     expect(await isSkillLevelsStorageInstalled(db)).toBe(true);
+    // Sin la candidata de la biblioteca, la forma es la del candidato de niveles.
+    expect(await getSkillLevelsStorageShape(db)).toBe("base");
+    // Cualquier columna de más, o la de enlace en una tabla que no la lleva: falla cerrada.
+    expect(await shapeWith("alter table zaltyko.skill_elements add column zz int")).toBe("absent");
+    expect(await shapeWith("alter table zaltyko.skill_levels add column catalog_element_id uuid")).toBe("absent");
+    expect(await getSkillLevelsStorageShape(db)).toBe("base");
     expect(await isSkillLevelsAvailableForPage(db)).toBe(true);
     // Con la bandera apagada la función no existe aunque las tablas estén.
     setFlag(false);
@@ -840,5 +894,174 @@ describe.skipIf(!disposablePgEnabled)("niveles y progresión en PostgreSQL desec
     const view = await getAthleteSkills({ actor: ownerA, athleteId: ana, query: { ...s1(), templateId: template.id } });
     const shown = view.templates[0]!.levels[1]!.elements.find((entry) => entry.id === element)!;
     expect(shown.state).toMatchObject({ status: "in_progress", evaluatedByName: null });
+  });
+
+  describe("con la columna de enlace de la biblioteca de elementos", () => {
+    const installedHere = { progress: false, plans: false };
+    let c: Awaited<ReturnType<typeof academy>>;
+    let ownerC: Actor;
+    // Plantilla creada con la forma «base», antes de instalar la biblioteca.
+    let reference: SkillTemplateView;
+    const sc = () => ({ organizationId: c.organizationId, locationId: c.locationIds[0]! });
+    const structure = (view: SkillTemplateView) =>
+      view.levels.map((level) => ({
+        position: level.position,
+        name: level.name,
+        description: level.description,
+        elements: level.elements.map((element) => ({
+          name: element.name,
+          apparatus: element.apparatus,
+          description: element.description,
+          required: element.required,
+        })),
+      }));
+
+    beforeAll(async () => {
+      c = await academy("C", 1);
+      ownerC = await member(c.organizationId, "owner", "all", [], "ownerC");
+      expect(await getSkillLevelsStorageShape(db)).toBe("base");
+      const created = await createSkillTemplate({
+        actor: ownerC,
+        command: { ...sc(), clientRequestId: randomUUID(), source: "starter", starterKey: "gaf_progresion_general" },
+      });
+      reference = await getSkillTemplate({ actor: ownerC, templateId: created.id, query: sc() });
+      // La candidata de la biblioteca exige también la de guiones, y esta la de objetivos.
+      if (!(await exists("athlete_objectives"))) {
+        await runOnOwnConnection(candidateFile(PROGRESS));
+        installedHere.progress = true;
+      }
+      if (!(await exists("session_plans"))) {
+        await runOnOwnConnection(candidateFile(PLANS));
+        installedHere.plans = true;
+      }
+      await runOnOwnConnection(candidateFile(LIBRARY));
+    }, 120_000);
+
+    afterAll(async () => {
+      if (!disposablePgEnabled) return;
+      // Primero las columnas de enlace (apuntan al catálogo), después las tablas nuevas.
+      for (const table of ["skill_elements", "session_plan_blocks"]) {
+        await db.execute(sql.raw(`alter table if exists zaltyko.${table} drop column if exists catalog_element_id`));
+      }
+      await db.execute(sql`drop table if exists zaltyko.academy_element_notes`);
+      for (const table of ["content_withdrawals", "content_notices", "catalog_elements", "catalog_element_editions"]) {
+        await db.execute(sql.raw(`drop table if exists zaltyko.${table}`));
+      }
+      if (installedHere.plans) {
+        for (const table of ["session_plan_objectives", "session_plan_blocks", "session_plans", "class_plan_templates"]) {
+          await db.execute(sql.raw(`drop table if exists zaltyko.${table}`));
+        }
+      }
+      if (installedHere.progress) {
+        for (const table of ["athlete_observations", "athlete_objective_status_history", "athlete_objectives"]) {
+          await db.execute(sql.raw(`drop table if exists zaltyko.${table}`));
+        }
+      }
+    });
+
+    it("reconoce la forma con enlaces y la función sigue disponible", async () => {
+      expect(await getSkillLevelsStorageShape(db)).toBe("with_catalog_links");
+      expect(await isSkillLevelsStorageInstalled(db)).toBe(true);
+      expect(await isSkillLevelsAvailableForPage(db)).toBe(true);
+    });
+
+    it("crea, copia, lee y guarda plantillas igual que sin la columna, y no rellena el enlace", async () => {
+      // Lo creado antes de la candidata se lee igual.
+      expect(await getSkillTemplate({ actor: ownerC, templateId: reference.id, query: sc() })).toEqual(reference);
+
+      const starter = await createSkillTemplate({
+        actor: ownerC,
+        command: {
+          ...sc(),
+          clientRequestId: randomUUID(),
+          source: "starter",
+          starterKey: "gaf_progresion_general",
+          name: "GAF con biblioteca",
+        },
+      });
+      const starterView = await getSkillTemplate({ actor: ownerC, templateId: starter.id, query: sc() });
+      expect(starterView).toMatchObject({
+        source: "starter",
+        discipline: "artistic_female",
+        levelCount: reference.levelCount,
+        elementCount: reference.elementCount,
+      });
+      expect(structure(starterView)).toEqual(structure(reference));
+
+      const copy = await createSkillTemplate({
+        actor: ownerC,
+        command: { ...sc(), clientRequestId: randomUUID(), source: "copy", templateId: starter.id, name: "Copia con biblioteca" },
+      });
+      const copyView = await getSkillTemplate({ actor: ownerC, templateId: copy.id, query: sc() });
+      expect(copyView).toMatchObject({ source: "copy", starterKey: null });
+      expect(structure(copyView)).toEqual(structure(reference));
+
+      const blank = await createSkillTemplate({
+        actor: ownerC,
+        command: { ...sc(), clientRequestId: randomUUID(), source: "blank", discipline: "rhythmic", name: "GR con biblioteca" },
+      });
+      const blankView = await getSkillTemplate({ actor: ownerC, templateId: blank.id, query: sc() });
+      expect(blankView.levels).toHaveLength(1);
+      expect(blankView.levels[0]!.elements).toEqual([]);
+
+      // Guardar: se quita un elemento (se archiva) y se añade otro.
+      const [l1, l2] = copyView.levels;
+      const removed = l1!.elements[0]!;
+      const saved = await saveSkillTemplate({
+        actor: ownerC,
+        templateId: copy.id,
+        command: {
+          ...sc(),
+          expectedRevision: copyView.revision,
+          name: copyView.name,
+          levels: [
+            {
+              id: l1!.id,
+              name: l1!.name,
+              elements: [...l1!.elements.slice(1), { name: "Elemento nuevo de barra", apparatus: "beam", required: true }],
+            },
+            { id: l2!.id, name: l2!.name, elements: l2!.elements },
+          ],
+        },
+      });
+      expect(saved).toMatchObject({ revision: copyView.revision + 1, replayed: false });
+      const after = await getSkillTemplate({ actor: ownerC, templateId: copy.id, query: sc() });
+      expect(after.levels).toHaveLength(2);
+      expect(after.levels[0]!.elements.map((element) => element.id)).not.toContain(removed.id);
+      expect(after.levels[0]!.elements.at(-1)).toMatchObject({ name: "Elemento nuevo de barra", apparatus: "beam", required: true });
+      expect((await listSkillTemplates({ actor: ownerC, query: sc() })).templates.map((entry) => entry.id)).toEqual(
+        expect.arrayContaining([reference.id, starter.id, copy.id, blank.id])
+      );
+
+      // Nada escribe todavía el enlace: todas las filas lo tienen vacío.
+      const links = await db.execute(sql`
+        select count(*)::int as total, count(catalog_element_id)::int as linked
+        from zaltyko.skill_elements where organization_id = ${c.organizationId}::uuid
+      `);
+      const row = links.rows[0] as { total: number; linked: number };
+      expect(Number(row.total)).toBeGreaterThan(0);
+      expect(Number(row.linked)).toBe(0);
+    });
+
+    it("evalúa y lee el progreso igual con la columna", async () => {
+      const [element] = levelElements(template, 1);
+      expect(await evaluate(ownerA, s1(), [dani], [element!], "achieved", { achievedOn: "2026-11-12" })).toMatchObject({
+        replayed: false,
+      });
+      const view = await getAthleteSkills({ actor: ownerA, athleteId: dani, query: { ...s1(), templateId: template.id } });
+      const shown = view.templates[0]!.levels[1]!.elements.find((entry) => entry.id === element)!;
+      expect(shown.state).toMatchObject({ status: "achieved", achievedOn: "2026-11-12" });
+      const group = await getGroupSkillRoster({ actor: ownerA, groupId: groupS1, query: { ...s1(), templateId: template.id } });
+      expect(group.athletes.map((entry) => entry.name)).toEqual(["Ana Niveles", "Dani Niveles"]);
+    });
+
+    it("con cualquier otra columna de más falla cerrada, y deshacerla devuelve la forma con enlaces", async () => {
+      expect(await shapeWith("alter table zaltyko.skill_elements add column zz int")).toBe("absent");
+      expect(await shapeWith("alter table zaltyko.athlete_level_passes add column zz int")).toBe("absent");
+      expect(await shapeWith("alter table zaltyko.skill_levels add column catalog_element_id uuid")).toBe("absent");
+      // Sin la columna de enlace vuelve a ser la forma del candidato de niveles.
+      expect(await shapeWith("alter table zaltyko.skill_elements drop column catalog_element_id")).toBe("base");
+      expect(await getSkillLevelsStorageShape(db)).toBe("with_catalog_links");
+    });
   });
 });

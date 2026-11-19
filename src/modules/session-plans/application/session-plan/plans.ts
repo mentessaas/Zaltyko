@@ -29,10 +29,12 @@ import {
 } from "@/modules/session-plans/domain/session-plan";
 import {
   classPlanTemplates,
+  sessionPlanBlockBaseColumns,
   sessionPlanBlocks,
+  sessionPlanBlocksBaseInsert,
   sessionPlanObjectives,
   sessionPlans,
-  type SessionPlanBlockRow,
+  type SessionPlanBlockBaseRow,
   type SessionPlanRow,
 } from "@/modules/session-plans/infrastructure/session-plan-schema";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
@@ -121,9 +123,14 @@ async function loadPlan(
   return row ?? null;
 }
 
-async function loadBlocks(tx: TransactionClient, organizationId: string, planId: string): Promise<SessionPlanBlockRow[]> {
+/** Columnas explícitas: leen igual con o sin la columna de enlace a la biblioteca. */
+async function loadBlocks(
+  tx: TransactionClient,
+  organizationId: string,
+  planId: string
+): Promise<SessionPlanBlockBaseRow[]> {
   return tx
-    .select()
+    .select(sessionPlanBlockBaseColumns)
     .from(sessionPlanBlocks)
     .where(and(eq(sessionPlanBlocks.organizationId, organizationId), eq(sessionPlanBlocks.planId, planId)))
     .orderBy(asc(sessionPlanBlocks.position))
@@ -405,7 +412,7 @@ async function writeBlocks(
         )
       );
   }
-  const inserts: Array<typeof sessionPlanBlocks.$inferInsert> = [];
+  const inserts: Array<typeof sessionPlanBlocksBaseInsert.$inferInsert> = [];
   for (const [index, block] of input.blocks.entries()) {
     const values = {
       position: index + 1,
@@ -430,7 +437,8 @@ async function writeBlocks(
       inserts.push({ organizationId: input.organizationId, planId: input.planId, ...values });
     }
   }
-  if (inserts.length > 0) await tx.insert(sessionPlanBlocks).values(inserts);
+  // Sin la columna de enlace: el INSERT vale con o sin ella (queda nula).
+  if (inserts.length > 0) await tx.insert(sessionPlanBlocksBaseInsert).values(inserts);
 }
 
 async function writeObjectives(

@@ -21,6 +21,7 @@ import {
   zaltyko,
 } from "@/db/schema/zaltyko-core";
 import { athleteObjectives } from "@/modules/athlete-progress/infrastructure/athlete-progress-schema";
+import { catalogElements } from "@/modules/element-library/infrastructure/element-library-schema";
 
 /**
  * P2 #17 (segunda parte): planificación sobre sesiones.
@@ -34,7 +35,8 @@ import { athleteObjectives } from "@/modules/athlete-progress/infrastructure/ath
  * `db:generate`/`push` crearía estas tablas sin RLS ni REVOKE. Vive fuera de
  * `src/db/schema/` porque `pnpm validate:rls` solo valida el historial aplicado.
  * tests/session-plans-contract.test.ts comprueba que el candidato, este archivo
- * y la detección de almacenamiento describen las mismas tablas y columnas.
+ * y la detección de almacenamiento describen las mismas tablas y columnas, más
+ * la columna de enlace que añade la candidata de la biblioteca de elementos.
  */
 
 /** Las expresiones CHECK usan el mismo texto que el candidato. */
@@ -93,23 +95,41 @@ export const sessionPlans = zaltyko.table(
   ]
 );
 
+/**
+ * Columnas de session_plan_blocks que instala la candidata de guiones. Una
+ * función y no un objeto: cada tabla de Drizzle necesita sus propios
+ * constructores.
+ */
+const sessionPlanBlockBaseColumnBuilders = () => ({
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  planId: uuid("plan_id").notNull(),
+  position: integer("position").notNull(),
+  kind: text("kind").notNull(),
+  discipline: text("discipline"),
+  apparatus: text("apparatus"),
+  content: text("content").notNull(),
+  durationMinutes: integer("duration_minutes"),
+  doneAt: timestamp("done_at", { withTimezone: true }),
+  doneByMemberId: uuid("done_by_member_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * catalog_element_id: enlace opcional a un elemento de la biblioteca. Lo añade
+ * la candidata docs/deployment/candidates/20261119120000_element_library_candidate.sql
+ * (`uuid` nulo, FK a zaltyko.catalog_elements on delete restrict). Con la forma
+ * «base» la columna no existe: ninguna consulta la nombra salvo con la forma
+ * «with_catalog_links» (getSessionPlanStorageShape). Por eso las lecturas usan
+ * sessionPlanBlockBaseColumns y las altas sessionPlanBlocksBaseInsert.
+ */
 export const sessionPlanBlocks = zaltyko.table(
   "session_plan_blocks",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: uuid("organization_id")
-      .notNull()
-      .references(() => organizations.id, { onDelete: "cascade" }),
-    planId: uuid("plan_id").notNull(),
-    position: integer("position").notNull(),
-    kind: text("kind").notNull(),
-    discipline: text("discipline"),
-    apparatus: text("apparatus"),
-    content: text("content").notNull(),
-    durationMinutes: integer("duration_minutes"),
-    doneAt: timestamp("done_at", { withTimezone: true }),
-    doneByMemberId: uuid("done_by_member_id"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    ...sessionPlanBlockBaseColumnBuilders(),
+    catalogElementId: uuid("catalog_element_id").references(() => catalogElements.id, { onDelete: "restrict" }),
   },
   (table) => [
     unique("session_plan_blocks_org_id_uq").on(table.organizationId, table.id),
@@ -155,6 +175,30 @@ export const sessionPlanBlocks = zaltyko.table(
     }),
   ]
 );
+
+/**
+ * La misma tabla sin la columna de enlace, solo para insertar: Drizzle nombra
+ * en el INSERT todas las columnas del espejo (las que no reciben valor van
+ * como DEFAULT), y con la forma «base» catalog_element_id no existe. Sin
+ * restricciones: el espejo completo es sessionPlanBlocks.
+ */
+export const sessionPlanBlocksBaseInsert = zaltyko.table("session_plan_blocks", sessionPlanBlockBaseColumnBuilders());
+
+/** Lista explícita de columnas para leer session_plan_blocks con cualquiera de las dos formas. */
+export const sessionPlanBlockBaseColumns = {
+  id: sessionPlanBlocks.id,
+  organizationId: sessionPlanBlocks.organizationId,
+  planId: sessionPlanBlocks.planId,
+  position: sessionPlanBlocks.position,
+  kind: sessionPlanBlocks.kind,
+  discipline: sessionPlanBlocks.discipline,
+  apparatus: sessionPlanBlocks.apparatus,
+  content: sessionPlanBlocks.content,
+  durationMinutes: sessionPlanBlocks.durationMinutes,
+  doneAt: sessionPlanBlocks.doneAt,
+  doneByMemberId: sessionPlanBlocks.doneByMemberId,
+  createdAt: sessionPlanBlocks.createdAt,
+};
 
 export const sessionPlanObjectives = zaltyko.table(
   "session_plan_objectives",
@@ -230,4 +274,6 @@ export const classPlanTemplates = zaltyko.table(
 
 export type SessionPlanRow = typeof sessionPlans.$inferSelect;
 export type SessionPlanBlockRow = typeof sessionPlanBlocks.$inferSelect;
+/** Fila leída con sessionPlanBlockBaseColumns (sin la columna de enlace). */
+export type SessionPlanBlockBaseRow = Omit<SessionPlanBlockRow, "catalogElementId">;
 export type ClassPlanTemplateRow = typeof classPlanTemplates.$inferSelect;

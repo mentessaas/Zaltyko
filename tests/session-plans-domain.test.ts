@@ -6,6 +6,7 @@ import {
   canManageClassPlanTemplate,
   canMarkBlocks,
   markBlockCommandSchema,
+  normalizeTemplateBlock,
   parseStoredTemplateBlocks,
   PLAN_APPARATUS,
   PLAN_APPARATUS_BY_DISCIPLINE,
@@ -15,8 +16,10 @@ import {
   planDisciplineLabels,
   saveClassPlanTemplateCommandSchema,
   saveSessionPlanCommandSchema,
+  sessionPlanBlockSchema,
   sessionPlanQuerySchema,
   SESSION_PLAN_ROLES,
+  templateBlockSchema,
 } from "@/modules/session-plans/domain/session-plan";
 
 const organizationId = "b0000000-0000-4000-8000-000000000001";
@@ -24,6 +27,7 @@ const locationId = "b0000000-0000-4000-8000-000000000002";
 const clientRequestId = "b0000000-0000-4000-8000-000000000003";
 const blockId = "b0000000-0000-4000-8000-000000000004";
 const objectiveId = "b0000000-0000-4000-8000-000000000005";
+const catalogElementId = "b0000000-0000-4000-8000-000000000006";
 
 const base = { organizationId, locationId, clientRequestId, expectedRevision: null };
 
@@ -162,6 +166,40 @@ describe("bloques guardados en la plantilla", () => {
       { kind: "warmup", discipline: null, apparatus: null, content: "Movilidad", durationMinutes: null },
       { kind: "technique", discipline: "gr", apparatus: "hoop", content: "Lanzamientos", durationMinutes: 15 },
     ]);
+  });
+
+  it("conserva el enlace a la biblioteca solo si es un uuid, y sin enlace no añade la clave", () => {
+    const linked = { kind: "technique", discipline: "gaf", apparatus: "beam", content: "Giro", catalogElementId };
+    const parsed = templateBlockSchema.parse(linked);
+    expect(normalizeTemplateBlock(parsed)).toEqual({
+      kind: "technique",
+      discipline: "gaf",
+      apparatus: "beam",
+      content: "Giro",
+      durationMinutes: null,
+      catalogElementId,
+    });
+    // El jsonb guardado con enlace ya no se descarta.
+    expect(parseStoredTemplateBlocks([linked])).toEqual([normalizeTemplateBlock(parsed)]);
+
+    // Un enlace que no es un uuid se rechaza, en la plantilla y en el guion.
+    expect(templateBlockSchema.safeParse({ ...linked, catalogElementId: "x" }).success).toBe(false);
+    expect(sessionPlanBlockSchema.safeParse({ ...linked, catalogElementId: "x" }).success).toBe(false);
+    expect(parseStoredTemplateBlocks([{ ...linked, catalogElementId: "x" }])).toEqual([]);
+    expect(sessionPlanBlockSchema.safeParse(linked).success).toBe(true);
+
+    // Sin enlace (ausente o null), el bloque normalizado es el de siempre: sin la clave.
+    for (const block of [
+      { kind: "warmup", content: "Movilidad" },
+      { kind: "warmup", content: "Movilidad", catalogElementId: null },
+    ]) {
+      const normalized = normalizeTemplateBlock(templateBlockSchema.parse(block));
+      expect(Object.keys(normalized).sort()).toEqual(["apparatus", "content", "discipline", "durationMinutes", "kind"]);
+      expect(normalized).not.toHaveProperty("catalogElementId");
+    }
+    expect(Object.keys(parseStoredTemplateBlocks([{ kind: "warmup", content: "Movilidad" }])[0]!)).not.toContain(
+      "catalogElementId"
+    );
   });
 
   it("nunca devuelve más de 20 bloques", () => {

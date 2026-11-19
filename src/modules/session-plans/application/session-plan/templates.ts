@@ -108,7 +108,9 @@ export async function saveClassPlanTemplate(
   const content = {
     focus: command.focus ?? null,
     note: command.note ?? null,
-    blocks: command.blocks.map(normalizeTemplateBlock),
+    // El enlace a la biblioteca todavía no se guarda: sin validarlo contra la
+    // biblioteca instalada, el modelo queda igual que antes.
+    blocks: command.blocks.map((block) => normalizeTemplateBlock({ ...block, catalogElementId: null })),
   };
   return db.transaction(async (tx) => {
     const access = await authorizeMember(tx, {
