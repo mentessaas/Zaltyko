@@ -58,7 +58,7 @@ const elements: TemplateElementView[] = [
       apparatusMismatch: true,
     },
   },
-  { id: E_PLAIN, name: "Carrera y batida", apparatus: "vault", description: null, required: false, catalogLink: null },
+  { id: E_PLAIN, name: "Carrera y batida", apparatus: "vault", description: null, required: false },
 ];
 
 function templateView(libraryAvailable: boolean): SkillTemplateView {

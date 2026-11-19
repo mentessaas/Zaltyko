@@ -950,7 +950,9 @@ describe.skipIf(!disposablePgEnabled)("niveles y progresión en PostgreSQL desec
       else process.env[ELEMENT_LIBRARY_ENV_FLAG] = previousLibraryFlag;
     }
     const after = await getSkillTemplate({ actor: ownerA, templateId: created.id, query: s1() });
-    expect(after.levels[0]!.elements).toMatchObject([{ name: "Rondada", apparatus: "vault", catalogLink: null }]);
+    expect(after.levels[0]!.elements).toMatchObject([{ name: "Rondada", apparatus: "vault" }]);
+    // Sin enlace, el elemento no lleva la clave: la vista es la de antes de la biblioteca.
+    expect(after.levels[0]!.elements[0]).not.toHaveProperty("catalogLink");
   });
 
   describe("con la columna de enlace de la biblioteca de elementos", () => {
@@ -1241,8 +1243,9 @@ describe.skipIf(!disposablePgEnabled)("niveles y progresión en PostgreSQL desec
             apparatus: "vault",
             catalogLink: { id: vault, name: "Rondada de prueba", status: "current", replacementId: null },
           },
-          { name: "Elemento sin enlace", apparatus: "beam", catalogLink: null },
+          { name: "Elemento sin enlace", apparatus: "beam" },
         ]);
+        expect(after.levels[0]!.elements[1]).not.toHaveProperty("catalogLink");
         expect(await storedLinks(linkedId)).toEqual([
           ["Rondada de la academia", vault],
           ["Elemento sin enlace", null],
@@ -1291,8 +1294,9 @@ describe.skipIf(!disposablePgEnabled)("niveles y progresión en PostgreSQL desec
         const copyView = await get(copy.id);
         expect(copyView.levels[0]!.elements).toMatchObject([
           { name: "Rondada de la academia", catalogLink: { id: vault, status: "current" } },
-          { name: "Elemento sin enlace", catalogLink: null },
+          { name: "Elemento sin enlace" },
         ]);
+        expect(copyView.levels[0]!.elements[1]).not.toHaveProperty("catalogLink");
         expect(await storedLinks(copy.id)).toEqual([
           ["Rondada de la academia", vault],
           ["Elemento sin enlace", null],
