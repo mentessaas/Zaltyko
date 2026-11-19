@@ -1,0 +1,21 @@
+[
+  {
+    "code": "fig-wag-2025-2028",
+    "discipline": "artistic_female",
+    "cycleStart": 2025,
+    "cycleEnd": 2028,
+    "title": "Código de Puntuación de Gimnasia Artística Femenina 2025-2028",
+    "documentUrl": "https://www.gymnastics.sport/publicdir/rules/files/en_1.1%20-%20WAG%20COP%202025-2028.pdf",
+    "coverDate": "2026-10-14",
+    "status": "published",
+    "groups": {
+      "vault": [
+        { "key": "1", "label": "Sin mortal: paloma, Yamashita y rondada" },
+        { "key": "2", "label": "Paloma y mortal" },
+        { "key": "3", "label": "Tsukahara: paloma con 1/4–1/2 giro y mortal atrás" },
+        { "key": "4", "label": "Yurchenko: rondada y mortal atrás" },
+        { "key": "5", "label": "Rondada con 1/2 giro y mortal adelante" }
+      ]
+    }
+  }
+]
