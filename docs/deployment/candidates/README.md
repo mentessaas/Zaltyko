@@ -1137,6 +1137,7 @@ commit;
 |---|---|---|---|
 | `20261119120000_element_library_candidate.sql` | `584d44defba1a8d54976f53bef07cbad9f4047b56094ed4d762a4ef99800d6d5` | No aplicada | No aplicada |
 | `20261119120500_element_library_notes_candidate.sql` | `e521dccf2731854da916f1986764e0e40b5823ec4bd3952dc86797d47a846abb` | No aplicada | No aplicada |
+| `20261119121000_element_catalog_seed_fig-wag-2025-2028_1.sql` (semilla de la tanda 1) | `22c07286674ef42b471ba2c46200b8e571ed0cdd6a34710c96ffcab813311a9a` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno (staging y
 producción) necesita una autorización expresa de Elvis. La CI verde no
@@ -1336,6 +1337,63 @@ alter table public.usage_events
     check (event_name in ('staff_visit', 'family_portal_view'));
 commit;
 ```
+
+## Biblioteca de elementos (fase C): orden de aplicación y permisos
+
+Resumen de las secciones anteriores de la fase C (ADR-0029 §3.5 y §9). Producto:
+`docs/producto/biblioteca-de-elementos.md`.
+
+**Estado a 19-11-2026: ninguno de estos archivos se ha aplicado en ningún
+entorno** (ni sandbox compartido, ni staging, ni producción). Cada paso, en
+cada entorno, necesita un permiso expreso de Elvis sobre el archivo y su hash;
+la CI verde no equivale a autorización.
+
+| Paso | Archivo | SHA-256 | Producción | Staging |
+|---|---|---|---|---|
+| 1 | `20261119120000_element_library_candidate.sql` | `584d44defba1a8d54976f53bef07cbad9f4047b56094ed4d762a4ef99800d6d5` | No aplicada | No aplicada |
+| 2 | `20261119120500_element_library_notes_candidate.sql` | `e521dccf2731854da916f1986764e0e40b5823ec4bd3952dc86797d47a846abb` | No aplicada | No aplicada |
+| 3 | `20261119121000_element_catalog_seed_fig-wag-2025-2028_1.sql` | `22c07286674ef42b471ba2c46200b8e571ed0cdd6a34710c96ffcab813311a9a` | No aplicada | No aplicada |
+| 4 | `20261119121500_element_library_usage_event_candidate.sql` | `fbdf191475e0f4772de62ed8a35c11c73d0fdf31098948c4acb19ad0e92ea7ad` | No aplicada | No aplicada |
+| Aparte | `20261119122000_retire_legacy_skill_catalog_candidate.sql` | `8a193ef4c2d154ff282520244fd8e6b6932b6e3b9fd251af662bfa607f217646` | No aplicada | No aplicada |
+
+**Orden en cada entorno: primero staging, después producción.**
+
+0. **Código antes que nada.** Publicar el código que acepta los dos conjuntos
+   de columnas (con y sin `catalog_element_id`) en niveles, guiones y derechos
+   de datos, con las banderas apagadas. Comprobar que niveles, guiones y la
+   exportación de la academia responden 200 sin la migración.
+1. **Catálogo** (paso 1). Requiere antes, con su forma exacta, las candidatas
+   de objetivos y observaciones (`20261111120000`), guiones (`20261111200000`)
+   y niveles (`20261114121000`). Después, niveles y guiones siguen en 200.
+2. **Notas de la academia** (paso 2).
+3. **Semilla de la tanda 1** (paso 3): crea la edición `fig-wag-2025-2028` y
+   51 elementos de salto (grupos 1 a 3) **en borrador**. Las academias no ven
+   nada hasta que Elvis revise la tanda; el superadministrador sí, para
+   revisarla. Al revisarla se vuelve a generar la semilla con el mismo nombre
+   y **su hash cambia**: hay que actualizar esta tabla y la de arriba antes de
+   pedir el permiso. Cada tanda nueva trae su propia semilla y su fila.
+4. **Evento de consulta** (paso 4), opcional e independiente de 1–3. Requiere
+   `20261114130000_habitual_use_candidate.sql`. Sin él, la biblioteca funciona
+   y no cuenta las consultas.
+5. **Trabajo programado del borrado a los 2 años**:
+   `docs/deployment/scheduler/candidates/content-notices-retention.sql`, solo
+   para producción y después del paso 1 (en staging se programa con la función
+   propia de staging). Ver `docs/deployment/scheduler/README.md`,
+   «Conservación de los avisos sobre contenido (sin aplicar)». No aplicado.
+6. **Banderas**, con todo lo anterior aplicado y al menos una tanda revisada:
+   `ZALTYKO_ELEMENT_LIBRARY_ENABLED=true` (exige
+   `ZALTYKO_SKILL_LEVELS_ENABLED=true`). En producción, además, con el
+   formulario `/avisos-de-contenido` aprobado por Elvis. La bandera de
+   descripciones, `ZALTYKO_ELEMENT_LIBRARY_DESCRIPTIONS_ENABLED`, va aparte y
+   con su propio permiso.
+
+**Aparte: retirada de las tablas antiguas.** Destructiva; después de la fase
+C, primero en staging (decisión 13 de Elvis). Aborta sin borrar nada si alguna
+de las tres tablas tiene filas. Ver su sección.
+
+**Después, en una PR propia:** con la migración aplicada en todos los
+entornos, quitar el conjunto antiguo de columnas de las detecciones de
+niveles, guiones y derechos de datos.
 
 ## Comprobar los hashes
 
