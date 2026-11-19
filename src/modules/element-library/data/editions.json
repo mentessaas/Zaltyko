@@ -18,7 +18,9 @@
       ],
       "uneven_bars": [
         { "key": "1", "label": "Entradas" },
-        { "key": "2", "label": "Impulsos y vueltas libres" }
+        { "key": "2", "label": "Impulsos y vueltas libres" },
+        { "key": "3", "label": "Gigantes" },
+        { "key": "4", "label": "Stalder" }
       ]
     }
   }
