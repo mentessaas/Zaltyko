@@ -654,7 +654,7 @@ describeDisposablePg("canonical Owner academy data export in disposable PostgreS
     const observedSchema = await readSchemaBaseline();
     // Los catálogos globales de la biblioteca pueden estar instalados (todos o
     // ninguno): van a las exclusiones, sin recuento.
-    const sharedCatalogNames = OPTIONAL_SHARED_CATALOG_TABLES.map(table => table.table);
+    const sharedCatalogNames: readonly string[] = OPTIONAL_SHARED_CATALOG_TABLES.map(table => table.table);
     const sharedCatalogsPresent = sharedCatalogNames.filter(name => observedSchema.has(name));
     expect([0, sharedCatalogNames.length]).toContain(sharedCatalogsPresent.length);
     expect([...observedSchema.keys()].filter(name => !sharedCatalogNames.includes(name)).sort())
@@ -918,7 +918,8 @@ async function seedActivatedModules(organizationId: string, marker: string, cata
         jsonb_build_object('kind', 'warmup', 'content', ${`${marker}_TEMPLATE_BLOCK`}::text, 'durationMinutes', 15,
           'privateNote', ${`${marker}_UNCLASSIFIED_KEY`}::text),
         jsonb_build_object('kind', 'technique', 'discipline', 'gaf', 'apparatus', 'beam', 'content', 'Paloma',
-          'catalogElementId', ${catalogElementId}::text)
+          'catalogElementId', ${catalogElementId}::text),
+        jsonb_build_object('kind', 'cooldown', 'content', 'Estiramientos', 'catalogElementId', 5)
       ), ${memberId}::uuid)
   `);
   // Niveles y progresión (candidato 20261114121000).
@@ -1160,6 +1161,8 @@ describeDisposablePg("academy export with the modules activated on 2026-11-12", 
     expect(exported.data.class_plan_templates[0]!.blocks).toEqual([
       { kind: "warmup", discipline: null, apparatus: null, content: secrets.a.blockMarker, durationMinutes: 15 },
       { kind: "technique", discipline: "gaf", apparatus: "beam", content: "Paloma", durationMinutes: null, catalogElementId },
+      // Un enlace que no es texto ni nulo de JSON no sale en el paquete.
+      { kind: "cooldown", discipline: null, apparatus: null, content: "Estiramientos", durationMinutes: null },
     ]);
     // El primer bloque no tenía enlace: sale con sus cinco campos, sin la clave.
     expect(Object.keys((exported.data.class_plan_templates[0]!.blocks as Array<Record<string, unknown>>)[0]!)).toHaveLength(5);

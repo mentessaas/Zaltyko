@@ -638,10 +638,11 @@ export const CLASS_PLAN_TEMPLATE_BLOCK_FIELDS = [
 ] as const;
 
 /**
- * Optional classified field of a block (ADR-0029 §3.3): the link to an
- * element of the shared element library, a uuid or null. Blocks written
- * before the library do not have it, and the export adds it only when the
- * stored block has it, so those blocks keep exactly the five fields above.
+ * Campo opcional clasificado de un bloque (ADR-0029 §3.3): el enlace a un
+ * elemento de la biblioteca global, un uuid o nulo. Los bloques guardados
+ * antes de la biblioteca no lo tienen y la exportación solo lo añade cuando el
+ * bloque guardado lo trae como texto o nulo, así que esos bloques conservan
+ * exactamente los cinco campos de arriba.
  */
 export const CLASS_PLAN_TEMPLATE_BLOCK_OPTIONAL_FIELDS = ["catalogElementId"] as const;
 
@@ -649,9 +650,10 @@ export const CLASS_PLAN_TEMPLATE_BLOCK_OPTIONAL_FIELDS = ["catalogElementId"] as
  * Exports the jsonb array with exactly the classified fields of each object
  * element, in stored order. Any other nested key is dropped in SQL, before
  * the value leaves the database. Text fields become JSON strings or null;
- * durationMinutes is kept only when it is a JSON number. catalogElementId is
- * added only when the stored block has that key (otherwise `|| '{}'` leaves
- * the object unchanged).
+ * durationMinutes is kept only when it is a JSON number. catalogElementId
+ * solo se añade si el bloque guardado lo trae como texto o nulo de JSON, y
+ * sale como texto o nulo; si falta o es de otro tipo, `|| '{}'` deja el objeto
+ * igual que antes de la biblioteca.
  */
 const CLASS_PLAN_TEMPLATE_BLOCKS_PROJECTION = `coalesce((
   select jsonb_agg(jsonb_build_object(
@@ -661,7 +663,7 @@ const CLASS_PLAN_TEMPLATE_BLOCKS_PROJECTION = `coalesce((
     'content', element.value ->> 'content',
     'durationMinutes', case when jsonb_typeof(element.value -> 'durationMinutes') = 'number'
       then element.value -> 'durationMinutes' end
-  ) || case when element.value ? 'catalogElementId'
+  ) || case when jsonb_typeof(element.value -> 'catalogElementId') in ('string', 'null')
     then jsonb_build_object('catalogElementId', element.value ->> 'catalogElementId')
     else '{}'::jsonb end
   order by element.ordinality)
@@ -683,9 +685,9 @@ const CLASS_PLAN_TEMPLATE_BLOCKS_PROJECTION = `coalesce((
  * 20261114121000_skill_levels_candidate.sql (not applied anywhere yet),
  * 20261114120500_payment_reminders_candidate.sql (pending Elvis' authorization)
  * and 20261119120500_element_library_notes_candidate.sql (not applied anywhere).
- * skill_elements and session_plan_blocks also accept the catalog_element_id
- * column that 20261119120000_element_library_candidate.sql adds
- * (`laterCandidateColumns`): the package carries it only where it exists.
+ * skill_elements y session_plan_blocks aceptan además la columna
+ * catalog_element_id que añade 20261119120000_element_library_candidate.sql
+ * (`laterCandidateColumns`): el paquete la lleva solo donde existe.
  */
 export interface OptionalIncludedExportModule {
   module: "athlete_progress" | "coach_assignment" | "session_plans" | "admissions" | "skill_levels" | "payment_reminders" | "family_access" | "element_library";

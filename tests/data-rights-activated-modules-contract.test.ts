@@ -455,7 +455,7 @@ describe("inventario de derechos de datos frente al SQL", () => {
     expect(projection.match(/'[a-zA-Z]+', (?:element\.value|case when)/g))
       .toHaveLength(CLASS_PLAN_TEMPLATE_BLOCK_FIELDS.length + CLASS_PLAN_TEMPLATE_BLOCK_OPTIONAL_FIELDS.length);
     // El enlace solo se añade si el bloque guardado lo trae.
-    expect(projection).toContain("case when element.value ? 'catalogElementId'");
+    expect(projection).toContain("case when jsonb_typeof(element.value -> 'catalogElementId') in ('string', 'null')");
     expect(projection).toContain("else '{}'::jsonb end");
     // Ninguna otra tabla proyecta columnas a mano.
     expect(OPTIONAL_INCLUDED_EXPORT_TABLES.filter((table) => table.projections).map((table) => table.name)).toEqual(["class_plan_templates"]);
@@ -491,11 +491,10 @@ describe("política de supresión de las funciones activadas", () => {
       // solo cuentan las claves directas a auth.users, ya cambiadas.
       expect(entry.onAuthAccountErasure, "cuenta").toBe(effectOf(table, "auth.users", [], afterAccountErasure));
       // La academia arrastra todas sus tablas; ninguna usa RESTRICT salvo hacia
-      // un catálogo global (un elemento con notas no se borra: se retira).
+      // un elemento del catálogo global (un elemento con notas no se borra: se retira).
       const parsed = activated.get(table)!;
       expect(parsed.foreignKeys).toContainEqual({ columns: ["organization_id"], target: "zaltyko.organizations", action: "cascade" });
-      const globalCatalogs = new Set(OPTIONAL_SHARED_CATALOG_TABLES.map((item) => `zaltyko.${item.table}`));
-      expect(parsed.foreignKeys.some((fk) => fk.action === "restrict" && !globalCatalogs.has(fk.target))).toBe(false);
+      expect(parsed.foreignKeys.some((fk) => fk.action === "restrict" && fk.target !== "zaltyko.catalog_elements")).toBe(false);
       expect(entry.onAcademyErasure).toBe("cascade_delete");
     }
   );

@@ -517,10 +517,10 @@ function hasMappedColumn(
 const MAX_CLASS_PLAN_TEMPLATE_BLOCKS = 20;
 
 /**
- * class_plan_templates.blocks: only the classified fields of each block. A
- * block has the five fields, or those five plus the optional library link
- * (catalogElementId, a uuid or null); archives from before the library keep
- * validating.
+ * class_plan_templates.blocks: solo los campos clasificados de cada bloque.
+ * Un bloque tiene los cinco campos, o esos cinco más el enlace opcional a la
+ * biblioteca (catalogElementId, uuid o nulo); los archivos de antes de la
+ * biblioteca siguen siendo válidos.
  */
 function validateClassPlanTemplateBlocks(value: unknown): void {
   if (!Array.isArray(value) || value.length > MAX_CLASS_PLAN_TEMPLATE_BLOCKS) {
@@ -663,7 +663,7 @@ function assertColumnMapMatchesCatalog(
     const table = includedByName.get(tableName);
     const columns = mapping[tableName];
     if (!table || !columns) rejectArchive();
-    // Columns added by a later candidate are classified here too.
+    // Las columnas que añade una candidata posterior también se clasifican aquí.
     const exportable = withLaterCandidateColumns(table).exportColumns;
     if (
       new Set(columns).size !== columns.length ||
@@ -863,9 +863,9 @@ function validateManifestAndRows(
       rejectArchive();
     }
 
-    // Rows carry the base columns, or the base columns plus every column of
-    // the later candidate (laterCandidateColumns); one shape for the whole
-    // table, decided by its first row.
+    // Las filas llevan las columnas base, o las base más todas las de la
+    // candidata posterior (laterCandidateColumns); una sola forma para toda la
+    // tabla, la de su primera fila.
     const extended = withLaterCandidateColumns(table);
     const firstRow: unknown = rowsValue[0];
     const exportColumns =

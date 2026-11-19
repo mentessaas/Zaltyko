@@ -69,7 +69,7 @@ export function planCanonicalAcademyDisposition(input: CanonicalDispositionInput
         missingDecisions: dispositionMissingDecisions(spec.name, "operational_projection", omittedColumns),
       });
     }
-    // Global library catalogs are uncounted: reported means "unknown", never zero.
+    // Los catálogos globales de la biblioteca no se cuentan: declarados es «desconocido», nunca cero.
     for (const policy of [...REVIEWED_DISPOSITION_EXCLUSIONS, ...REVIEWED_DISPOSITION_OPTIONAL_GROUPS.flat(), ...REVIEWED_DISPOSITION_OPTIONAL_SHARED_CATALOGS]) {
       const reported = exclusions.has(policy.table);
       const rowCount = reported ? exclusions.get(policy.table)! : null;
