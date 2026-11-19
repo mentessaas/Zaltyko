@@ -55,6 +55,6 @@ export function failure(error: unknown, fallback: string): Response {
   if (error instanceof OperationalError) {
     return noStore(apiError(error.code, error.message, error.status, error.details));
   }
-  logger.error("Error inesperado en la biblioteca o los avisos (superadministrador)", errorSummary(error));
+  logger.error("Error inesperado en la biblioteca o los avisos (superadministrador)", undefined, errorSummary(error));
   return noStore(apiError("INTERNAL_ERROR", fallback, 500));
 }

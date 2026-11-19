@@ -23,7 +23,7 @@ export const GET = withSuperAdmin(async (request) => {
     const page = await listContentNotices({ status: parsed.data.status, limit: parsed.data.limit, cursor });
     return noStore(apiSuccess(page));
   } catch (error) {
-    // Sin registrar el error: puede llevar datos de quien avisa.
+    // failure() registra solo el tipo y el código: el mensaje puede llevar datos de quien avisa.
     return failure(error, "No se pudieron cargar los avisos. Inténtalo de nuevo.");
   }
 });

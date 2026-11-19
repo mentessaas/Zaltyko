@@ -220,6 +220,7 @@ describe("POST /api/public/content-notices", () => {
     expect(response.status).toBe(500);
     expect(JSON.stringify(await response.json())).not.toContain("ana@example.invalid");
     expect(mocks.loggerError).toHaveBeenCalledTimes(1);
+    expect(mocks.loggerError).toHaveBeenCalledWith(expect.any(String), undefined, { name: "Error" });
     expect(JSON.stringify(mocks.loggerError.mock.calls[0])).not.toMatch(/ana@example|Ana Pérez/);
   });
 });
@@ -323,7 +324,7 @@ describe("rutas del superadministrador", () => {
     mocks.listNotices.mockRejectedValueOnce(failure);
     const response = await listNoticesRoute(request("/api/super-admin/content-notices", "GET"), {});
     expect(response.status).toBe(500);
-    expect(mocks.loggerError).toHaveBeenCalledWith(expect.any(String), { name: "Error", code: "23514" });
+    expect(mocks.loggerError).toHaveBeenCalledWith(expect.any(String), undefined, { name: "Error", code: "23514" });
   });
 
   it("propaga 409 si el elemento ya estaba retirado, sin constancia nueva", async () => {

@@ -109,7 +109,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof OperationalError) return noStore(operationalProblem(error));
     // Solo el tipo: un error de PostgreSQL puede llevar el nombre o el correo en su detalle.
-    logger.error("Error inesperado guardando un aviso de contenido", {
+    logger.error("Error inesperado guardando un aviso de contenido", undefined, {
       name: error instanceof Error ? error.name : "unknown",
     });
     return noStore(

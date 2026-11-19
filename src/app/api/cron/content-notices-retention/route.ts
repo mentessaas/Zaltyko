@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     return apiSuccess(execution.value);
   } catch (error) {
     // Solo el tipo de error: el mensaje de la base podría llevar datos del aviso.
-    logger.error("Error borrando remitentes de avisos de contenido:", {
+    logger.error("Error borrando remitentes de avisos de contenido:", undefined, {
       name: error instanceof Error ? error.name : "unknown",
     });
     return apiError("INTERNAL_ERROR", "Error interno del servidor", 500);
