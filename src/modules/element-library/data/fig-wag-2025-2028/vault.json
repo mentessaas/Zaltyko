@@ -16,7 +16,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_turn180",
@@ -31,7 +32,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_turn360",
@@ -46,7 +48,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_turn540",
@@ -61,7 +64,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_turn720",
@@ -76,7 +80,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_turn900",
@@ -91,7 +96,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_pike",
@@ -106,7 +112,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_pike_turn180",
@@ -121,7 +128,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_pike_turn360",
@@ -136,7 +144,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs180_repulsion",
@@ -151,7 +160,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs180_turn180",
@@ -166,7 +176,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs180_turn360",
@@ -181,7 +192,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs180_turn540",
@@ -196,7 +208,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs180_turn720",
@@ -211,7 +224,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs360_repulsion",
@@ -226,7 +240,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs360_turn360",
@@ -241,7 +256,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_ro_repulsion",
@@ -256,7 +272,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_ro180_repulsion",
@@ -271,7 +288,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_ro180_turn180",
@@ -286,7 +304,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_ro180_turn360",
@@ -301,7 +320,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_ro180_turn540",
@@ -316,7 +336,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_ro360_repulsion",
@@ -331,7 +352,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_ro360_turn180",
@@ -346,7 +368,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_ro360_turn360",
@@ -361,7 +384,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_fwd_tuck",
@@ -376,7 +400,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_fwd_tuck_tw180",
@@ -391,7 +416,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_fwd_tuck_tw360",
@@ -406,7 +432,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_fwd_tuck_tw540",
@@ -421,7 +448,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_fwd_pike",
@@ -436,7 +464,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_fwd_pike_tw180",
@@ -451,7 +480,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_fwd_pike_tw360",
@@ -466,7 +496,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_fwd_layout",
@@ -481,7 +512,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_fwd_layout_tw180",
@@ -496,7 +528,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_fwd_layout_tw360",
@@ -511,7 +544,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_fwd_layout_tw540",
@@ -526,7 +560,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_fwd_layout_tw720",
@@ -541,7 +576,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs360_fwd_tuck",
@@ -556,7 +592,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs360_fwd_pike",
@@ -571,7 +608,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_hs_double_fwd_tuck",
@@ -586,7 +624,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_tsuk_bwd_tuck",
@@ -601,7 +640,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_tsuk_bwd_tuck_tw180",
@@ -616,7 +656,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_tsuk_bwd_tuck_tw360",
@@ -631,7 +672,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_tsuk_bwd_tuck_tw540",
@@ -646,7 +688,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_tsuk_bwd_tuck_tw720",
@@ -661,7 +704,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_tsuk_bwd_pike",
@@ -676,7 +720,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_tsuk_bwd_layout",
@@ -691,7 +736,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_tsuk_bwd_layout_tw180",
@@ -706,7 +752,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_tsuk_bwd_layout_tw360",
@@ -721,7 +768,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_tsuk_bwd_layout_tw540",
@@ -736,7 +784,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_tsuk_bwd_layout_tw720",
@@ -751,7 +800,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     },
     {
       "elementKey": "vt_tsuk_bwd_layout_tw900",
@@ -766,7 +816,8 @@
       "draftedBy": "Claude",
       "draftedOn": "2026-11-19",
       "batch": 1,
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed",
+      "reviewedOn": "2026-11-19"
     }
   ]
 }

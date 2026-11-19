@@ -106,7 +106,7 @@ describe("candidata de borrado de las tablas antiguas de elementos", () => {
     expect(query).not.toMatch(/\b(?:insert|update|delete|drop|alter|truncate)\b/);
   });
 
-  it("figura en el README de candidatas con su SHA-256 y sin aplicar", () => {
+  it("figura en el README de candidatas con su SHA-256 y sin aplicar en producción", () => {
     const readme = read("docs/deployment/candidates/README.md");
     const hash = createHash("sha256").update(readFileSync(join(ROOT, CANDIDATE_PATH))).digest("hex");
     const row = readme.split("\n").find((line) => line.includes(`\`${CANDIDATE_NAME}\``));
@@ -114,7 +114,7 @@ describe("candidata de borrado de las tablas antiguas de elementos", () => {
     expect(row).toContain(hash);
     expect(row).toContain("No aplicada");
     const section = readme.slice(readme.indexOf(row!));
-    expect(section).toContain("No se ha aplicado en ningún entorno");
+    expect(section).toContain("No se ha aplicado en producción");
   });
 });
 
