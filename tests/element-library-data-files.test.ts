@@ -144,11 +144,10 @@ describe("sin URL de terceros ni marcas ajenas", () => {
 });
 
 describe("lectura de archivos", () => {
-  let root: string | null = null;
+  const roots: string[] = [];
 
   afterEach(() => {
-    if (root) rmSync(root, { recursive: true, force: true });
-    root = null;
+    for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
   });
 
   const element = (overrides: Partial<ElementRecord> = {}): ElementRecord => ({
@@ -167,7 +166,8 @@ describe("lectura de archivos", () => {
   });
 
   function fixture(dataFiles: Record<string, unknown>): string {
-    root = mkdtempSync(join(tmpdir(), "element-library-"));
+    const root = mkdtempSync(join(tmpdir(), "element-library-"));
+    roots.push(root);
     const dataDir = join(root, ELEMENT_DATA_DIR);
     mkdirSync(join(dataDir, "fig-wag-2025-2028"), { recursive: true });
     writeFileSync(join(dataDir, "editions.json"), readFileSync(join(ROOT, ELEMENT_DATA_DIR, "editions.json")));
@@ -186,7 +186,6 @@ describe("lectura de archivos", () => {
 
   it("lee un archivo válido y una carpeta sin elementos", () => {
     expect(loadElementDataFiles(fixture({}))).toEqual([]);
-    rmSync(root!, { recursive: true, force: true });
     expect(loadElementDataFiles(fixture({ "vault.json": vault([element()]) }))).toHaveLength(1);
   });
 

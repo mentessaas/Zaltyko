@@ -339,6 +339,10 @@ export const batchRecordSchema = z
     if (sampleKeys.some((key) => !keys.has(key)) || new Set(sampleKeys).size !== sampleKeys.length) {
       ctx.addIssue({ code: "custom", path: ["manualSample", "sampleKeys"], message: "Muestra fuera de la tanda o repetida" });
     }
+    // ADR-0029 §1.7: la comparación manual cubre al menos el 10 % de la tanda.
+    if (sampleKeys.length < Math.ceil(record.elementKeys.length / 10)) {
+      ctx.addIssue({ code: "custom", path: ["manualSample", "sampleKeys"], message: "Muestra menor que el 10 % de la tanda" });
+    }
     const sampleDone = [checkedBy, checkedOn, result].map((value) => value !== null);
     if (sampleDone.some((done) => done !== sampleDone[0])) {
       ctx.addIssue({ code: "custom", path: ["manualSample"], message: "Muestra manual: todo nulo o todo relleno" });
@@ -364,11 +368,18 @@ export function isElementVisibleToAcademies(
   return element.reviewStatus === "reviewed" && edition.status === "published" && !element.withdrawnAt;
 }
 
-/** `2026-10-14` (o una fecha) → `14-10-2026`. */
+/**
+ * `2026-10-14` → `14-10-2026`. El texto se lee tal cual, sin pasar por Date.
+ * Una fecha (`Date`) se lee en hora local: node-postgres devuelve un `date`
+ * como medianoche local, y en UTC saldría el día anterior en Madrid.
+ */
 export function formatCoverDate(value: string | Date): string {
-  const iso = typeof value === "string" ? value.slice(0, 10) : value.toISOString().slice(0, 10);
-  const [year, month, day] = iso.split("-");
-  return `${day}-${month}-${year}`;
+  if (typeof value === "string") {
+    const [year, month, day] = value.slice(0, 10).split("-");
+    return `${day}-${month}-${year}`;
+  }
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${pad(value.getDate())}-${pad(value.getMonth() + 1)}-${value.getFullYear()}`;
 }
 
 /** Pie fijo de la biblioteca y de cada ficha (ADR-0029 §1.8). FIG solo en texto. */

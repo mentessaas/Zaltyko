@@ -19,6 +19,7 @@ import {
   type ElementRecord,
   elementRecordSchema,
   filterCatalogElements,
+  formatCoverDate,
   isElementLibraryDescriptionsFlagOn,
   isElementLibraryFlagOn,
   isElementVisibleToAcademies,
@@ -297,6 +298,20 @@ describe("esquema de tanda", () => {
     ).toBe(false);
     expect(batchRecordSchema.safeParse({ ...batchRecord, aviso: "Otro" }).success).toBe(false);
   });
+
+  it("la muestra manual cubre al menos el 10 % de la tanda, con claves de la tanda", () => {
+    const elementKeys = Array.from({ length: 51 }, (_, index) => `vt_test_${index + 1}`);
+    const withSample = (sampleKeys: string[]) =>
+      batchRecordSchema.safeParse({
+        ...batchRecord,
+        elementKeys,
+        manualSample: { ...batchRecord.manualSample, sampleKeys },
+      }).success;
+    expect(withSample(elementKeys.slice(0, 6))).toBe(true);
+    expect(withSample(elementKeys.slice(0, 5))).toBe(false);
+    expect(withSample([...elementKeys.slice(0, 5), "vt_fuera_de_tanda"])).toBe(false);
+    expect(withSample([])).toBe(false);
+  });
 });
 
 describe("visibilidad para las academias", () => {
@@ -319,9 +334,12 @@ describe("atribución", () => {
         DOCUMENT_URL +
         ". Zaltyko no está afiliado a la FIG ni cuenta con su respaldo."
     );
-    expect(elementAttributionText({ ...edition, coverDate: new Date("2026-10-14T00:00:00Z") })).toContain(
+    // Fecha local, como devuelve node-postgres un `date`: no debe salir el día anterior.
+    expect(elementAttributionText({ ...edition, coverDate: new Date(2026, 9, 14) })).toContain(
       "edición publicada el 14-10-2026."
     );
+    expect(formatCoverDate(new Date(2026, 0, 5))).toBe("05-01-2026");
+    expect(formatCoverDate("2026-10-14")).toBe("14-10-2026");
   });
 });
 
