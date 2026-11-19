@@ -96,6 +96,13 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 - Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/3.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,5; se volvieron a redactar 18 elementos (9 por parecido y 9 por errores técnicos en los hechos, ya corregidos). Muestra manual: 6 elementos, pendiente de Elvis.
 - Semilla: `docs/deployment/candidates/20261120003000_element_catalog_seed_fig-wag-2025-2028_3.sql`, sin aplicar.
 
+### Cuarta tanda
+
+- Edición `fig-wag-2025-2028`, paralelas asimétricas, grupos 3 (gigantes, 28) y 4 (Stalder, 30): **58 elementos, en borrador**. Va encima de la tercera tanda, porque comparte el archivo de asimétricas.
+- Los nombres comunes que el Código cita sin ser epónimo oficial (Tkatchev, Deltchev, Gienger, Jaeger) se usan en el nombre; el epónimo de una forma alternativa va entre paréntesis en el nombre corto.
+- Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/4.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,5; se volvieron a redactar 15 elementos (10 por parecido y 5 por errores técnicos). Muestra manual: 6 elementos, pendiente de Elvis.
+- Semilla: `docs/deployment/candidates/20261120013000_element_catalog_seed_fig-wag-2025-2028_4.sql`, sin aplicar.
+
 ## Retiradas y avisos sobre contenido
 
 - **Formulario público** `/avisos-de-contenido` (Reglamento de Servicios Digitales, art. 16), obligatorio antes de encender la bandera en producción. Pide motivo, dirección exacta, nombre, correo y una declaración de buena fe. Contra abusos: límite por IP y por correo, campo trampa, longitudes máximas y texto sin enlaces activos. No necesita cuenta ni depende de la bandera; sin las tablas, la página no existe y el envío a la API responde que no está disponible (503). El enlace «Avisar de un contenido» del pie de página se añade al instalar las tablas. **Un aviso no retira nada por sí solo.**
