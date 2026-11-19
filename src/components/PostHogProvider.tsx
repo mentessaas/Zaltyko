@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
-import { initAnalytics, revokeAnalytics, trackPageView } from "@/lib/analytics";
+import {
+  initAnalytics,
+  revokeAnalytics,
+  suspendAnalytics,
+  trackPageView,
+} from "@/lib/analytics";
 import { subscribeConsent } from "@/lib/consent/state";
+import { getSafePublicTrackingPath } from "@/lib/optional-tracking-policy";
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   usePageTracking();
@@ -17,8 +23,12 @@ export function usePageTracking() {
     let lastTrackedPath: string | null = null;
 
     const handleNavigation = () => {
-      if (!consentGranted) return;
       const path = window.location.pathname;
+      if (!consentGranted || !getSafePublicTrackingPath(path)) {
+        lastTrackedPath = null;
+        suspendAnalytics();
+        return;
+      }
       lastTrackedPath = path;
       void trackPageView(path);
     };
@@ -34,15 +44,23 @@ export function usePageTracking() {
     };
 
     const unsubscribeConsent = subscribeConsent((snapshot) => {
+      const wasConsentGranted = consentGranted;
       consentGranted = snapshot.value === "granted";
       if (!consentGranted) {
         revokeAnalytics();
         return;
       }
 
-      void initAnalytics();
       const path = window.location.pathname;
-      if (lastTrackedPath === path) return;
+      if (!getSafePublicTrackingPath(path)) {
+        lastTrackedPath = null;
+        suspendAnalytics();
+        return;
+      }
+      if (lastTrackedPath === path) {
+        if (!wasConsentGranted) void initAnalytics();
+        return;
+      }
       lastTrackedPath = path;
       void trackPageView(path);
     });

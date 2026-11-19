@@ -12922,3 +12922,12 @@ Aprobación externa exacta y CI completa SUCCESS (tres navegadores sintéticos).
 ## 2026-10-27 — QA A actual y corrección móvil demostrada
 
 QA A humana enab067043: resumen30/3/1/3pagos70EUR,usageFree30/3/10,2inscripciones activas,Presente persistido,cuota35EUR noviembre impide duplicado y cobros sin pendientes. Lecturas ajenas denegadasNOT_FOUND/403; no se atribuyen escrituras/snapshots actuales. A375px no hay scrollhorizontal pero capturaCDP demuestra solapamiento de Inscripciones/Asistencia. Se corrige grid móvil3columnas bajo640/6desde640, alineación de objetivos y etiquetas completas; nuevo E2E remoto mide texto contenido,44pxmínimo y nointersección. PendienteCI/revisión/publicación,ab067preview intacta. Sin producción/ensayo/builds locales. Matriz vigente del corte docs/qa/essential-release-current-2026-10-27.md separa gates técnicos, ensayo natural y bloqueos vendedor/fiscal/Live. Nota anterior de publicación se incorpora sin reescribir historia.
+
+
+## 2026-11-05 — Telemetría opcional fail-closed (parche local)
+
+- Se retiraron las cargas estáticas de Vercel Analytics/Speed Insights del layout. La boundary nueva las monta solo con bandera explícita, consentimiento `granted` y ruta pública estática; `beforeSend` vuelve a leer consentimiento/ruta actuales. Analytics conserva `pageview` y descarta `event` sin catálogo; Speed Insights conserva solo `vital` con su contrato propio y URL/ruta saneada.
+- PostHog carga dinámicamente solo con su flag, consentimiento y ruta permitida. `before_send` aplica lista permitida de eventos y propiedades; persistencia en memoria, perfiles `never`, sin autocapture, pageview automático, pageleave, session recording ni guardado de campañas. Se quitaron los eventos cliente de registro que llevaban user ID/UTMs. `recordGrowthEvent` server-side y SQL no cambian.
+- Google Ads ya no se monta y sus exports de compatibilidad no hacen nada aunque exista ID, flag o consentimiento genérico de analytics. Pendiente contrato separado para consentimiento publicitario y revocación.
+- Archivos: `src/lib/optional-tracking-policy.ts`, `src/lib/analytics.ts`, `src/components/PostHogProvider.tsx`, `src/components/OptionalTelemetryBoundary.tsx`, `src/components/GoogleAdsTracking.tsx`, `src/lib/google-ads.ts`, `src/app/layout.tsx`, `src/components/RegisterForm.tsx`, `.env.example`; pruebas focales nuevas/actualizadas.
+- No se ejecutaron tests, lint, typecheck ni build por alcance; todo sigue sujeto a revisión QA/CI. Worktree `codex/optional-telemetry-boundary-20261105`, sin commit, push ni despliegue.

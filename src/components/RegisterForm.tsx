@@ -12,34 +12,9 @@ import { useToast } from "@/components/ui/toast-provider";
 import { AuthPageShell } from "@/components/auth/AuthPageShell";
 import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
 import { checkPwnedPassword, PWNED_PASSWORD_MESSAGE } from "@/lib/security/pwned-password";
-import { trackEvent } from "@/lib/analytics";
-import { trackGoogleAdsConversion } from "@/lib/google-ads";
-import {
-  readUtmWithFallback,
-} from "@/lib/growth/utm";
 import { getRegistrationContinuationPath } from "@/lib/auth/registration-paths";
 import { getNextRegistrationRoleIndex } from "@/lib/auth/registration-role-navigation";
 import { useHydrated } from "@/lib/auth/use-hydrated";
-
-// Lee UTMs del first-touch capturado por `UtmCapture` (sessionStorage)
-// o de la query string actual. Wrapper sobre `readUtmWithFallback` para
-// tipar más estrecho y evitar repetir la plumbing. Devuelve SIEMPRE los 5
-// campos (con fallback `direct/none/...`) para mantener trazabilidad.
-function readAttribution(): {
-  utm_source: string;
-  utm_medium: string;
-  utm_campaign: string;
-  utm_content: string;
-  utm_term: string;
-} {
-  if (typeof window === "undefined") {
-    return readUtmWithFallback(new URLSearchParams(), undefined);
-  }
-  return readUtmWithFallback(
-    new URLSearchParams(window.location.search),
-    window.sessionStorage,
-  );
-}
 
   const ROLE_OPTIONS = [
   {
@@ -136,19 +111,6 @@ export function RegisterForm({
       });
       return;
     }
-
-    // Micro-conversion: cta_click. Se emite ANTES de las validaciones para
-    // que Google Ads pueda optimizar por clics en el CTA real, no por
-    // submits completados que terminan en error de validación.
-    void trackEvent("cta_click", {
-      metadata: {
-        cta_id: "register_submit",
-        cta_position: "register_form",
-        ...readAttribution(),
-      },
-    });
-    // Google Ads también recibe cta_click para optimización temprana.
-    if (!directoryRegistration) trackGoogleAdsConversion("cta_click_register");
 
     if (!fullName.trim()) {
       toast.pushToast({
@@ -271,28 +233,6 @@ export function RegisterForm({
 
       if (data.session) {
         signupPhase = "session_confirmed";
-        // Instrumentación paid-acquisition: emite sign_up_completed solo
-        // cuando hay sesión (signup funcional, no email-pendiente). La
-        // atribución UTMs viaja en metadata para que PostHog/Google Ads
-        // puedan reconciliar origen paid.
-        const attribution = readAttribution();
-        await trackEvent(directoryRegistration ? "directory_account_registered" : "sign_up_completed", {
-          userId: data.session.user.id,
-          metadata: {
-            role: directoryRegistration ? "directory" : role,
-            signup_method: "email_password",
-            // `direct` es el fallback cuando no hay UTMs (ver UTM_DIRECT_FALLBACK);
-            // distinguir paid vs organic/direct ayuda a segmentar PostHog.
-            has_utm_source: attribution.utm_source !== "direct",
-            ...attribution,
-          },
-        });
-
-        // Google Ads conversion — el label real lo configura Elvis en la
-        // cuenta de Google Ads (Tools → Conversions) y se mapea aquí cuando
-        // esté listo. Sin label, gtag ignora el evento silenciosamente.
-        if (!directoryRegistration) trackGoogleAdsConversion("signup_completed");
-
         if (directoryRegistration) {
           router.push(directoryNext!);
           return;
@@ -339,14 +279,6 @@ export function RegisterForm({
         }
         router.push(getRegistrationContinuationPath(role));
       } else {
-        await trackEvent(directoryRegistration ? "directory_account_registered" : "sign_up_completed", {
-          metadata: {
-            role: directoryRegistration ? "directory" : role,
-            signup_method: "email_password",
-            email_confirmation_pending: true,
-            ...readAttribution(),
-          },
-        });
         router.push(`/auth/login?registered=1${directoryRegistration?`&next=${encodeURIComponent(directoryNext!)}`:""}`);
       }
     } catch {

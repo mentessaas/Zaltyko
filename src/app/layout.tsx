@@ -7,14 +7,12 @@ import { cn } from "@/lib/utils";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { BottomNav } from "@/components/navigation/BottomNav";
 import { AppProviders } from "./providers";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { OfflineBanner } from "@/components/ui/offline-banner";
 import { UpdateBanner } from "@/components/ui/update-banner";
 import { InstallPrompt } from "@/components/ui/install-prompt";
+import { OptionalTelemetryBoundary } from "@/components/OptionalTelemetryBoundary";
 import { PostHogProvider } from "@/components/PostHogProvider";
 import { UtmCapture } from "@/components/growth/UtmCapture";
-import { GoogleAdsTracking } from "@/components/GoogleAdsTracking";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const spaceGrotesk = localFont({
@@ -137,7 +135,7 @@ export default async function RootLayout({
 }>) {
   // El nonce CSP se genera por request en middleware.ts y se expone vía el
   // header `x-nonce`. Sin propagarlo a `<html nonce>` y a los `<Script>` que
-  // metan scripts inline (Google Ads, etc.), el navegador bloquea el bundle
+  // metan scripts inline, el navegador bloquea el bundle
   // de hidratación de React porque el CSP no encuentra un nonce que matchear.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
@@ -178,20 +176,19 @@ export default async function RootLayout({
         className={cn(bodyFont.variable, spaceGrotesk.variable, "font-sans antialiased")}
         suppressHydrationWarning
       >
-        <UtmCapture />
-        <OfflineBanner />
-        <UpdateBanner />
-        <InstallPrompt />
-        <GoogleAdsTracking nonce={nonce} />
-        <AppProviders nonce={nonce}>
-          <PostHogProvider>
-            {children}
-            <BottomNav />
-          </PostHogProvider>
-        </AppProviders>
-        <ServiceWorkerRegister />
-        <Analytics />
-        <SpeedInsights />
+        <OptionalTelemetryBoundary>
+          <UtmCapture />
+          <OfflineBanner />
+          <UpdateBanner />
+          <InstallPrompt />
+          <AppProviders nonce={nonce}>
+            <PostHogProvider>
+              {children}
+              <BottomNav />
+            </PostHogProvider>
+          </AppProviders>
+          <ServiceWorkerRegister />
+        </OptionalTelemetryBoundary>
       </body>
     </html>
   );

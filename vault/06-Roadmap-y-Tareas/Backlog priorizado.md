@@ -1233,3 +1233,11 @@ Elvis Valdes Inerarte prevé alta como autónomo en España, aún pendiente. Com
 - Completar aceptación visual375/768/1280: geometría correcta no sustituye revisión visual cuando la captura tiene escala distinta.
 - Defecto menor reproducido: enlace residual del directorio retirado en registro con flagfalse; guard y regresiones preparados, pendientes CI/revisión/publicación.
 - Mantener cierre fiscal/Live y primera academia externa como gates independientes; los rechazos Free sin parciales de e09 no equivalen a producción.
+
+
+## P1 — Cerrar consentimiento antes de habilitar telemetría opcional — 2026-11-05
+
+- El store canónico de analytics es default-deny, pero no se encontró un writer UI en `src/`; por tanto no hay recorrido visible para obtener o revocar consentimiento del usuario.
+- Añadido gate local para PostHog, Vercel Analytics y Speed Insights: cada proveedor requiere flag propia, consentimiento explícito y ruta pública exacta. Las pruebas se escribieron, pero están sin ejecutar; falta revisión independiente, types/lint/CI del SHA final y aceptación del flujo de consentimiento.
+- Google Ads permanece hard-disabled. No habilitarlo solo con ID, feature flag o consentimiento genérico de analytics: requiere elección publicitaria separada y prueba de bloqueo/cancelación de cargas tardías. Google documenta que Basic bloquea los tags hasta consentimiento y que Advanced puede enviar mediciones sin cookies en estado `denied`; consultar la [guía oficial](https://developers.google.com/tag-platform/security/concepts/consent-mode) antes de diseñar ese flujo.
+- No afirmar descarga/revocación de un SDK ya inicializado. Callbacks locales vuelven a comprobar ruta/consentimiento al enviar, pero runtime y tráfico real quedan NO VERIFICADOS.
