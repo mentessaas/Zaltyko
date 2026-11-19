@@ -38,5 +38,6 @@ Stripe Live ni cambios de credenciales.
 | [0025](./0025-inscripcion-owner-pendiente-y-cobros-separados.md)  | Alta owner en estado pendiente y facturación desacoplada  |
 | [0026](./0026-cuota-mensual-por-gimnasta-y-tarifa.md)             | Cuota mensual completa por gimnasta y tarifa efectiva     |
 | [0028](./0028-cobro-automatico-de-cuotas-con-connect.md)          | Cobro automático de cuotas: Connect v2, tarjeta y SEPA    |
+| [0029](./0029-biblioteca-de-elementos-y-niveles.md)               | Biblioteca de elementos y plantillas de niveles RFEG      |
 
 Contrato analítico inicial: [diccionario de métricas v0](../metric-dictionary-v0.md).
