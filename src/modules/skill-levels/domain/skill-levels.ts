@@ -383,6 +383,11 @@ export type TemplateCatalogLink = {
   name: string;
   status: TemplateCatalogLinkStatus;
   replacementId: string | null;
+  /**
+   * El aparato del elemento de la academia ya no es el del elemento enlazado
+   * (por ejemplo, se cambió con la biblioteca apagada): se avisa, no se corrige.
+   */
+  apparatusMismatch: boolean;
 };
 
 export const templateCatalogLinkLabels: Record<TemplateCatalogLinkStatus, string> = {
@@ -390,6 +395,8 @@ export const templateCatalogLinkLabels: Record<TemplateCatalogLinkStatus, string
   withdrawn: "Ya no está en la biblioteca",
   previous_edition: "Edición anterior",
 };
+
+export const CATALOG_LINK_APPARATUS_MISMATCH_LABEL = "El aparato no coincide con el de la biblioteca";
 
 /** Respuesta 400 al enlazar un elemento de otro aparato, de otra disciplina o que la academia no ve. */
 export const CATALOG_LINK_MISMATCH_MESSAGE = "Ese elemento de la biblioteca no corresponde a este aparato";

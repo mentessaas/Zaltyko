@@ -29,6 +29,7 @@ const CAT_WITHDRAWN = "00000000-0000-4000-8000-0000000000a1";
 const CAT_PREVIOUS = "00000000-0000-4000-8000-0000000000a2";
 const CAT_REPLACEMENT = "00000000-0000-4000-8000-0000000000a3";
 const CAT_VAULT = "00000000-0000-4000-8000-0000000000a4";
+const CAT_SHORT = "00000000-0000-4000-8000-0000000000a5";
 
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -41,7 +42,7 @@ const elements: TemplateElementView[] = [
     apparatus: "vault",
     description: null,
     required: true,
-    catalogLink: { id: CAT_WITHDRAWN, name: "Rondada", status: "withdrawn", replacementId: null },
+    catalogLink: { id: CAT_WITHDRAWN, name: "Rondada", status: "withdrawn", replacementId: null, apparatusMismatch: false },
   },
   {
     id: E_PREVIOUS,
@@ -49,7 +50,13 @@ const elements: TemplateElementView[] = [
     apparatus: "vault",
     description: null,
     required: true,
-    catalogLink: { id: CAT_PREVIOUS, name: "Paloma", status: "previous_edition", replacementId: CAT_REPLACEMENT },
+    catalogLink: {
+      id: CAT_PREVIOUS,
+      name: "Paloma",
+      status: "previous_edition",
+      replacementId: CAT_REPLACEMENT,
+      apparatusMismatch: true,
+    },
   },
   { id: E_PLAIN, name: "Carrera y batida", apparatus: "vault", description: null, required: false, catalogLink: null },
 ];
@@ -123,6 +130,11 @@ const search: CatalogSearchResult = {
   truncated: false,
 };
 
+const shortOnly: CatalogSearchResult = {
+  ...search,
+  elements: [{ ...search.elements[0]!, id: CAT_SHORT, shortName: "Y", name: "Yurchenko de prueba" }],
+};
+
 const fetchMock = vi.fn<typeof fetch>();
 let uuid = 0;
 
@@ -140,11 +152,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function routeFetch(libraryAvailable: boolean) {
+function routeFetch(libraryAvailable: boolean, result: CatalogSearchResult = search) {
   fetchMock.mockImplementation(async (input, init) => {
     const url = String(input);
     if (init?.method === "PUT") return json(200, { data: { id: TEMPLATE, revision: 5, replayed: false } });
-    if (url.startsWith("/api/v1/owner/element-library?")) return json(200, { data: search });
+    if (url.startsWith("/api/v1/owner/element-library?")) return json(200, { data: result });
     if (url.startsWith(`/api/v1/owner/skill-templates/${TEMPLATE}?`)) return json(200, { data: templateView(libraryAvailable) });
     if (url.startsWith("/api/v1/owner/skill-templates?")) return json(200, { data: list });
     return json(404, { detail: "No encontrado" });
@@ -213,17 +225,34 @@ describe("plantillas de niveles con la biblioteca", () => {
     for (const element of sent.slice(0, 3)) expect(element).not.toHaveProperty("catalogElementId");
   });
 
+  it("si el nombre corto tiene menos de 2 caracteres, el elemento se añade con el nombre completo", async () => {
+    routeFetch(true, shortOnly);
+    await openEditor();
+    fireEvent.click(screen.getByRole("button", { name: "Añadir desde la biblioteca" }));
+    const dialog = await screen.findByRole("dialog", { name: "Añadir desde la biblioteca" });
+    expect(await within(dialog).findByText("1 elemento")).toBeTruthy();
+    fireEvent.click(await within(dialog).findByRole("button", { name: /Yurchenko de prueba/ }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    const names = screen.getAllByLabelText("Elemento") as HTMLInputElement[];
+    expect(names.at(-1)!.value).toBe("Yurchenko de prueba");
+  });
+
   it("avisa de los enlaces retirados o de una edición anterior y solo actualiza el enlace si se pide", async () => {
     routeFetch(true);
     await openEditor();
 
     expect(screen.getByText("Ya no está en la biblioteca")).toBeTruthy();
     expect(screen.getByText("Edición anterior")).toBeTruthy();
-    // «Actualizar enlace» solo aparece con un elemento de la edición nueva.
-    const update = screen.getAllByRole("button", { name: "Actualizar enlace" });
+    // Aviso de aparato distinto (p. ej., cambiado con la biblioteca apagada).
+    expect(screen.getAllByText("El aparato no coincide con el de la biblioteca")).toHaveLength(1);
+    // «Actualizar enlace» solo aparece con un elemento de la edición nueva, con nombre propio.
+    const update = screen.getAllByRole("button", { name: /^Actualizar enlace/ });
     expect(update).toHaveLength(1);
+    expect(update[0]!.getAttribute("aria-label")).toBe("Actualizar enlace de Paloma de la academia");
+    expect(screen.getByRole("button", { name: "Quitar enlace de Rondada de la academia" })).toBeTruthy();
     fireEvent.click(update[0]!);
     expect(screen.queryByText("Edición anterior")).toBeNull();
+    expect(screen.queryByText("El aparato no coincide con el de la biblioteca")).toBeNull();
     expect(screen.getByText("De la biblioteca")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
@@ -240,7 +269,8 @@ describe("plantillas de niveles con la biblioteca", () => {
 
     expect(screen.getByRole("button", { name: "Añadir elemento" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Añadir desde la biblioteca" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Actualizar enlace" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Actualizar enlace/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Quitar enlace/ })).toBeNull();
     expect(screen.getByText("Ya no está en la biblioteca")).toBeTruthy();
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/element-library"))).toBe(false);
   });

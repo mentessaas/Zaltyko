@@ -162,49 +162,52 @@ export function CatalogElementPicker({
           </button>
         </form>
 
-        <div aria-live="polite">
+        {/* Solo el estado y el recuento se anuncian; la lista no. */}
+        <div role="status" aria-live="polite">
           {state.status === "loading" ? (
-            <p className={ownerUi.muted} role="status">
-              Buscando elementos…
-            </p>
-          ) : state.status === "error" ? (
-            <p role="alert" className={ownerUi.noticeError}>
-              {state.message}
-            </p>
-          ) : state.result.edition === null ? (
+            <p className={ownerUi.muted}>Buscando elementos…</p>
+          ) : state.status === "error" ? null : state.result.edition === null ? (
             <p className={ownerUi.muted}>Aún no hay elementos revisados en esta disciplina</p>
           ) : state.result.elements.length === 0 ? (
             <p className={ownerUi.muted}>No hay elementos con esos filtros.</p>
           ) : (
-            <ul className="grid gap-2">
-              {state.result.elements.map((element) => (
-                <li key={element.id}>
-                  <button
-                    type="button"
-                    className={`${ownerTone.innerPanel} grid w-full gap-1 text-left hover:bg-z-canvas`}
-                    onClick={() =>
-                      onSelect({
-                        id: element.id,
-                        name: element.name,
-                        shortName: element.shortName,
-                        apparatus: element.apparatus,
-                      })
-                    }
-                  >
-                    <span className="font-semibold text-z-ink">{element.shortName}</span>
-                    <span className={ownerUi.help}>
-                      {element.name} · {apparatusLabel(element.apparatus)} · Grupo {element.group} ·{" "}
-                      {formatCatalogValue(element)}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <p className={ownerUi.help}>
+              {state.result.elements.length === 1 ? "1 elemento" : `${state.result.elements.length} elementos`}
+              {state.result.truncated ? ". Hay más resultados: afina la búsqueda." : ""}
+            </p>
           )}
-          {state.status === "ready" && state.result.truncated ? (
-            <p className={ownerUi.help}>Hay más resultados: afina la búsqueda.</p>
-          ) : null}
         </div>
+        {state.status === "error" ? (
+          <p role="alert" className={ownerUi.noticeError}>
+            {state.message}
+          </p>
+        ) : null}
+        {state.status === "ready" && state.result.edition !== null && state.result.elements.length > 0 ? (
+          <ul className="grid gap-2">
+            {state.result.elements.map((element) => (
+              <li key={element.id}>
+                <button
+                  type="button"
+                  className={`${ownerTone.innerPanel} grid w-full gap-1 text-left hover:bg-z-canvas`}
+                  onClick={() =>
+                    onSelect({
+                      id: element.id,
+                      name: element.name,
+                      shortName: element.shortName,
+                      apparatus: element.apparatus,
+                    })
+                  }
+                >
+                  <span className="font-semibold text-z-ink">{element.shortName}</span>
+                  <span className={ownerUi.help}>
+                    {element.name} · {apparatusLabel(element.apparatus)} · Grupo {element.group} ·{" "}
+                    {formatCatalogValue(element)}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
 
         {state.status === "ready" && state.result.edition ? (
           <p className={ownerUi.help}>{state.result.edition.attribution}</p>

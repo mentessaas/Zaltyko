@@ -11,7 +11,9 @@ import {
 } from "@/modules/element-library/infrastructure/element-library-schema";
 import { getSessionPlanStorageShape } from "@/modules/session-plans/application/session-plan-service";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
-import { getSkillLevelsStorageShape } from "@/modules/skill-levels/application/skill-level-service";
+// El archivo interno (hoja) y no la fachada: la fachada de niveles reexporta
+// las plantillas, que leen la biblioteca, y eso cerraría un ciclo de módulos.
+import { getSkillLevelsStorageShape } from "@/modules/skill-levels/application/skill-levels/storage";
 import { isSkillLevelsFlagOn } from "@/modules/skill-levels/domain/skill-levels";
 
 /**

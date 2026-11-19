@@ -1396,11 +1396,21 @@ describe.skipIf(!disposablePgEnabled)("niveles y progresión en PostgreSQL desec
             view,
             view.levels[0]!.elements.map((element) => ({ ...keep(element), catalogElementId: null }))
           );
-          expect((await get(linkedId)).levels[0]!.elements.map((element) => element.catalogLink?.id ?? null)).toEqual([
+          const kept = await get(linkedId);
+          expect(kept.levels[0]!.elements.map((element) => element.catalogLink?.id ?? null)).toEqual([
             vault,
             null,
             toWithdraw,
           ]);
+          expect(kept.levels[0]!.elements[0]!.catalogLink).toMatchObject({ apparatusMismatch: false });
+          // Con la biblioteca apagada nada impide cambiar el aparato: el enlace se
+          // conserva y la plantilla avisa de que ya no coincide.
+          const [first, ...rest] = kept.levels[0]!.elements;
+          await saveElements(kept, [{ ...keep(first!), apparatus: "floor" }, ...rest.map(keep)]);
+          expect((await get(linkedId)).levels[0]!.elements[0]).toMatchObject({
+            apparatus: "floor",
+            catalogLink: { id: vault, status: "current", apparatusMismatch: true },
+          });
         } finally {
           process.env[ELEMENT_LIBRARY_ENV_FLAG] = "true";
         }

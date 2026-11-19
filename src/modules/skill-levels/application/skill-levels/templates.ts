@@ -186,8 +186,14 @@ async function attachCatalogLinks(
       const view = views?.get(catalogId);
       // La clave foránea impide que desaparezca; si aun así faltara, se avisa como retirado.
       const catalogLink: TemplateCatalogLink = view
-        ? { id: catalogId, name: view.name, status: view.status, replacementId: view.replacementId }
-        : { id: catalogId, name: element.name, status: "withdrawn", replacementId: null };
+        ? {
+            id: catalogId,
+            name: view.name,
+            status: view.status,
+            replacementId: view.replacementId,
+            apparatusMismatch: view.apparatus !== element.apparatus,
+          }
+        : { id: catalogId, name: element.name, status: "withdrawn", replacementId: null, apparatusMismatch: false };
       return { ...element, catalogLink };
     }),
   }));

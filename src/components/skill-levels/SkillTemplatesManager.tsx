@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 
 
 import {
   apparatusLabel,
+  CATALOG_LINK_APPARATUS_MISMATCH_LABEL,
   DESCRIPTION_MAX,
   ELEMENT_NAME_MAX,
   GENERAL_APPARATUS_LABEL,
@@ -670,14 +671,24 @@ function TemplateEditor({
                       <span className={linkChipClass[element.catalogLink.status]}>
                         {templateCatalogLinkLabels[element.catalogLink.status]}
                       </span>
+                      {element.catalogLink.apparatusMismatch ? (
+                        <span className={ownerTone.chipWarning}>{CATALOG_LINK_APPARATUS_MISMATCH_LABEL}</span>
+                      ) : null}
                       {libraryEditable && element.catalogLink.replacementId ? (
                         <button
                           type="button"
                           className={ownerUi.secondaryButton}
+                          aria-label={`Actualizar enlace de ${element.name || "el elemento"}`}
                           onClick={() => {
                             const link = element.catalogLink!;
                             updateElement(levelIndex, elementIndex, {
-                              catalogLink: { id: link.replacementId!, name: link.name, status: "current", replacementId: null },
+                              catalogLink: {
+                                id: link.replacementId!,
+                                name: link.name,
+                                status: "current",
+                                replacementId: null,
+                                apparatusMismatch: false,
+                              },
                               linkChanged: true,
                             });
                           }}
@@ -689,7 +700,7 @@ function TemplateEditor({
                         <button
                           type="button"
                           className={ownerUi.secondaryButton}
-                          aria-label={`Quitar el enlace con la biblioteca de ${element.name || "el elemento"}`}
+                          aria-label={`Quitar enlace de ${element.name || "el elemento"}`}
                           onClick={() => updateElement(levelIndex, elementIndex, { catalogLink: null, linkChanged: true })}
                         >
                           Quitar enlace
@@ -862,11 +873,18 @@ function TemplateEditor({
                         {
                           key: crypto.randomUUID(),
                           id: null,
-                          name: picked.shortName,
+                          // El nombre de la academia exige 2 caracteres: si el corto no llega, el largo.
+                          name: picked.shortName.trim().length >= 2 ? picked.shortName : picked.name,
                           apparatus: picked.apparatus,
                           description: null,
                           required: true,
-                          catalogLink: { id: picked.id, name: picked.name, status: "current", replacementId: null },
+                          catalogLink: {
+                            id: picked.id,
+                            name: picked.name,
+                            status: "current",
+                            replacementId: null,
+                            apparatusMismatch: false,
+                          },
                           linkChanged: true,
                         },
                       ],
