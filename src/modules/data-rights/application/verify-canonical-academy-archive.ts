@@ -6,6 +6,7 @@ import {
   CANONICAL_EXPORT_OMISSIONS,
   CANONICAL_EXPORT_TABLES,
   CLASS_PLAN_TEMPLATE_BLOCK_FIELDS,
+  CLASS_PLAN_TEMPLATE_BLOCK_OPTIONAL_FIELDS,
   EXCLUDED_CANONICAL_SCOPED_TABLES,
   EXCLUDED_CANONICAL_SOURCES,
   EXCLUDED_CANONICAL_TABLES,
@@ -13,6 +14,8 @@ import {
   OPTIONAL_EXPORT_MODULE_GROUPS,
   OPTIONAL_INCLUDED_EXPORT_MODULES,
   OPTIONAL_INCLUDED_EXPORT_TABLES,
+  OPTIONAL_SHARED_CATALOG_TABLES,
+  withLaterCandidateColumns,
   type CanonicalExportTableSpec,
 } from "./catalog";
 
@@ -163,12 +166,14 @@ const NULLABLE_COLUMNS_BY_TABLE: Readonly<Record<string, readonly string[]>> = {
     "duration_minutes",
     "done_at",
     "done_by_member_id",
+    // Columna posterior (laterCandidateColumns): solo en archivos que la traen.
+    "catalog_element_id",
   ],
   session_plan_objectives: [],
   class_plan_templates: ["focus", "note"],
   skill_templates: ["description", "starter_key", "archived_at", "created_by_member_id", "updated_by_member_id"],
   skill_levels: ["description", "archived_at"],
-  skill_elements: ["apparatus", "description", "archived_at"],
+  skill_elements: ["apparatus", "description", "archived_at", "catalog_element_id"],
   athlete_skill_progress: ["achieved_on", "location_id", "evaluated_by_member_id"],
   athlete_level_passes: ["location_id", "passed_by_member_id"],
   admission_links: ["location_id", "revoked_at"],
@@ -194,6 +199,7 @@ const NULLABLE_COLUMNS_BY_TABLE: Readonly<Record<string, readonly string[]>> = {
   family_notices: ["session_id", "class_template_id", "group_id", "created_by_member_id"],
   family_notice_recipients: ["email_attempted_at", "read_at"],
   guardian_notification_preferences: [],
+  academy_element_notes: ["created_by_member_id", "updated_by_member_id"],
 };
 
 // `tx.execute(sql)` returns node-postgres raw rows. int4 is a JS number;
@@ -229,6 +235,7 @@ const INT4_COLUMNS_BY_TABLE: Readonly<Record<string, readonly string[]>> = {
   payment_reminder_settings: ["min_interval_days", "auto_after_days", "version"],
   guardian_access_invitations: ["revision"],
   family_notice_recipients: ["email_attempts"],
+  academy_element_notes: ["revision"],
 };
 
 const INT8_DECIMAL_STRING_COLUMNS_BY_TABLE: Readonly<
@@ -509,7 +516,12 @@ function hasMappedColumn(
 
 const MAX_CLASS_PLAN_TEMPLATE_BLOCKS = 20;
 
-/** class_plan_templates.blocks: only the classified fields of each block. */
+/**
+ * class_plan_templates.blocks: only the classified fields of each block. A
+ * block has the five fields, or those five plus the optional library link
+ * (catalogElementId, a uuid or null); archives from before the library keep
+ * validating.
+ */
 function validateClassPlanTemplateBlocks(value: unknown): void {
   if (!Array.isArray(value) || value.length > MAX_CLASS_PLAN_TEMPLATE_BLOCKS) {
     rejectArchive();
@@ -517,13 +529,20 @@ function validateClassPlanTemplateBlocks(value: unknown): void {
   for (const block of value) {
     if (!isRecord(block)) rejectArchive();
     const keys = Object.keys(block);
+    const optional = CLASS_PLAN_TEMPLATE_BLOCK_OPTIONAL_FIELDS.filter((field) =>
+      Object.prototype.hasOwnProperty.call(block, field)
+    );
     if (
-      keys.length !== CLASS_PLAN_TEMPLATE_BLOCK_FIELDS.length ||
+      keys.length !== CLASS_PLAN_TEMPLATE_BLOCK_FIELDS.length + optional.length ||
       CLASS_PLAN_TEMPLATE_BLOCK_FIELDS.some(
         (field) => !Object.prototype.hasOwnProperty.call(block, field)
       )
     ) {
       rejectArchive();
+    }
+    if (optional.includes("catalogElementId")) {
+      const link = block.catalogElementId;
+      if (link !== null && !isUuid(link)) rejectArchive();
     }
     for (const field of ["kind", "discipline", "apparatus", "content"] as const) {
       if (block[field] !== null && typeof block[field] !== "string") rejectArchive();
@@ -643,11 +662,12 @@ function assertColumnMapMatchesCatalog(
   for (const tableName of mappedTableNames) {
     const table = includedByName.get(tableName);
     const columns = mapping[tableName];
+    if (!table || !columns) rejectArchive();
+    // Columns added by a later candidate are classified here too.
+    const exportable = withLaterCandidateColumns(table).exportColumns;
     if (
-      !table ||
-      !columns ||
       new Set(columns).size !== columns.length ||
-      columns.some((column) => !table.exportColumns.includes(column))
+      columns.some((column) => !exportable.includes(column))
     ) {
       rejectArchive();
     }
@@ -672,10 +692,14 @@ function assertCatalogIsUniqueAndSafe(): void {
   const optionalIncludedNames = OPTIONAL_INCLUDED_EXPORT_TABLES.map(
     (table) => table.name
   );
+  const sharedCatalogNames = OPTIONAL_SHARED_CATALOG_TABLES.map(
+    (table) => table.table
+  );
   const allNames = [
     ...includedNames,
     ...excludedNames,
     ...optionalNames,
+    ...sharedCatalogNames,
     ...optionalIncludedNames,
   ];
   if (new Set(allNames).size !== allNames.length) rejectArchive();
@@ -740,7 +764,15 @@ function validateExcludedTables(value: unknown): number {
     if (present.length !== 0 && present.length !== group.length) rejectArchive();
     return present;
   });
-  const expected = [...EXCLUDED_CANONICAL_TABLES, ...optionalModules];
+  // Catálogos globales de la biblioteca: todos o ninguno, al final y sin
+  // recuento (no tienen organization_id), como sport_profiles.
+  const sharedCatalogs = OPTIONAL_SHARED_CATALOG_TABLES.filter(table =>
+    value.some(entry => isRecord(entry) && entry.table === table.table)
+  );
+  if (sharedCatalogs.length !== 0 && sharedCatalogs.length !== OPTIONAL_SHARED_CATALOG_TABLES.length) {
+    rejectArchive();
+  }
+  const expected = [...EXCLUDED_CANONICAL_TABLES, ...optionalModules, ...sharedCatalogs];
   const optionalNames = new Set(optionalModules.map(table => table.table));
   const scopedNames = new Set<string>([
     ...EXCLUDED_CANONICAL_SCOPED_TABLES,
@@ -831,12 +863,21 @@ function validateManifestAndRows(
       rejectArchive();
     }
 
+    // Rows carry the base columns, or the base columns plus every column of
+    // the later candidate (laterCandidateColumns); one shape for the whole
+    // table, decided by its first row.
+    const extended = withLaterCandidateColumns(table);
+    const firstRow: unknown = rowsValue[0];
+    const exportColumns =
+      extended !== table && hasExactKeys(firstRow, extended.exportColumns)
+        ? extended.exportColumns
+        : table.exportColumns;
     const seenPrimaryKeys = new Set<string>();
     let previousOrderKey: string[] | null = null;
     const rows: JsonRecord[] = [];
     for (const rowValue of rowsValue) {
-      if (!hasExactKeys(rowValue, table.exportColumns)) rejectArchive();
-      for (const column of table.exportColumns) {
+      if (!hasExactKeys(rowValue, exportColumns)) rejectArchive();
+      for (const column of exportColumns) {
         validateColumnValue(table, column, rowValue[column]);
       }
 

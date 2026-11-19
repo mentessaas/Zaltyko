@@ -1,3 +1,5 @@
+import { CONTENT_NOTICE_SENDER_RETENTION_DAYS } from "@/modules/element-library/domain/element-library";
+
 export interface CanonicalExportTableSpec {
   name: string;
   organizationColumn: "id" | "organization_id";
@@ -11,6 +13,13 @@ export interface CanonicalExportTableSpec {
    * never reaches the package.
    */
   projections?: Readonly<Record<string, string>>;
+  /**
+   * Columnas que una candidata posterior añade a esta tabla incluida. La tabla
+   * vale con `expectedColumns` o con `expectedColumns` más todas estas, que se
+   * exportan con valores al final de cada fila y en este orden
+   * (`withLaterCandidateColumns`); con una parte, la exportación falla cerrada.
+   */
+  laterCandidateColumns?: readonly string[];
 }
 
 export interface CanonicalExportOmission {
@@ -141,6 +150,46 @@ export const OPTIONAL_EXPORT_MODULE_GROUPS: readonly (readonly (CanonicalExportE
   OPTIONAL_FAMILY_COLLECTION_EVENTS_EXPORT_TABLES,
 ];
 
+/** Biblioteca de elementos (ADR-0029 §1.4 y §8.2;
+ * docs/deployment/candidates/20261119120000_element_library_candidate.sql, sin
+ * aplicar en ningún entorno). Tablas globales, sin organization_id: no son de
+ * ninguna academia y por eso no se cuentan (como sport_profiles). La candidata
+ * las instala juntas: todas o ninguna, con sus columnas exactas. Presentes,
+ * aparecen en las tablas excluidas del paquete sin recuento; ausentes, el
+ * paquete es idéntico al de antes de la biblioteca.
+ *
+ * content_notices es el registro interno de avisos de terceros (Reglamento de
+ * Servicios Digitales, art. 16): guarda nombre y correo de quien avisa, que
+ * nunca salen en el paquete de una academia y se borran
+ * CONTENT_NOTICE_SENDER_RETENTION_DAYS días después del cierre del aviso.
+ */
+export const OPTIONAL_SHARED_CATALOG_TABLES = [
+  {
+    table: "catalog_element_editions",
+    category: "shared_catalogs",
+    reason: "This shared catalog of scoring code editions holds no academy data; it is reference data common to every tenant.",
+    columns: ["id", "code", "discipline", "cycle_start", "cycle_end", "title", "document_url", "cover_date", "status", "created_at", "updated_at"],
+  },
+  {
+    table: "catalog_elements",
+    category: "shared_catalogs",
+    reason: "This shared element catalog holds no academy data; it is reference data common to every tenant.",
+    columns: ["id", "edition_id", "element_key", "discipline", "apparatus", "element_group", "value_letter", "value_points", "fig_reference", "name", "short_name", "description", "source_page", "source_checked_on", "drafted_by", "drafted_on", "batch", "review_status", "reviewed_on", "withdrawn_at", "withdrawn_reason", "created_at", "updated_at"],
+  },
+  {
+    table: "content_notices",
+    category: "internal_content_notices",
+    reason: `Internal register of third-party content notices with the sender's name and email; it is not academy data and stays out of the package. The sender's name and email are erased ${CONTENT_NOTICE_SENDER_RETENTION_DAYS} days (two years) after the notice is closed.`,
+    columns: ["id", "received_at", "sender_name", "sender_email", "content_url", "content_kind", "content_key", "reason", "good_faith_confirmed", "status", "response", "closed_at", "sender_erased_at", "submission_hash", "created_at", "updated_at"],
+  },
+  {
+    table: "content_withdrawals",
+    category: "shared_catalogs",
+    reason: "This shared list of withdrawn federation templates holds no academy data; it is reference data common to every tenant.",
+    columns: ["id", "kind", "key", "withdrawn_at", "reason", "notice_id", "created_at"],
+  },
+] as const satisfies readonly (CanonicalExportExcludedTable & { columns: readonly string[] })[];
+
 function columns(value: string): string[] {
   return value.split(/\s+/).filter(Boolean);
 }
@@ -229,17 +278,25 @@ function includedTable(input: {
   omit?: readonly string[];
   orderBy?: readonly string[];
   projections?: Readonly<Record<string, string>>;
+  laterCandidateColumns?: readonly string[];
 }): CanonicalExportTableSpec {
   const expectedColumns = columns(input.expectedColumns);
   const omitted = new Set(input.omit ?? []);
   const organizationColumn = input.organizationColumn ?? "organization_id";
   const orderBy = input.orderBy ?? ["id"];
+  const laterCandidateColumns = input.laterCandidateColumns ?? [];
 
   if (
     !expectedColumns.includes(organizationColumn) ||
     orderBy.some((column) => !expectedColumns.includes(column))
   ) {
     throw new Error(`Invalid canonical export keys for ${input.name}`);
+  }
+  if (
+    new Set(laterCandidateColumns).size !== laterCandidateColumns.length ||
+    laterCandidateColumns.some((column) => !/^[a-z][a-z0-9_]*$/.test(column) || expectedColumns.includes(column))
+  ) {
+    throw new Error(`Invalid later candidate columns for ${input.name}`);
   }
 
   for (const column of omitted) {
@@ -268,6 +325,22 @@ function includedTable(input: {
     exportColumns,
     orderBy,
     ...(input.projections ? { projections: input.projections } : {}),
+    ...(laterCandidateColumns.length > 0 ? { laterCandidateColumns } : {}),
+  };
+}
+
+/**
+ * La misma tabla con las columnas de su candidata posterior: se esperan y se
+ * exportan, con valores, después de las demás y en el orden declarado. Sin
+ * columnas posteriores devuelve la tabla tal cual.
+ */
+export function withLaterCandidateColumns(table: CanonicalExportTableSpec): CanonicalExportTableSpec {
+  const { laterCandidateColumns, ...base } = table;
+  if (!laterCandidateColumns || laterCandidateColumns.length === 0) return table;
+  return {
+    ...base,
+    expectedColumns: [...base.expectedColumns, ...laterCandidateColumns],
+    exportColumns: [...base.exportColumns, ...laterCandidateColumns],
   };
 }
 
@@ -565,10 +638,20 @@ export const CLASS_PLAN_TEMPLATE_BLOCK_FIELDS = [
 ] as const;
 
 /**
+ * Optional classified field of a block (ADR-0029 §3.3): the link to an
+ * element of the shared element library, a uuid or null. Blocks written
+ * before the library do not have it, and the export adds it only when the
+ * stored block has it, so those blocks keep exactly the five fields above.
+ */
+export const CLASS_PLAN_TEMPLATE_BLOCK_OPTIONAL_FIELDS = ["catalogElementId"] as const;
+
+/**
  * Exports the jsonb array with exactly the classified fields of each object
  * element, in stored order. Any other nested key is dropped in SQL, before
  * the value leaves the database. Text fields become JSON strings or null;
- * durationMinutes is kept only when it is a JSON number.
+ * durationMinutes is kept only when it is a JSON number. catalogElementId is
+ * added only when the stored block has that key (otherwise `|| '{}'` leaves
+ * the object unchanged).
  */
 const CLASS_PLAN_TEMPLATE_BLOCKS_PROJECTION = `coalesce((
   select jsonb_agg(jsonb_build_object(
@@ -578,7 +661,10 @@ const CLASS_PLAN_TEMPLATE_BLOCKS_PROJECTION = `coalesce((
     'content', element.value ->> 'content',
     'durationMinutes', case when jsonb_typeof(element.value -> 'durationMinutes') = 'number'
       then element.value -> 'durationMinutes' end
-  ) order by element.ordinality)
+  ) || case when element.value ? 'catalogElementId'
+    then jsonb_build_object('catalogElementId', element.value ->> 'catalogElementId')
+    else '{}'::jsonb end
+  order by element.ordinality)
   from jsonb_array_elements(case when jsonb_typeof("blocks") = 'array' then "blocks" else '[]'::jsonb end)
     with ordinality as element(value, ordinality)
   where jsonb_typeof(element.value) = 'object'
@@ -594,11 +680,15 @@ const CLASS_PLAN_TEMPLATE_BLOCKS_PROJECTION = `coalesce((
  * 20261111180000_coach_assignment_candidate.sql,
  * 20261111200000_session_plans_candidate.sql,
  * 20261110120000_admission_requests_candidate.sql,
- * 20261114121000_skill_levels_candidate.sql (not applied anywhere yet) and
- * 20261114120500_payment_reminders_candidate.sql (pending Elvis' authorization).
+ * 20261114121000_skill_levels_candidate.sql (not applied anywhere yet),
+ * 20261114120500_payment_reminders_candidate.sql (pending Elvis' authorization)
+ * and 20261119120500_element_library_notes_candidate.sql (not applied anywhere).
+ * skill_elements and session_plan_blocks also accept the catalog_element_id
+ * column that 20261119120000_element_library_candidate.sql adds
+ * (`laterCandidateColumns`): the package carries it only where it exists.
  */
 export interface OptionalIncludedExportModule {
-  module: "athlete_progress" | "coach_assignment" | "session_plans" | "admissions" | "skill_levels" | "payment_reminders" | "family_access";
+  module: "athlete_progress" | "coach_assignment" | "session_plans" | "admissions" | "skill_levels" | "payment_reminders" | "family_access" | "element_library";
   tables: readonly CanonicalExportTableSpec[];
 }
 
@@ -653,6 +743,8 @@ export const OPTIONAL_INCLUDED_EXPORT_MODULES: readonly OptionalIncludedExportMo
         name: "session_plan_blocks",
         expectedColumns:
           "id organization_id plan_id position kind discipline apparatus content duration_minutes done_at done_by_member_id created_at",
+        // Enlace opcional a la biblioteca (ADR-0029 §3.2, candidata 20261119120000).
+        laterCandidateColumns: ["catalog_element_id"],
       }),
       includedTable({
         name: "session_plan_objectives",
@@ -701,6 +793,8 @@ export const OPTIONAL_INCLUDED_EXPORT_MODULES: readonly OptionalIncludedExportMo
         name: "skill_elements",
         expectedColumns:
           "id organization_id template_id level_id position apparatus name description is_required archived_at created_at updated_at",
+        // Enlace opcional a la biblioteca (ADR-0029 §3.1, candidata 20261119120000).
+        laterCandidateColumns: ["catalog_element_id"],
       }),
       includedTable({
         name: "athlete_skill_progress",
@@ -760,6 +854,20 @@ export const OPTIONAL_INCLUDED_EXPORT_MODULES: readonly OptionalIncludedExportMo
         name: "guardian_notification_preferences",
         expectedColumns: "organization_id guardian_id email_session_changes email_manual_notices updated_at",
         orderBy: ["guardian_id"],
+      }),
+    ],
+  },
+  {
+    // Biblioteca de elementos: la nota de cada academia sobre un elemento del
+    // catálogo (ADR-0029 §2.4, candidata 20261119120500, sin aplicar). Con
+    // valores: es contenido de la academia. El elemento del catálogo es global
+    // y no sale en el paquete; solo su id.
+    module: "element_library",
+    tables: [
+      includedTable({
+        name: "academy_element_notes",
+        expectedColumns:
+          "id organization_id catalog_element_id note revision created_by_member_id updated_by_member_id created_at updated_at",
       }),
     ],
   },
@@ -1090,6 +1198,7 @@ export const ALL_KNOWN_CANONICAL_TABLE_NAMES: readonly string[] = [
 const duplicateNames = [
   ...ALL_KNOWN_CANONICAL_TABLE_NAMES,
   ...OPTIONAL_EXPORT_MODULE_GROUPS.flat().map((table) => table.table),
+  ...OPTIONAL_SHARED_CATALOG_TABLES.map((table) => table.table),
   ...OPTIONAL_INCLUDED_EXPORT_TABLES.map((table) => table.name),
 ].filter(
   (name, index, names) => names.indexOf(name) !== index

@@ -36,9 +36,10 @@ import {
   OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES,
   OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES,
   OPTIONAL_INCLUDED_EXPORT_TABLES,
+  OPTIONAL_SHARED_CATALOG_TABLES,
   OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
 } from "@/modules/data-rights/application/catalog";
-import { activatedCatalogRows, activatedRowsByTable } from "./helpers/activated-module-rows";
+import { ACTIVATED_IDS, activatedCatalogRows, activatedRowsByTable } from "./helpers/activated-module-rows";
 
 const organizationId = "10000000-0000-4000-8000-000000000001";
 const otherOrganizationId = "90000000-0000-4000-8000-000000000009";
@@ -353,6 +354,44 @@ function withFirstScopedExcludedCount(
   );
   if (!firstScoped) throw new Error("Synthetic fixture is missing a scoped exclusion");
   firstScoped.rowCount = rowCount;
+  return archive;
+}
+
+function addSharedCatalogEntries(
+  archive: ArchiveBundle,
+  tables: readonly (typeof OPTIONAL_SHARED_CATALOG_TABLES)[number][] = OPTIONAL_SHARED_CATALOG_TABLES,
+  change: Record<string, unknown> = {}
+): ArchiveBundle {
+  const excludedTables = archive.coverage.excludedTables as Array<Record<string, unknown>>;
+  for (const table of tables) {
+    excludedTables.push({
+      table: table.table, category: table.category, reason: table.reason,
+      rowCount: null, countScope: null, valuesExported: false, ...change,
+    });
+  }
+  return archive;
+}
+
+/** Adds the library link column to every row of the two tables that declare it. */
+function withLinkColumns(archive: ArchiveBundle): ArchiveBundle {
+  archive.data.skill_elements = archive.data.skill_elements!.map((row) => ({ ...row, catalog_element_id: ACTIVATED_IDS.catalogElement }));
+  archive.data.session_plan_blocks = archive.data.session_plan_blocks!.map((row) => ({ ...row, catalog_element_id: null }));
+  return archive;
+}
+
+/** A second skill element after the first one, with or without the link column. */
+function withSecondSkillElement(archive: ArchiveBundle, link: boolean): ArchiveBundle {
+  const base = { ...archive.data.skill_elements![0]! };
+  delete base.catalog_element_id;
+  archive.data.skill_elements!.push({
+    ...base,
+    id: "a0000000-0000-4000-8000-0000000000ff",
+    position: 2,
+    ...(link ? { catalog_element_id: ACTIVATED_IDS.catalogElement } : {}),
+  });
+  const manifest = archive.coverage.includedTables.find((entry) => entry.table === "skill_elements")!;
+  manifest.rowCount += 1;
+  archive.coverage.includedRowCount += 1;
   return archive;
 }
 
@@ -1036,10 +1075,92 @@ describe("canonical academy archive verification", () => {
     ["a row from another academy", (archive: ArchiveBundle) => {
       archive.data.admission_requests[0]!.organization_id = otherOrganizationId;
     }],
+    ["a template block with a library link that is not a uuid", (archive: ArchiveBundle) => {
+      const blocks = archive.data.class_plan_templates[0]!.blocks as Array<Record<string, unknown>>;
+      blocks[0]!.catalogElementId = "x";
+    }],
+    ["a template block with a library link and an unclassified key", (archive: ArchiveBundle) => {
+      const blocks = archive.data.class_plan_templates[0]!.blocks as Array<Record<string, unknown>>;
+      blocks[0]!.catalogElementId = ACTIVATED_IDS.catalogElement;
+      blocks[0]!.privateNote = "unclassified";
+    }],
+    ["a template block with a library link but missing a classified field", (archive: ArchiveBundle) => {
+      const blocks = archive.data.class_plan_templates[0]!.blocks as Array<Record<string, unknown>>;
+      blocks[0]!.catalogElementId = ACTIVATED_IDS.catalogElement;
+      delete blocks[0]!.content;
+    }],
+    ["a library link column that is not a uuid", (archive: ArchiveBundle) => {
+      withLinkColumns(archive);
+      archive.data.skill_elements[0]!.catalog_element_id = "x";
+    }],
+    ["the library link column on a table that does not declare it", (archive: ArchiveBundle) => {
+      archive.data.skill_levels[0]!.catalog_element_id = null;
+    }],
+    ["a later skill element without the link column of the first", (archive: ArchiveBundle) => {
+      withLinkColumns(archive);
+      withSecondSkillElement(archive, false);
+    }],
+    ["a later skill element with a link column the first lacks", (archive: ArchiveBundle) => {
+      withSecondSkillElement(archive, true);
+    }],
+    ["an academy note without its element", (archive: ArchiveBundle) => {
+      archive.data.academy_element_notes[0]!.catalog_element_id = null;
+    }],
+    ["an academy note revision as text", (archive: ArchiveBundle) => {
+      archive.data.academy_element_notes[0]!.revision = "1";
+    }],
   ])("rejects activated module archives with %s after hashes are recomputed", async (_case, change) => {
     const archive = parseArchive(await generateActivatedBundleBody());
     change(archive);
     expectRejectedWithoutDisclosure(sealArchive(archive, { refreshTableChecksums: true }));
+  });
+
+  it("accepts archives from before the library and with its link columns and template links", async () => {
+    // Archivo antiguo: sin columnas ni claves de la biblioteca.
+    const before = parseArchive(await generateActivatedBundleBody());
+    expect(Object.keys(before.data.skill_elements[0]!)).not.toContain("catalog_element_id");
+    expectAccepted(sealArchive(before));
+
+    // Archivo nuevo: la columna en las dos tablas (con valor o nula) y bloques con enlace.
+    const after = withLinkColumns(parseArchive(await generateActivatedBundleBody()));
+    const blocks = after.data.class_plan_templates[0]!.blocks as Array<Record<string, unknown>>;
+    blocks[0]!.catalogElementId = ACTIVATED_IDS.catalogElement;
+    blocks[1]!.catalogElementId = null;
+    expectAccepted(sealArchive(after, { refreshTableChecksums: true }));
+
+    // Varias filas: todas con la columna.
+    const twoRows = withSecondSkillElement(withLinkColumns(parseArchive(await generateActivatedBundleBody())), true);
+    expectAccepted(sealArchive(twoRows, { refreshTableChecksums: true }));
+  });
+
+  it.each([false, true])("verifies the library catalog exclusions without a count, after team access=%s", async team => {
+    const archive = parseArchive(await generateBundleBody());
+    const exclusions = archive.coverage.excludedTables as Array<Record<string, unknown>>;
+    if (team) {
+      for (const table of OPTIONAL_TEAM_ACCESS_EXPORT_TABLES) {
+        exclusions.push({ table: table.table, category: table.category, reason: table.reason, rowCount: 0, countScope: "organization_id", valuesExported: false });
+      }
+    }
+    expectAccepted(sealArchive(addSharedCatalogEntries(archive)));
+  });
+
+  it.each([
+    ["a partial group", () => OPTIONAL_SHARED_CATALOG_TABLES.slice(0, 3), {}],
+    ["a declared count", () => OPTIONAL_SHARED_CATALOG_TABLES, { rowCount: 0, countScope: "organization_id" }],
+    ["exported values", () => OPTIONAL_SHARED_CATALOG_TABLES, { valuesExported: true }],
+    ["another category", () => OPTIONAL_SHARED_CATALOG_TABLES, { category: "operational_projection" }],
+  ] as const)("rejects library catalog exclusions with %s", async (_label, tables, change) => {
+    const archive = parseArchive(await generateBundleBody());
+    expectRejectedWithoutDisclosure(sealArchive(addSharedCatalogEntries(archive, tables(), change)));
+  });
+
+  it("rejects library catalog exclusions before the optional groups", async () => {
+    const archive = addSharedCatalogEntries(parseArchive(await generateBundleBody()));
+    const exclusions = archive.coverage.excludedTables as Array<Record<string, unknown>>;
+    for (const table of OPTIONAL_TEAM_ACCESS_EXPORT_TABLES) {
+      exclusions.push({ table: table.table, category: table.category, reason: table.reason, rowCount: 0, countScope: "organization_id", valuesExported: false });
+    }
+    expectRejectedWithoutDisclosure(sealArchive(archive));
   });
 
   it("rejects a partial optional discovery installation with a refreshed bundle hash", async () => {

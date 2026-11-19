@@ -32,7 +32,8 @@ export type ActivatedModule =
   | "admissions"
   | "team_access"
   | "payment_reminders"
-  | "family_access";
+  | "family_access"
+  | "element_library";
 
 export interface ActivatedTableErasurePolicy {
   table: string;
@@ -164,6 +165,12 @@ export const ACTIVATED_MODULES_ERASURE_POLICY: readonly ActivatedTableErasurePol
   policy("family_notices", "family_access", "values", "not_linked", "set_null", "not_linked"),
   policy("family_notice_recipients", "family_access", "values", "not_linked", "not_linked", "not_linked"),
   policy("guardian_notification_preferences", "family_access", "values", "not_linked", "not_linked", "not_linked"),
+  // Biblioteca de elementos: la nota de la academia (candidato 20261119120500,
+  // sin aplicar). No cuelga de ninguna gimnasta. Dar de baja a una integrante
+  // deja vacía su autoría (set null de su columna); al suprimir la cuenta, la
+  // pertenencia se conserva revocada y la autoría no cambia. El elemento del
+  // catálogo es global: un elemento con notas no se borra (se retira).
+  policy("academy_element_notes", "element_library", "values", "not_linked", "set_null", "not_linked"),
 ];
 
 const duplicated = ACTIVATED_MODULES_ERASURE_POLICY.map((entry) => entry.table).filter(

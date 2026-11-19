@@ -102,6 +102,14 @@ export const CATALOG_VALUE_POINTS_MAX = 99.99;
 /** Único dominio admitido para el enlace al documento oficial. */
 export const EDITION_DOCUMENT_HOST = "www.gymnastics.sport";
 
+/**
+ * Conservación del remitente de un aviso sobre contenido (ADR-0029 §8.2):
+ * nombre y correo se borran dos años (730 días) después del cierre del aviso.
+ * Lo declara la clasificación de data-rights y lo ejecuta el trabajo
+ * programado de borrado.
+ */
+export const CONTENT_NOTICE_SENDER_RETENTION_DAYS = 730;
+
 /** Aviso fijo de autoría que encabeza cada archivo de datos y de tanda. */
 export const ELEMENT_DATA_NOTICE =
   "Datos: número, grupo y valor tomados del Código de Puntuación de la FIG como hechos. Nombres y descripciones redactados por Zaltyko; no son texto oficial ni traducción. © Zaltyko. No copiar el texto del Código.";

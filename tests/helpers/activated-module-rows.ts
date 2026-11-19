@@ -23,6 +23,7 @@ export const ACTIVATED_IDS = {
   link: id(9),
   guardian: id(10),
   notice: id(11),
+  catalogElement: id(12),
 } as const;
 
 const VALUES: Record<string, Record<string, unknown>> = {
@@ -92,6 +93,11 @@ const VALUES: Record<string, Record<string, unknown>> = {
   },
   family_notice_recipients: { id: id(41), notice_id: ACTIVATED_IDS.notice, guardian_id: ACTIVATED_IDS.guardian, email_status: "sent", email_attempts: 1, read_at: null },
   guardian_notification_preferences: { guardian_id: ACTIVATED_IDS.guardian, email_session_changes: true, email_manual_notices: false },
+  // Biblioteca de elementos (candidato 20261119120500, sin aplicar): nota de la academia.
+  academy_element_notes: {
+    id: id(50), catalog_element_id: ACTIVATED_IDS.catalogElement, note: "Synthetic coaching note", revision: 1,
+    updated_by_member_id: null,
+  },
 };
 
 function defaultValue(column: string, organizationId: string): unknown {

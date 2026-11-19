@@ -9,16 +9,18 @@ import {
   ALL_KNOWN_CANONICAL_TABLE_NAMES,
   CANONICAL_EXPORT_TABLES,
   EXCLUDED_CANONICAL_SCOPED_TABLES,
+  EXCLUDED_CANONICAL_TABLES,
   OPTIONAL_DISCOVERY_EXPORT_TABLES,
   OPTIONAL_FAMILY_COLLECTION_EVENTS_EXPORT_TABLES,
   OPTIONAL_FAMILY_COLLECTION_EXPORT_TABLES,
   OPTIONAL_FAMILY_PAYMENT_SETUP_EXPORT_TABLES,
   OPTIONAL_INCLUDED_EXPORT_MODULES,
   OPTIONAL_INCLUDED_EXPORT_TABLES,
+  OPTIONAL_SHARED_CATALOG_TABLES,
   OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
 } from "@/modules/data-rights/application/catalog";
 import { validateCanonicalAcademyArchive } from "@/modules/data-rights/application/verify-canonical-academy-archive";
-import { activatedCatalogRows, activatedRowsByTable } from "./helpers/activated-module-rows";
+import { ACTIVATED_IDS, activatedCatalogRows, activatedRowsByTable } from "./helpers/activated-module-rows";
 
 const actor = {
   userId: "20000000-0000-4000-8000-000000000001",
@@ -36,6 +38,30 @@ function prepareThroughMembership() {
   mocks.execute.mockResolvedValueOnce({ rows: [{
     organization_status: "active", member_status: "active", role: "owner", location_scope_mode: "all",
   }] });
+}
+
+const sharedCatalogRows = (tables: readonly (typeof OPTIONAL_SHARED_CATALOG_TABLES)[number][] = OPTIONAL_SHARED_CATALOG_TABLES) =>
+  tables.flatMap(table => table.columns.map(column_name => ({ table_name: table.table, column_name, data_type: "text" })));
+const moduleNamed = (name: string) => OPTIONAL_INCLUDED_EXPORT_MODULES.find(module => module.module === name)!;
+const modulesBeforeLibrary = OPTIONAL_INCLUDED_EXPORT_MODULES.filter(module => module.module !== "element_library");
+
+/** Mocks one export with the given installed modules, extra catalog rows and rows per included table. */
+function prepareExport(input: {
+  modules: typeof OPTIONAL_INCLUDED_EXPORT_MODULES;
+  extraCatalogRows?: Array<{ table_name: string; column_name: string; data_type?: string }>;
+  rows: Record<string, Array<Record<string, unknown>>>;
+}) {
+  prepareThroughMembership();
+  const included = [...CANONICAL_EXPORT_TABLES, ...input.modules.flatMap(module => module.tables)];
+  mocks.execute.mockResolvedValueOnce({ rows: [...catalogRows(), ...activatedCatalogRows(input.modules), ...(input.extraCatalogRows ?? [])] });
+  mocks.execute.mockResolvedValueOnce({ rows: [{ snapshot_at: new Date("2026-11-19T00:00:00Z") }] });
+  mocks.execute.mockResolvedValueOnce({ rows: EXCLUDED_CANONICAL_SCOPED_TABLES.map(table_name => ({ table_name, row_count: 0 })) });
+  mocks.execute.mockResolvedValueOnce({ rows: included.map(table => ({
+    table_name: table.name, row_count: (input.rows[table.name] ?? []).length, estimated_bytes: (input.rows[table.name] ?? []).length * 256,
+  })) });
+  for (const table of included) {
+    if (input.rows[table.name]?.length) mocks.execute.mockResolvedValueOnce({ rows: input.rows[table.name] });
+  }
 }
 
 beforeEach(() => {
@@ -261,13 +287,138 @@ describe("canonical export failure boundaries (database mocked)", () => {
       mocks.transaction.mockImplementation(async (callback: (tx: { execute: typeof mocks.execute }) => Promise<unknown>) => callback({ execute: mocks.execute }));
       prepareThroughMembership();
       const rows = [...catalogRows(), ...activatedCatalogRows([module])];
+      // Un módulo de una sola tabla sin ella está ausente, no a medias: «a
+      // medias» es entonces la tabla con una columna menos.
+      const lastTable = module.tables[module.tables.length - 1]!;
+      const missingColumn = lastTable.expectedColumns.find(column => column !== lastTable.organizationColumn && column !== "id")!;
       const observed = kind === "partial"
-        ? rows.filter(row => row.table_name !== module.tables[module.tables.length - 1]!.name)
+        ? module.tables.length === 1
+          ? rows.filter(row => row.table_name !== lastTable.name || row.column_name !== missingColumn)
+          : rows.filter(row => row.table_name !== lastTable.name)
         : [...rows, { table_name: module.tables[0]!.name, column_name: "unclassified_private_note", data_type: "text" }];
       mocks.execute.mockResolvedValueOnce({ rows: observed });
       await expect(exportCanonicalAcademyData(actor)).rejects.toMatchObject({ status: 503, problemType: "canonical-export-schema-unavailable" });
       expect(mocks.execute).toHaveBeenCalledTimes(6);
     }
+  });
+
+  it("keeps the package of a database without the element library exactly as before the library", async () => {
+    // Todas las funciones de antes de la biblioteca instaladas, sin ninguna
+    // tabla ni columna nueva: mismas tablas, mismas columnas y mismas
+    // exclusiones, en el mismo orden, que el paquete de hoy.
+    const rows = activatedRowsByTable(actor.organizationId, modulesBeforeLibrary);
+    prepareExport({ modules: modulesBeforeLibrary, rows });
+    const result = await exportCanonicalAcademyData(actor);
+    const bundle = JSON.parse(result.body);
+    const scoped = new Set<string>(EXCLUDED_CANONICAL_SCOPED_TABLES);
+    expect(JSON.stringify(bundle.coverage.excludedTables)).toBe(JSON.stringify(EXCLUDED_CANONICAL_TABLES.map(entry => ({
+      ...entry,
+      rowCount: scoped.has(entry.table) ? 0 : null,
+      countScope: scoped.has(entry.table) ? "organization_id" : null,
+      valuesExported: false,
+    }))));
+    expect(Object.keys(bundle.data)).toEqual([...CANONICAL_EXPORT_TABLES, ...modulesBeforeLibrary.flatMap(module => module.tables)].map(table => table.name));
+    for (const module of modulesBeforeLibrary) {
+      for (const table of module.tables) {
+        expect(bundle.data[table.name], table.name).toEqual(rows[table.name]);
+        expect(Object.keys(bundle.data[table.name][0]), table.name).toEqual([...table.exportColumns]);
+      }
+    }
+    for (const absent of ["catalog_element_id", "catalogElementId", "academy_element_notes", ...OPTIONAL_SHARED_CATALOG_TABLES.map(table => table.table)]) {
+      expect(result.body.includes(absent), absent).toBe(false);
+    }
+    const loads = mocks.execute.mock.calls.map(call => dialect.sqlToQuery(call[0]).sql).join("\n");
+    expect(loads).not.toContain('"catalog_element_id"');
+    expect(validateCanonicalAcademyArchive({ body: result.body, organizationId: actor.organizationId }).valid).toBe(true);
+  });
+
+  it("lists the installed library catalogs as excluded without counting or reading them", async () => {
+    prepareExport({ modules: [], extraCatalogRows: sharedCatalogRows(), rows: {} });
+    const result = await exportCanonicalAcademyData(actor);
+    const bundle = JSON.parse(result.body);
+    expect(bundle.coverage.excludedTables.slice(-OPTIONAL_SHARED_CATALOG_TABLES.length)).toEqual(
+      OPTIONAL_SHARED_CATALOG_TABLES.map(table => ({
+        table: table.table, category: table.category, reason: table.reason, rowCount: null, countScope: null, valuesExported: false,
+      }))
+    );
+    expect(bundle.coverage.excludedTables.find((entry: { table: string }) => entry.table === "content_notices"))
+      .toMatchObject({ category: "internal_content_notices" });
+    for (const table of OPTIONAL_SHARED_CATALOG_TABLES) expect(bundle.data).not.toHaveProperty(table.table);
+    // Ni recuento ni lectura: ninguna consulta toca las tablas globales.
+    const queries = mocks.execute.mock.calls.slice(6).map(call => dialect.sqlToQuery(call[0]).sql).join("\n");
+    for (const table of OPTIONAL_SHARED_CATALOG_TABLES) expect(queries).not.toContain(`zaltyko."${table.table}"`);
+    expect(validateCanonicalAcademyArchive({ body: result.body, organizationId: actor.organizationId }).valid).toBe(true);
+  });
+
+  it.each(["partial library catalogs", "unclassified library catalog column", "missing library catalog column"])("fails closed for %s", async kind => {
+    prepareThroughMembership();
+    const shared = kind === "partial library catalogs"
+      ? sharedCatalogRows(OPTIONAL_SHARED_CATALOG_TABLES.filter(table => table.table !== "content_withdrawals"))
+      : kind === "unclassified library catalog column"
+        ? [...sharedCatalogRows(), { table_name: "content_notices", column_name: "sender_phone", data_type: "text" }]
+        : sharedCatalogRows().filter(row => !(row.table_name === "catalog_elements" && row.column_name === "withdrawn_reason"));
+    mocks.execute.mockResolvedValueOnce({ rows: [...catalogRows(), ...shared] });
+    await expect(exportCanonicalAcademyData(actor)).rejects.toMatchObject({ status: 503, problemType: "canonical-export-schema-unavailable" });
+    expect(mocks.execute).toHaveBeenCalledTimes(6);
+  });
+
+  it("exports catalog_element_id last when skill_elements and session_plan_blocks have the library link column", async () => {
+    const modules = [moduleNamed("session_plans"), moduleNamed("skill_levels")];
+    const rows = activatedRowsByTable(actor.organizationId, modules);
+    rows.skill_elements = rows.skill_elements!.map(row => ({ ...row, catalog_element_id: ACTIVATED_IDS.catalogElement }));
+    rows.session_plan_blocks = rows.session_plan_blocks!.map(row => ({ ...row, catalog_element_id: null }));
+    prepareExport({
+      modules,
+      extraCatalogRows: [
+        { table_name: "skill_elements", column_name: "catalog_element_id", data_type: "uuid" },
+        { table_name: "session_plan_blocks", column_name: "catalog_element_id", data_type: "uuid" },
+      ],
+      rows,
+    });
+    const result = await exportCanonicalAcademyData(actor);
+    const bundle = JSON.parse(result.body);
+    for (const name of ["skill_elements", "session_plan_blocks"]) {
+      const spec = OPTIONAL_INCLUDED_EXPORT_TABLES.find(table => table.name === name)!;
+      expect(Object.keys(bundle.data[name][0]), name).toEqual([...spec.exportColumns, "catalog_element_id"]);
+      const load = mocks.execute.mock.calls.map(call => dialect.sqlToQuery(call[0]).sql)
+        .find(query => query.includes(`from zaltyko."${name}"`) && !query.includes("estimated_bytes"))!;
+      expect(load, name).toMatch(/, "catalog_element_id"\s+from zaltyko\./);
+    }
+    expect(bundle.data.skill_elements[0].catalog_element_id).toBe(ACTIVATED_IDS.catalogElement);
+    expect(bundle.data.session_plan_blocks[0].catalog_element_id).toBeNull();
+    // Las demás tablas no cambian y la columna no se declara como omitida.
+    expect(Object.keys(bundle.data.skill_levels[0])).toEqual([...OPTIONAL_INCLUDED_EXPORT_TABLES.find(table => table.name === "skill_levels")!.exportColumns]);
+    expect(bundle.coverage.excludedColumns).not.toContainEqual(expect.objectContaining({ column: "catalog_element_id" }));
+    expect(validateCanonicalAcademyArchive({ body: result.body, organizationId: actor.organizationId }).valid).toBe(true);
+  });
+
+  it.each([
+    ["an unclassified column next to the link", [["skill_elements", "catalog_element_id"], ["skill_elements", "zz"]]],
+    ["an unclassified column instead of the link", [["skill_elements", "zz"]]],
+    ["the link on a table that does not declare it", [["skill_levels", "catalog_element_id"]]],
+  ] as const)("fails closed for %s", async (_label, extra) => {
+    prepareThroughMembership();
+    mocks.execute.mockResolvedValueOnce({ rows: [
+      ...catalogRows(),
+      ...activatedCatalogRows([moduleNamed("skill_levels")]),
+      ...extra.map(([table_name, column_name]) => ({ table_name, column_name, data_type: "text" })),
+    ] });
+    await expect(exportCanonicalAcademyData(actor)).rejects.toMatchObject({ status: 503, problemType: "canonical-export-schema-unavailable" });
+    expect(mocks.execute).toHaveBeenCalledTimes(6);
+  });
+
+  it("exports the academy notes of the element library with values when installed with its catalogs", async () => {
+    const modules = [moduleNamed("element_library")];
+    const rows = activatedRowsByTable(actor.organizationId, modules);
+    prepareExport({ modules, extraCatalogRows: sharedCatalogRows(), rows });
+    const result = await exportCanonicalAcademyData(actor);
+    const bundle = JSON.parse(result.body);
+    expect(bundle.data.academy_element_notes).toEqual(rows.academy_element_notes);
+    expect(Object.keys(bundle.data.academy_element_notes[0])).toEqual([
+      "id", "organization_id", "catalog_element_id", "note", "revision", "created_by_member_id", "updated_by_member_id", "created_at", "updated_at",
+    ]);
+    expect(bundle.coverage.includedTables).toContainEqual(expect.objectContaining({ table: "academy_element_notes", rowCount: 1 }));
+    expect(validateCanonicalAcademyArchive({ body: result.body, organizationId: actor.organizationId }).valid).toBe(true);
   });
 
   it("rejects malformed identifiers without entering a transaction", async () => {

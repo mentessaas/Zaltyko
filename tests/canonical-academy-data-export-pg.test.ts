@@ -10,6 +10,7 @@ import {
   CANONICAL_EXPORT_TABLES,
   EXCLUDED_CANONICAL_TABLES,
   OPTIONAL_INCLUDED_EXPORT_TABLES,
+  OPTIONAL_SHARED_CATALOG_TABLES,
 } from "@/modules/data-rights/application/catalog";
 import {
   validateCanonicalAcademyArchive,
@@ -651,12 +652,18 @@ describeDisposablePg("canonical Owner academy data export in disposable PostgreS
       rows.forEach(row => expect(Object.keys(row).sort()).toEqual([...spec.exportColumns].sort()));
     }
     const observedSchema = await readSchemaBaseline();
-    expect([...observedSchema.keys()].sort()).toEqual([...ALL_KNOWN_CANONICAL_TABLE_NAMES].sort());
+    // Los catálogos globales de la biblioteca pueden estar instalados (todos o
+    // ninguno): van a las exclusiones, sin recuento.
+    const sharedCatalogNames = OPTIONAL_SHARED_CATALOG_TABLES.map(table => table.table);
+    const sharedCatalogsPresent = sharedCatalogNames.filter(name => observedSchema.has(name));
+    expect([0, sharedCatalogNames.length]).toContain(sharedCatalogsPresent.length);
+    expect([...observedSchema.keys()].filter(name => !sharedCatalogNames.includes(name)).sort())
+      .toEqual([...ALL_KNOWN_CANONICAL_TABLE_NAMES].sort());
     for (const spec of CANONICAL_EXPORT_TABLES) {
       expect(observedSchema.get(spec.name)?.sort()).toEqual([...spec.expectedColumns].sort());
     }
     expect(exported.coverage.excludedTables.map(table => table.table).sort())
-      .toEqual(EXCLUDED_CANONICAL_TABLES.map(table => table.table).sort());
+      .toEqual([...EXCLUDED_CANONICAL_TABLES.map(table => table.table), ...sharedCatalogsPresent].sort());
     expect(exported.coverage.excludedTables.every(table => table.valuesExported === false)).toBe(true);
     expect(exported.coverage.excludedTables.find(table => table.table === "metric_run_values")?.rowCount).toBe(1);
     expect(exported.coverage.excludedTables.find(table => table.table === "owner_signup_consents")?.rowCount).toBeNull();
@@ -792,11 +799,35 @@ const ACTIVATED_CANDIDATES = [
   "20261114120500_payment_reminders_candidate.sql",
   // Familias: invitaciones y avisos (sin aplicar todavía; se exporta con valores).
   "20261114121500_family_access_notices_candidate.sql",
+  // Biblioteca de elementos (sin aplicar): exige niveles y guiones ya instalados
+  // con su forma exacta; luego las notas de la academia.
+  "20261119120000_element_library_candidate.sql",
+  "20261119120500_element_library_notes_candidate.sql",
 ] as const;
 const activatedCandidate = (name: string) =>
   readFileSync(resolve(process.cwd(), `docs/deployment/candidates/${name}`), "utf8");
 
-async function seedActivatedModules(organizationId: string, marker: string) {
+/** Un elemento del catálogo global (sin academia), para enlazarlo y anotarlo. */
+async function seedCatalogElement(marker: string): Promise<string> {
+  const edition = await db.execute(sql`
+    insert into zaltyko.catalog_element_editions (code, discipline, cycle_start, cycle_end, title, document_url, cover_date, status)
+    values ('fig-wag-2025-2028', 'artistic_female', 2025, 2028, 'Synthetic edition', 'https://example.invalid/edition.pdf', '2026-10-14', 'published')
+    returning id::text as id
+  `);
+  const element = await db.execute(sql`
+    insert into zaltyko.catalog_elements (
+      edition_id, element_key, discipline, apparatus, element_group, value_letter, name, short_name,
+      source_page, source_checked_on, drafted_by, drafted_on, batch
+    ) values (
+      ${String((edition.rows[0] as { id: string }).id)}::uuid, 'synthetic_beam_element', 'artistic_female', 'beam', '1', 'A',
+      ${`${marker}_CATALOG_ELEMENT`}, 'Synthetic', 1, '2026-11-19', 'Claude', '2026-11-19', 1
+    )
+    returning id::text as id
+  `);
+  return String((element.rows[0] as { id: string }).id);
+}
+
+async function seedActivatedModules(organizationId: string, marker: string, catalogElementId: string) {
   const one = async (query: ReturnType<typeof sql>) => {
     const result = await db.execute(query);
     return String((result.rows[0] as { id: string }).id);
@@ -886,7 +917,8 @@ async function seedActivatedModules(organizationId: string, marker: string) {
       jsonb_build_array(
         jsonb_build_object('kind', 'warmup', 'content', ${`${marker}_TEMPLATE_BLOCK`}::text, 'durationMinutes', 15,
           'privateNote', ${`${marker}_UNCLASSIFIED_KEY`}::text),
-        jsonb_build_object('kind', 'technique', 'discipline', 'gaf', 'apparatus', 'beam', 'content', 'Paloma')
+        jsonb_build_object('kind', 'technique', 'discipline', 'gaf', 'apparatus', 'beam', 'content', 'Paloma',
+          'catalogElementId', ${catalogElementId}::text)
       ), ${memberId}::uuid)
   `);
   // Niveles y progresión (candidato 20261114121000).
@@ -905,6 +937,14 @@ async function seedActivatedModules(organizationId: string, marker: string) {
   await db.execute(sql`
     insert into zaltyko.skill_elements (id, organization_id, template_id, level_id, position, apparatus, name)
     values (${skillElementId}::uuid, ${organizationId}::uuid, ${skillTemplateId}::uuid, ${skillLevelId}::uuid, 1, 'beam', ${`${marker}_SKILL_ELEMENT`})
+  `);
+  // Enlace a la biblioteca: el elemento de nivel lo lleva; el bloque del guion no (nulo).
+  await db.execute(sql`
+    update zaltyko.skill_elements set catalog_element_id = ${catalogElementId}::uuid where id = ${skillElementId}::uuid
+  `);
+  await db.execute(sql`
+    insert into zaltyko.academy_element_notes (organization_id, catalog_element_id, note, created_by_member_id, updated_by_member_id)
+    values (${organizationId}::uuid, ${catalogElementId}::uuid, ${`${marker}_ELEMENT_NOTE`}, ${memberId}::uuid, ${memberId}::uuid)
   `);
   await db.execute(sql`
     insert into zaltyko.athlete_skill_progress (organization_id, athlete_id, template_id, element_id, location_id, status, achieved_on, evaluated_by_member_id)
@@ -1025,14 +1065,17 @@ describeDisposablePg("academy export with the modules activated on 2026-11-12", 
   let secrets: { a: Awaited<ReturnType<typeof seedActivatedModules>>; b: Awaited<ReturnType<typeof seedActivatedModules>> };
   const markerA = `ACTIVATED_A_${randomUUID().slice(0, 8).toUpperCase()}`;
   const markerB = `ACTIVATED_B_${randomUUID().slice(0, 8).toUpperCase()}`;
+  const markerCatalog = `ACTIVATED_CATALOG_${randomUUID().slice(0, 8).toUpperCase()}`;
+  let catalogElementId: string;
 
   beforeAll(async () => {
     assertDisposableTarget();
     fixture = await seedFixture();
     for (const name of ACTIVATED_CANDIDATES) await db.execute(sql.raw(activatedCandidate(name)));
+    catalogElementId = await seedCatalogElement(markerCatalog);
     secrets = {
-      a: await seedActivatedModules(fixture.organizationAId, markerA),
-      b: await seedActivatedModules(fixture.organizationBId, markerB),
+      a: await seedActivatedModules(fixture.organizationAId, markerA, catalogElementId),
+      b: await seedActivatedModules(fixture.organizationBId, markerB, catalogElementId),
     };
   }, 90_000);
 
@@ -1040,7 +1083,11 @@ describeDisposablePg("academy export with the modules activated on 2026-11-12", 
     if (process.env.ZALTYKO_PG_INTEGRATION !== "1") return;
     // Deja la base compartida como estaba (mismo orden que las suites de cada candidato).
     await db.transaction(async (tx) => {
+      // Biblioteca primero: los enlaces y las notas apuntan a su catálogo.
+      await tx.execute(sql`alter table if exists zaltyko.skill_elements drop column if exists catalog_element_id`);
+      await tx.execute(sql`alter table if exists zaltyko.session_plan_blocks drop column if exists catalog_element_id`);
       for (const table of [
+        "academy_element_notes", "content_withdrawals", "content_notices", "catalog_elements", "catalog_element_editions",
         "athlete_level_passes", "athlete_skill_progress", "skill_elements", "skill_levels", "skill_templates",
         "payment_reminders", "payment_reminder_settings",
         "family_notice_recipients", "family_notices", "guardian_notification_preferences", "guardian_access_invitations",
@@ -1069,14 +1116,30 @@ describeDisposablePg("academy export with the modules activated on 2026-11-12", 
       includedTableCount: CANONICAL_EXPORT_TABLES.length + OPTIONAL_INCLUDED_EXPORT_TABLES.length,
     });
     const exported = JSON.parse(body) as {
-      coverage: { excludedColumns: Array<{ table: string; column: string }> };
+      coverage: {
+        excludedColumns: Array<{ table: string; column: string }>;
+        excludedTables: Array<Record<string, unknown>>;
+      };
       data: Record<string, Record<string, unknown>[]>;
     };
     for (const table of OPTIONAL_INCLUDED_EXPORT_TABLES) {
       const rows = exported.data[table.name];
       expect(rows, table.name).toHaveLength(1);
-      expect(Object.keys(rows[0]!), table.name).toEqual([...table.exportColumns]);
+      // Con la biblioteca instalada, la columna de enlace va al final.
+      expect(Object.keys(rows[0]!), table.name).toEqual([...table.exportColumns, ...(table.laterCandidateColumns ?? [])]);
       expect(rows[0]!.organization_id).toBe(fixture.organizationAId);
+    }
+    expect(exported.data.skill_elements[0]!.catalog_element_id).toBe(catalogElementId);
+    expect(exported.data.session_plan_blocks[0]!.catalog_element_id).toBeNull();
+    expect(exported.data.academy_element_notes[0]!).toMatchObject({
+      catalog_element_id: catalogElementId, note: `${markerA}_ELEMENT_NOTE`, revision: 1,
+    });
+    // Catálogos globales: excluidos, sin recuento ni valores.
+    for (const table of OPTIONAL_SHARED_CATALOG_TABLES) {
+      expect(exported.coverage.excludedTables).toContainEqual({
+        table: table.table, category: table.category, reason: table.reason, rowCount: null, countScope: null, valuesExported: false,
+      });
+      expect(exported.data).not.toHaveProperty(table.table);
     }
     expect(exported.data.athlete_objectives[0]!.target_date).toBe("2026-12-15");
     expect(exported.data.athlete_observations[0]!.observed_on).toBe("2026-11-10");
@@ -1096,12 +1159,24 @@ describeDisposablePg("academy export with the modules activated on 2026-11-12", 
     // Los bloques salen con los campos clasificados, en su orden, sin claves ajenas.
     expect(exported.data.class_plan_templates[0]!.blocks).toEqual([
       { kind: "warmup", discipline: null, apparatus: null, content: secrets.a.blockMarker, durationMinutes: 15 },
-      { kind: "technique", discipline: "gaf", apparatus: "beam", content: "Paloma", durationMinutes: null },
+      { kind: "technique", discipline: "gaf", apparatus: "beam", content: "Paloma", durationMinutes: null, catalogElementId },
     ]);
+    // El primer bloque no tenía enlace: sale con sus cinco campos, sin la clave.
+    expect(Object.keys((exported.data.class_plan_templates[0]!.blocks as Array<Record<string, unknown>>)[0]!)).toHaveLength(5);
     // Booleanos: un fallo nunca imprime el valor filtrado en el log de CI.
     expect([markerA, `${markerA.toLowerCase()}@example.invalid`].every(value => body.includes(value))).toBe(true);
-    expect([markerB, secrets.a.token, secrets.b.token, secrets.a.unclassifiedMarker, "privateNote"].some(value => body.includes(value))).toBe(false);
+    expect([markerB, secrets.a.token, secrets.b.token, secrets.a.unclassifiedMarker, "privateNote", markerCatalog].some(value => body.includes(value))).toBe(false);
     expect(preflightCanonicalAcademyRecovery({ body, organizationId: fixture.organizationAId }).status).toBe("blocked");
+  });
+
+  it("fails closed while the global library catalogs are only partially installed", async () => {
+    await db.execute(sql`alter table zaltyko.content_withdrawals set schema public`);
+    try {
+      const response = await requestExportAs(fixture.ownerAUserId, fixture.organizationAId);
+      expect(response.status).toBe(503);
+    } finally {
+      await db.execute(sql`alter table public.content_withdrawals set schema zaltyko`);
+    }
   });
 
   it("fails closed while one activated module is only partially installed", async () => {

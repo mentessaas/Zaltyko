@@ -6,7 +6,13 @@ import {
   type CanonicalDispositionTable,
 } from "../domain/canonical-disposition-contract";
 import { CANONICAL_EXPORT_OMISSIONS, CANONICAL_EXPORT_TABLES, exportOmissionsFor, OPTIONAL_INCLUDED_EXPORT_TABLES } from "./catalog";
-import { assertCanonicalDispositionPolicy, dispositionMissingDecisions, REVIEWED_DISPOSITION_EXCLUSIONS, REVIEWED_DISPOSITION_OPTIONAL_GROUPS } from "./canonical-disposition-policy";
+import {
+  assertCanonicalDispositionPolicy,
+  dispositionMissingDecisions,
+  REVIEWED_DISPOSITION_EXCLUSIONS,
+  REVIEWED_DISPOSITION_OPTIONAL_GROUPS,
+  REVIEWED_DISPOSITION_OPTIONAL_SHARED_CATALOGS,
+} from "./canonical-disposition-policy";
 import { preflightCanonicalAcademyRecovery } from "./preflight-canonical-academy-recovery";
 import { validateCanonicalAcademyArchive } from "./verify-canonical-academy-archive";
 
@@ -63,7 +69,8 @@ export function planCanonicalAcademyDisposition(input: CanonicalDispositionInput
         missingDecisions: dispositionMissingDecisions(spec.name, "operational_projection", omittedColumns),
       });
     }
-    for (const policy of [...REVIEWED_DISPOSITION_EXCLUSIONS, ...REVIEWED_DISPOSITION_OPTIONAL_GROUPS.flat()]) {
+    // Global library catalogs are uncounted: reported means "unknown", never zero.
+    for (const policy of [...REVIEWED_DISPOSITION_EXCLUSIONS, ...REVIEWED_DISPOSITION_OPTIONAL_GROUPS.flat(), ...REVIEWED_DISPOSITION_OPTIONAL_SHARED_CATALOGS]) {
       const reported = exclusions.has(policy.table);
       const rowCount = reported ? exclusions.get(policy.table)! : null;
       tables.push({
