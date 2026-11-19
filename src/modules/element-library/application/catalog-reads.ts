@@ -32,7 +32,9 @@ import { iso, UUID_PATTERN } from "./values";
 
 /**
  * Lecturas del catálogo: búsqueda, ficha y la vista de enlaces que usan
- * niveles y guiones. Uso interno: entra por la fachada.
+ * niveles y guiones. Las rutas y páginas entran por la fachada; niveles y
+ * guiones importan este archivo directamente para no ampliar un ciclo de
+ * módulos.
  *
  * Las academias solo ven elementos revisados, de una edición publicada y sin
  * retirar (ADR-0029 §1.6). Cualquier otro id responde 404, igual que uno que

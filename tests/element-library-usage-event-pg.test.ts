@@ -8,6 +8,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { db } from "@/db";
 
+import { runEveryStatement } from "./helpers/element-library-candidate";
+
 /**
  * Evento de consulta a la biblioteca (ADR-0029 §11) sobre PostgreSQL desechable
  * de GitHub. Instala la candidata del uso habitual solo si falta y después la
@@ -173,18 +175,26 @@ describeDisposablePg("evento de consulta a la biblioteca sobre PostgreSQL desech
 
   afterAll(async () => {
     if (!disposablePgEnabled) return;
-    // Los contadores de prueba se van con la academia (cascada).
-    if (organizationId) {
-      await db.execute(sql`delete from zaltyko.organizations where id = ${organizationId}::uuid`);
-    }
+    // La academia de prueba se queda (su historial de condiciones no admite
+    // borrado). Primero se retira lo instalado aquí; las filas de prueba, al final.
     if (installedHere) {
       // Vuelta atrás documentada en la candidata del uso habitual.
-      await db.execute(sql`drop index if exists zaltyko.sessions_starts_at_idx`);
-      await db.execute(sql`drop index if exists zaltyko.sessions_ends_at_idx`);
-      await db.execute(sql`drop table if exists public.usage_events`);
-    } else if ((await constraints()).usage_events_event_name_check !== original.usage_events_event_name_check) {
-      // Por si un test falló antes de la vuelta atrás: la tabla ajena queda como estaba.
-      await runOnOwnConnection(rollbackBlock(candidate(USAGE_EVENT)));
+      await runEveryStatement([
+        "drop index if exists zaltyko.sessions_starts_at_idx",
+        "drop index if exists zaltyko.sessions_ends_at_idx",
+        "drop table if exists public.usage_events",
+      ]);
+      return;
+    }
+    try {
+      if ((await constraints()).usage_events_event_name_check !== original.usage_events_event_name_check) {
+        // Por si un test falló antes de la vuelta atrás: la tabla ajena queda como estaba.
+        await runOnOwnConnection(rollbackBlock(candidate(USAGE_EVENT)));
+      }
+    } finally {
+      if (organizationId) {
+        await db.execute(sql`delete from public.usage_events where organization_id = ${organizationId}::uuid`);
+      }
     }
   }, 60_000);
 

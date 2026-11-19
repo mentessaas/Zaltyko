@@ -11,8 +11,9 @@ import { SKILL_ROLES, type SkillMemberRole } from "@/modules/skill-levels/domain
 import { assertElementLibraryAvailable } from "./storage";
 
 /**
- * Autorización de la biblioteca. Uso interno: el resto del código entra por la
- * fachada element-library-service.ts.
+ * Autorización de la biblioteca. Uso interno: las rutas y páginas entran por
+ * la fachada element-library-service.ts; niveles y guiones usan
+ * catalog-reads.ts y storage.ts directamente, sin pasar por aquí.
  *
  * Dentro de la transacción de cada operación: la función existe (banderas y
  * tablas), miembro activo de la academia con rol del equipo técnico

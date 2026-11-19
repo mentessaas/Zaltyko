@@ -15,6 +15,8 @@ import {
 } from "@/modules/element-library/domain/element-library";
 import { renderElementSeedSql } from "@/modules/element-library/domain/seed-sql";
 
+import { dropElementLibraryCandidates } from "./helpers/element-library-candidate";
+
 /**
  * Candidatas de la biblioteca de elementos sobre PostgreSQL desechable de
  * GitHub. Instala las candidatas de objetivos, guiones y niveles si faltan y
@@ -265,8 +267,6 @@ describe.skipIf(!disposablePgEnabled)("biblioteca de elementos en PostgreSQL des
   let libraryWithoutLevels: PgFailure = null;
   let notesWithoutLibrary: PgFailure = null;
   let baseShape: string[] = [];
-  /** Academia de prueba del test de claves foráneas; se borra al terminar. */
-  let organizationId: string | null = null;
 
   beforeAll(async () => {
     assertDisposableTarget();
@@ -293,39 +293,9 @@ describe.skipIf(!disposablePgEnabled)("biblioteca de elementos en PostgreSQL des
 
   afterAll(async () => {
     if (!disposablePgEnabled) return;
-    // La academia de prueba se va con sus plantillas, niveles y elementos (cascada).
-    if (organizationId) {
-      await db.execute(sql`delete from zaltyko.organizations where id = ${organizationId}::uuid`);
-    }
-    // Por si un test falló antes de la vuelta atrás: deja la base como estaba.
-    await db.execute(sql`drop table if exists zaltyko.academy_element_notes`);
-    for (const table of LINKED_TABLES) {
-      await db.execute(sql.raw(`alter table if exists zaltyko.${table} drop column if exists catalog_element_id`));
-    }
-    for (const table of ["content_withdrawals", "content_notices", "catalog_elements", "catalog_element_editions"]) {
-      await db.execute(sql.raw(`drop table if exists zaltyko.${table}`));
-    }
-    if (installedHere.levels) {
-      for (const table of [
-        "athlete_level_passes",
-        "athlete_skill_progress",
-        "skill_elements",
-        "skill_levels",
-        "skill_templates",
-      ]) {
-        await db.execute(sql.raw(`drop table if exists zaltyko.${table}`));
-      }
-    }
-    if (installedHere.plans) {
-      for (const table of ["session_plan_objectives", "session_plan_blocks", "session_plans", "class_plan_templates"]) {
-        await db.execute(sql.raw(`drop table if exists zaltyko.${table}`));
-      }
-    }
-    if (installedHere.progress) {
-      for (const table of ["athlete_observations", "athlete_objective_status_history", "athlete_objectives"]) {
-        await db.execute(sql.raw(`drop table if exists zaltyko.${table}`));
-      }
-    }
+    // La academia de prueba se queda (su historial de condiciones no admite
+    // borrado); las tablas y columnas se retiran aunque falle alguna sentencia.
+    await dropElementLibraryCandidates(installedHere);
   });
 
   it("se niega a instalarse fuera de orden y a reinstalarse, sin dejar nada a medias", async () => {
@@ -492,12 +462,12 @@ describe.skipIf(!disposablePgEnabled)("biblioteca de elementos en PostgreSQL des
 
   it("no deja borrar un elemento enlazado desde niveles ni una edición con elementos", async () => {
     const element = await elementRow("ci_vault_two");
-    organizationId = randomUUID();
+    const organizationId = randomUUID();
     const templateId = randomUUID();
     const levelId = randomUUID();
     await db.execute(sql`
       insert into zaltyko.organizations (id, name, status)
-      values (${organizationId}::uuid, 'CI biblioteca de elementos', 'active')
+      values (${organizationId}::uuid, ${`CI biblioteca de elementos ${organizationId}`}, 'active')
     `);
     await db.execute(sql`
       insert into zaltyko.skill_templates (id, organization_id, client_request_id, discipline, name)

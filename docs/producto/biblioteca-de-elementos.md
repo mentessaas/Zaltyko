@@ -34,7 +34,7 @@ Hasta ahora cada academia escribía a mano el nombre de cada elemento de sus niv
 - **Abrir la ficha** de un elemento y **guardar la nota de la academia** («Esta nota la ve todo el equipo de la academia»). Si otra persona la cambió a la vez, se avisa en lugar de pisarla.
 - **«Añadir desde la biblioteca»** en las plantillas de niveles: junto a «Añadir elemento», abre la biblioteca filtrada por la disciplina de la plantilla y el aparato. Al elegir, se añade un elemento con el nombre corto, que la academia puede cambiar; el nombre sigue siendo suyo y obligatorio. Solo se enlaza un elemento del mismo aparato y disciplina. Copiar una plantilla copia el enlace.
 - **Enlace opcional en los bloques del guion**: un bloque con disciplina de artística y aparato puede enlazar un elemento de la biblioteca (como máximo uno). El contenido del bloque sigue siendo texto libre y obligatorio.
-- **Elemento retirado o de una edición anterior:** el enlace se conserva y se ve el nombre de la academia con el aviso «Ya no está en la biblioteca» o «Edición anterior». Si la edición nueva tiene el mismo elemento, se ofrece «Actualizar enlace»; nunca se cambia solo.
+- **Elemento retirado o de una edición anterior:** el enlace se conserva y se ve el nombre de la academia con el aviso «Ya no está en la biblioteca» o «Edición anterior». En las plantillas de niveles, si la edición nueva tiene el mismo elemento, se ofrece «Actualizar enlace»; en el guion, el bloque muestra «Edición anterior» sin botón para actualizarlo. El enlace nunca se cambia solo.
 
 Los datos que ya existen no se tocan: las columnas de enlace nacen vacías, sin relleno automático ni emparejamiento por nombre. Progreso, pasos de nivel, diplomas y guiones no cambian.
 
@@ -44,7 +44,7 @@ Los datos que ya existen no se tocan: las columnas de enlace nacen vacías, sin 
 - **Plantillas de niveles** (`/owner/skills`): el botón «Añadir desde la biblioteca» al editar un nivel.
 - **Guion de la sesión** (Pasar lista): el enlace opcional del bloque.
 - **Superadministrador:** `/super-admin/biblioteca` (revisión de elementos por estado, incluidos los borradores, y la acción «Retirar») y `/super-admin/avisos` (bandeja de avisos sobre contenido).
-- **Público:** `/avisos-de-contenido`, el formulario para avisar de un contenido que no debería estar.
+- **Público:** `/avisos-de-contenido`, el formulario para avisar de un contenido que no debería estar. Solo existe con las tablas de la biblioteca instaladas; hasta entonces no hay enlace en el pie de página.
 
 ## Quién puede qué
 
@@ -86,7 +86,7 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 
 ## Retiradas y avisos sobre contenido
 
-- **Formulario público** `/avisos-de-contenido` (Reglamento de Servicios Digitales, art. 16), obligatorio antes de encender la bandera en producción. Pide motivo, dirección exacta, nombre, correo y una declaración de buena fe. Contra abusos: límite por IP y por correo, campo trampa, longitudes máximas y texto sin enlaces activos. No necesita cuenta ni depende de la bandera; sin las tablas, responde que no está disponible. **Un aviso no retira nada por sí solo.**
+- **Formulario público** `/avisos-de-contenido` (Reglamento de Servicios Digitales, art. 16), obligatorio antes de encender la bandera en producción. Pide motivo, dirección exacta, nombre, correo y una declaración de buena fe. Contra abusos: límite por IP y por correo, campo trampa, longitudes máximas y texto sin enlaces activos. No necesita cuenta ni depende de la bandera; sin las tablas, la página no existe y el envío a la API responde que no está disponible (503). El enlace «Avisar de un contenido» del pie de página se añade al instalar las tablas. **Un aviso no retira nada por sí solo.**
 - **Bandeja del superadministrador** (`/super-admin/avisos`): estado («Recibido», «En revisión», «Cerrado»), respuesta y cierre.
 - **«Retirar»** (`/super-admin/biblioteca`): el superadministrador retira un elemento con un motivo y, si lo hay, la referencia al aviso. Queda constancia en `public.audit_logs`. La retirada se guarda en la base y ninguna semilla la deshace. Las academias que lo tenían enlazado conservan su elemento con el aviso «Ya no está en la biblioteca».
 - **Borrado a los 2 años** (decisión 14 de Elvis): el nombre y el correo de quien avisó se borran 2 años (730 días) después del cierre, con un trabajo diario (`/api/cron/content-notices-retention`, por lotes de 100). Su programación es la candidata `docs/deployment/scheduler/candidates/content-notices-retention.sql`, sin aplicar.

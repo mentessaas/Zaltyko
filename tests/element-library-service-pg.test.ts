@@ -28,6 +28,8 @@ import { recordStaffVisit } from "@/modules/habitual-use/application/usage-event
 import { HABITUAL_USE_FLAGS } from "@/modules/habitual-use/domain/flags";
 import { SKILL_LEVELS_ENV_FLAG } from "@/modules/skill-levels/domain/skill-levels";
 
+import { dropElementLibraryCandidates } from "./helpers/element-library-candidate";
+
 /**
  * Servicio de la biblioteca de elementos sobre PostgreSQL desechable de
  * GitHub. Instala las candidatas de objetivos, guiones y niveles si faltan y
@@ -370,34 +372,7 @@ describe.skipIf(!disposablePgEnabled)("biblioteca de elementos: servicio en Post
     if (!disposablePgEnabled) return;
     // Las academias de prueba se quedan (su registro de auditoría no admite
     // borrado); las tablas y columnas de la biblioteca se retiran todas.
-    await db.execute(sql`drop table if exists zaltyko.academy_element_notes`);
-    for (const table of ["skill_elements", "session_plan_blocks"]) {
-      await db.execute(sql.raw(`alter table if exists zaltyko.${table} drop column if exists catalog_element_id`));
-    }
-    for (const table of ["content_withdrawals", "content_notices", "catalog_elements", "catalog_element_editions"]) {
-      await db.execute(sql.raw(`drop table if exists zaltyko.${table}`));
-    }
-    if (installedHere.levels) {
-      for (const table of [
-        "athlete_level_passes",
-        "athlete_skill_progress",
-        "skill_elements",
-        "skill_levels",
-        "skill_templates",
-      ]) {
-        await db.execute(sql.raw(`drop table if exists zaltyko.${table}`));
-      }
-    }
-    if (installedHere.plans) {
-      for (const table of ["session_plan_objectives", "session_plan_blocks", "session_plans", "class_plan_templates"]) {
-        await db.execute(sql.raw(`drop table if exists zaltyko.${table}`));
-      }
-    }
-    if (installedHere.progress) {
-      for (const table of ["athlete_observations", "athlete_objective_status_history", "athlete_objectives"]) {
-        await db.execute(sql.raw(`drop table if exists zaltyko.${table}`));
-      }
-    }
+    await dropElementLibraryCandidates(installedHere);
   });
 
   it("existe solo con las dos banderas, las tablas exactas y niveles y guiones con enlaces", async () => {

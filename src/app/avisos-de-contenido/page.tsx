@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
 import { ZaltykoLockup } from "@/components/brand/ZaltykoMark";
 import { ContentNoticeForm } from "@/components/element-library/ContentNoticeForm";
+import { db } from "@/db";
+import { isElementLibraryStorageInstalled } from "@/modules/element-library/application/element-library-service";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Avisos sobre contenido | Zaltyko",
@@ -14,10 +19,12 @@ export const metadata: Metadata = {
 /**
  * Formulario público de avisos sobre contenido (Reglamento de Servicios
  * Digitales, art. 16; ADR-0029 §8.1). No necesita cuenta ni depende de la
- * bandera de la biblioteca: si faltan las tablas, el envío responde que no
- * está disponible. Enviar un aviso no retira nada por sí solo.
+ * bandera de la biblioteca, pero sin las tablas de la biblioteca la página no
+ * existe (el envío a la API respondería 503). Enviar un aviso no retira nada
+ * por sí solo.
  */
-export default function ContentNoticePage() {
+export default async function ContentNoticePage() {
+  if (!(await isElementLibraryStorageInstalled(db))) notFound();
   return (
     <div className="min-h-screen bg-z-canvas text-z-ink">
       <header className="mat-field-deep border-b border-white/10 text-white">

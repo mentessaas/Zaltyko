@@ -35,6 +35,8 @@ import {
   type TemplateElementView,
 } from "@/modules/skill-levels/domain/skill-levels";
 
+import { dropElementLibraryCandidates, dropTables, runEveryStatement } from "./helpers/element-library-candidate";
+
 /**
  * Niveles y progresión sobre PostgreSQL desechable de GitHub. Instala el
  * candidato SQL solo aquí, después de todos los guardas, y borra sus tablas al
@@ -386,9 +388,7 @@ describe.skipIf(!disposablePgEnabled)("niveles y progresión en PostgreSQL desec
     if (previousFlag === undefined) delete process.env[SKILL_LEVELS_ENV_FLAG];
     else process.env[SKILL_LEVELS_ENV_FLAG] = previousFlag;
     if (!disposablePgEnabled) return;
-    for (const table of [...TABLES].reverse()) {
-      await db.execute(sql`drop table if exists ${sql.identifier("zaltyko")}.${sql.identifier(table)}`);
-    }
+    await runEveryStatement(dropTables([...TABLES].reverse()));
   });
 
   it("fuerza RLS, niega el acceso directo de anon/authenticated y rechaza reinstalar", async () => {
@@ -996,24 +996,7 @@ describe.skipIf(!disposablePgEnabled)("niveles y progresión en PostgreSQL desec
 
     afterAll(async () => {
       if (!disposablePgEnabled) return;
-      // Primero las columnas de enlace (apuntan al catálogo), después las tablas nuevas.
-      for (const table of ["skill_elements", "session_plan_blocks"]) {
-        await db.execute(sql.raw(`alter table if exists zaltyko.${table} drop column if exists catalog_element_id`));
-      }
-      await db.execute(sql`drop table if exists zaltyko.academy_element_notes`);
-      for (const table of ["content_withdrawals", "content_notices", "catalog_elements", "catalog_element_editions"]) {
-        await db.execute(sql.raw(`drop table if exists zaltyko.${table}`));
-      }
-      if (installedHere.plans) {
-        for (const table of ["session_plan_objectives", "session_plan_blocks", "session_plans", "class_plan_templates"]) {
-          await db.execute(sql.raw(`drop table if exists zaltyko.${table}`));
-        }
-      }
-      if (installedHere.progress) {
-        for (const table of ["athlete_observations", "athlete_objective_status_history", "athlete_objectives"]) {
-          await db.execute(sql.raw(`drop table if exists zaltyko.${table}`));
-        }
-      }
+      await dropElementLibraryCandidates(installedHere);
     });
 
     it("reconoce la forma con enlaces y la función sigue disponible", async () => {

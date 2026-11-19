@@ -33,6 +33,13 @@ import {
 } from "@/modules/session-plans/domain/session-plan";
 import { SKILL_LEVELS_ENV_FLAG } from "@/modules/skill-levels/domain/skill-levels";
 
+import {
+  CANDIDATE_TABLES,
+  dropElementLibraryCandidates,
+  dropTables,
+  runEveryStatement,
+} from "./helpers/element-library-candidate";
+
 /**
  * P2 #17 (segunda parte) · Planificación sobre sesiones en PostgreSQL
  * desechable de GitHub. Instala los candidatos de objetivos y de planificación
@@ -470,12 +477,7 @@ describe.skipIf(!disposablePgEnabled)("planificación sobre sesiones en PostgreS
 
   afterAll(async () => {
     if (!disposablePgEnabled) return;
-    for (const table of ["session_plan_objectives", "session_plan_blocks", "session_plans", "class_plan_templates"]) {
-      await db.execute(sql.raw(`drop table if exists zaltyko.${table}`));
-    }
-    await db.execute(sql`drop table if exists zaltyko.athlete_observations`);
-    await db.execute(sql`drop table if exists zaltyko.athlete_objective_status_history`);
-    await db.execute(sql`drop table if exists zaltyko.athlete_objectives`);
+    await runEveryStatement(dropTables([...CANDIDATE_TABLES.plans, ...CANDIDATE_TABLES.progress]));
   });
 
   it("fuerza RLS, niega el acceso directo de anon/authenticated y rechaza reinstalar", async () => {
@@ -1086,25 +1088,7 @@ describe.skipIf(!disposablePgEnabled)("planificación sobre sesiones en PostgreS
 
     afterAll(async () => {
       if (!disposablePgEnabled) return;
-      // Primero las columnas de enlace (apuntan al catálogo), después las tablas nuevas.
-      for (const table of ["skill_elements", "session_plan_blocks"]) {
-        await db.execute(sql.raw(`alter table if exists zaltyko.${table} drop column if exists catalog_element_id`));
-      }
-      await db.execute(sql`drop table if exists zaltyko.academy_element_notes`);
-      for (const table of ["content_withdrawals", "content_notices", "catalog_elements", "catalog_element_editions"]) {
-        await db.execute(sql.raw(`drop table if exists zaltyko.${table}`));
-      }
-      if (installedHere.levels) {
-        for (const table of [
-          "athlete_level_passes",
-          "athlete_skill_progress",
-          "skill_elements",
-          "skill_levels",
-          "skill_templates",
-        ]) {
-          await db.execute(sql.raw(`drop table if exists zaltyko.${table}`));
-        }
-      }
+      await dropElementLibraryCandidates(installedHere);
     });
 
     it("reconoce la forma con enlaces y la sección sigue disponible", async () => {

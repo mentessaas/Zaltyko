@@ -1,8 +1,11 @@
 /**
  * Fachada de la biblioteca de elementos (ADR-0029 §1, §2, §3 y §11).
  *
- * Rutas, páginas, otros módulos y pruebas importan solo desde aquí. Los
- * archivos de `application/` son internos:
+ * Las rutas y páginas importan desde aquí (las API de avisos y de retirada,
+ * desde `notices.ts` y `withdrawals.ts`). Niveles y guiones importan
+ * `catalog-reads.ts` y `storage.ts` directamente para no ampliar un ciclo de
+ * módulos (la biblioteca lee la forma de sus tablas). El resto de
+ * `application/` es interno:
  * - storage.ts: banderas, tablas de las candidatas y formas de niveles y guiones.
  * - access.ts: autorización (equipo técnico, sede y plan en solo lectura).
  * - catalog-reads.ts: búsqueda, ficha, vista de enlaces y uso habitual.
