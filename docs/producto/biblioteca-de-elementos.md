@@ -6,7 +6,7 @@ Fecha: 19 de noviembre de 2026. Origen: ADR-0029 (`docs/architecture/adr/0029-bi
 
 1. Las candidatas SQL `20261119120000_element_library_candidate.sql` y `20261119120500_element_library_notes_candidate.sql`, y al menos una semilla de tanda, en `docs/deployment/candidates/`. Cada una **requiere autorización de Elvis** por entorno (staging y producción).
 2. La bandera de servidor `ZALTYKO_ELEMENT_LIBRARY_ENABLED=true`, junto con `ZALTYKO_SKILL_LEVELS_ENABLED=true` (las dos, por defecto `false` en `.env.example`).
-3. Elementos **revisados por Elvis** en una edición publicada. Hoy solo hay borradores: aunque se aplique todo, la biblioteca saldría vacía para las academias.
+3. Elementos **revisados por Elvis** en una edición publicada. La tanda 1 (51 saltos) está revisada desde el 19-11-2026; las academias la ven cuando se aplica su semilla revisada.
 
 Si falta la bandera o las tablas: la página da 404, las API responden 503 con el motivo `element_library_unavailable` y el botón «Añadir desde la biblioteca» no aparece. Niveles, guiones y la exportación de la academia siguen funcionando igual, con o sin las tablas nuevas.
 
@@ -77,10 +77,9 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 
 ### Primera tanda
 
-- Edición `fig-wag-2025-2028`, salto, grupos 1 a 3: **51 elementos, en borrador**.
-- Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/1.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,4; ningún elemento se volvió a redactar. Muestra manual: 6 elementos, pendiente de Elvis.
-- Semilla: `docs/deployment/candidates/20261119121000_element_catalog_seed_fig-wag-2025-2028_1.sql`, sin aplicar.
-- Elvis tiene el archivo de revisión entregado, con la tanda y la muestra.
+- Edición `fig-wag-2025-2028`, salto, grupos 1 a 3: **51 elementos, revisados por Elvis el 19-11-2026**, sin correcciones.
+- Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/1.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,4; ningún elemento se volvió a redactar. Muestra manual: 6 elementos, sin resultado registrado.
+- Semilla: `docs/deployment/candidates/20261119121000_element_catalog_seed_fig-wag-2025-2028_1.sql`, regenerada con la revisión. En staging está aplicada la versión anterior, en borrador; la revisada, pendiente. Sin aplicar en producción.
 
 **Cuando Elvis la revisa,** se marca cada elemento como revisado con su fecha en el archivo de datos, se completa el registro de la tanda y se vuelve a generar la semilla. Una semilla nunca devuelve un elemento revisado a borrador, nunca deshace una retirada y aborta si un elemento revisado cambia sin una fecha de revisión posterior.
 
@@ -125,7 +124,7 @@ Con la migración en todos los entornos, una PR posterior quitará el conjunto a
 
 Ninguna fase toca Stripe. Pedir licencias o escribir a la FIG son acciones externas que decide Elvis tras la revisión del abogado.
 
-Pendiente ahora mismo de Elvis: revisar la primera tanda (con la muestra del 10 %), autorizar las candidatas en staging y la prueba en staging (buscar, añadir, evaluar, ver en el guion y retirar un elemento).
+Pendiente ahora mismo de Elvis: el permiso para aplicar en staging la semilla revisada de la tanda 1 y la prueba en staging (buscar, añadir, evaluar, ver en el guion y retirar un elemento).
 
 ## Pruebas
 

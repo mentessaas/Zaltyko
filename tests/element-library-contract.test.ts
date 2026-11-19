@@ -477,7 +477,7 @@ describe("candidatas SQL de la biblioteca de elementos", () => {
       expect(readme, path).toContain(sha256(path));
     }
     const section = readme.slice(readme.indexOf("## Candidatas de la biblioteca de elementos"));
-    expect(section).toContain("No se ha aplicado en ningún entorno");
+    expect(section).toContain("No se ha aplicado en producción");
     expect(section.indexOf(LIBRARY_FILE)).toBeLessThan(section.indexOf(NOTES_FILE));
   });
 });
