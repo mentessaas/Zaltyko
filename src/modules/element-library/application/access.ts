@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 
 import type { OrganizationMember } from "@/db/zaltyko-schema";
 import type { TransactionClient } from "@/lib/db-transactions";
-import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
+import { getOrganizationUsage } from "@/modules/saas-billing/application/organization-usage";
 import type { OperationalActor } from "@/modules/shared/application/actor";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { assertOperationalAccess } from "@/modules/shared/infrastructure/operational-authorization";
@@ -54,13 +54,11 @@ export async function authorizeLibraryMember(
   return { member, role: member.role as SkillMemberRole };
 }
 
-/** El plan en solo lectura se consulta, pero no se escribe. */
-export async function isOrganizationWritable(tx: TransactionClient, organizationId: string): Promise<boolean> {
-  try {
-    await assertOrganizationOperationalWritable(tx, organizationId);
-    return true;
-  } catch (error) {
-    if (error instanceof OperationalError && error.code === "PLAN_OVER_CAPACITY") return false;
-    throw error;
-  }
+/**
+ * Solo lectura del plan para mostrarlo en una lectura. No toma el cerrojo de
+ * la academia (getOrganizationUsage no bloquea); las escrituras siguen
+ * comprobándolo con cerrojo en assertOperationalAccess (intent "write").
+ */
+export async function isOrganizationReadOnly(tx: TransactionClient, organizationId: string): Promise<boolean> {
+  return (await getOrganizationUsage(tx, organizationId)).readOnly;
 }

@@ -12,6 +12,7 @@ import { OperationalError } from "@/modules/shared/domain/operational-error";
 import { appendAuditEntry, lockCommand } from "@/modules/shared/infrastructure/transactional-records";
 
 import { authorizeLibraryMember, notFound, type ActorInput } from "./access";
+import { iso, UUID_PATTERN } from "./values";
 
 /**
  * Nota de la academia sobre un elemento (ADR-0029 §2): una por academia y
@@ -29,10 +30,6 @@ import { authorizeLibraryMember, notFound, type ActorInput } from "./access";
 
 type NoteRow = { id: string; note: string; revision: number; updated_at: Date | string };
 
-function iso(value: Date | string): string {
-  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
-}
-
 function noteView(row: NoteRow): ElementNoteView {
   return { text: row.note, revision: Number(row.revision), updatedAt: iso(row.updated_at) };
 }
@@ -46,11 +43,9 @@ function versionConflict(currentRevision: number | null): OperationalError {
   );
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /** El elemento lo ve la academia (revisado, edición publicada, sin retirar); si no, 404. */
 async function assertVisibleElement(tx: TransactionClient, elementId: string): Promise<void> {
-  if (!UUID.test(elementId)) throw notFound("Elemento no encontrado");
+  if (!UUID_PATTERN.test(elementId)) throw notFound("Elemento no encontrado");
   const result = await tx.execute(sql`
     select e.review_status, e.withdrawn_at, edition.status as edition_status
     from zaltyko.catalog_elements as e

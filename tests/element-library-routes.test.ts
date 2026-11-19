@@ -221,6 +221,9 @@ describe("nota", () => {
   it(`una nota de más de ${ELEMENT_NOTE_MAX} caracteres responde 400; justo ${ELEMENT_NOTE_MAX} vale`, async () => {
     const tooLong = await call(note, { body: { ...noteBody, note: "a".repeat(ELEMENT_NOTE_MAX + 1) } });
     expect(tooLong.status).toBe(400);
+    expect((await tooLong.json()).detail).toBe(
+      `Revisa la nota: como mucho ${ELEMENT_NOTE_MAX} caracteres y sin caracteres de control.`
+    );
     expect(mocks.saveNote).not.toHaveBeenCalled();
     const exact = await call(note, { body: { ...noteBody, note: `  ${"a".repeat(ELEMENT_NOTE_MAX)}  ` } });
     expect(exact.status).toBe(200);
@@ -231,7 +234,24 @@ describe("nota", () => {
     expect((await call(note, { body: { ...noteBody, note: "   ", expectedRevision: 2 } })).status).toBe(200);
     expect(mocks.saveNote.mock.calls[0]![0].command).toMatchObject({ note: null, expectedRevision: 2 });
     const withoutRevision = { organizationId, locationId, clientRequestId, note: "Sin revisión" };
-    expect((await call(note, { body: withoutRevision })).status).toBe(400);
+    const missing = await call(note, { body: withoutRevision });
+    expect(missing.status).toBe(400);
+    expect((await missing.json()).detail).toMatch(/^Falta la versión de la nota o el identificador del envío/);
+    const withoutRequest = { organizationId, locationId, expectedRevision: null, note: "Sin identificador" };
+    expect((await (await call(note, { body: withoutRequest })).json()).detail).toMatch(/^Falta la versión/);
+    // Un cuerpo que no es JSON: mensaje general.
+    const module = await note.load();
+    const garbage = await (module.PUT as Handler)(
+      new Request(new URL(note.path, "https://zaltyko.test"), {
+        method: "PUT",
+        headers: { origin: "https://zaltyko.test", "content-type": "application/json" },
+        body: "{",
+      }),
+      { params: Promise.resolve(note.params) }
+    );
+    expect(garbage.status).toBe(400);
+    expect((await garbage.json()).detail).toBe("Revisa los datos de la nota.");
+    expect(mocks.saveNote).toHaveBeenCalledTimes(1);
   });
 
   it("un identificador de elemento que no es un id responde 400 sin resolver el alcance", async () => {
@@ -240,6 +260,7 @@ describe("nota", () => {
       params: Promise.resolve({ elementId: "no-es-un-id" }),
     });
     expect(response.status).toBe(400);
+    expect((await response.json()).detail).toBe("El elemento indicado no es válido.");
     expect(mocks.scope).not.toHaveBeenCalled();
   });
 });

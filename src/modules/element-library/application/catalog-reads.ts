@@ -27,7 +27,8 @@ import {
 } from "@/modules/element-library/domain/library-requests";
 import { sqlUuidArray } from "@/modules/owner-dashboard/application/sql-uuid-array";
 
-import { authorizeLibraryMember, isOrganizationWritable, notFound, type ActorInput } from "./access";
+import { authorizeLibraryMember, isOrganizationReadOnly, notFound, type ActorInput } from "./access";
+import { iso, UUID_PATTERN } from "./values";
 
 /**
  * Lecturas del catálogo: búsqueda, ficha y la vista de enlaces que usan
@@ -38,18 +39,12 @@ import { authorizeLibraryMember, isOrganizationWritable, notFound, type ActorInp
  * no existe.
  */
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /**
  * Tope de filas que se leen de una edición antes de filtrar por valor y texto
  * en memoria (sin acentos, como `normalizeSearchText`). Un código de puntuación
  * tiene unos cientos de elementos por disciplina.
  */
 const CATALOG_SCAN_MAX = 5_000;
-
-function iso(value: Date | string): string {
-  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
-}
 
 function toPoints(value: string | number | null): number | null {
   if (value === null) return null;
@@ -86,7 +81,13 @@ function editionView(row: EditionRow): EditionView {
   };
 }
 
-/** Edición publicada más reciente de la disciplina, o null si aún no hay ninguna. */
+/**
+ * Edición publicada más reciente de la disciplina, o null si aún no hay
+ * ninguna. La búsqueda lee solo esa edición: si dos ediciones de la misma
+ * disciplina estuvieran publicadas a la vez (cambio de ciclo), los elementos
+ * de la anterior siguen abriéndose por su id (ficha y enlaces), pero no salen
+ * en la búsqueda.
+ */
 async function loadPublishedEdition(tx: TransactionClient, discipline: CatalogDiscipline): Promise<EditionView | null> {
   const result = await tx.execute(sql`
     select id, code, discipline, title, cycle_start, cycle_end, cover_date::text as cover_date, document_url
@@ -210,7 +211,7 @@ export async function getCatalogElement(
   const query = catalogElementQuerySchema.parse(input.query);
   return db.transaction(async (tx) => {
     await authorizeLibraryMember(tx, { ...query, actor: input.actor });
-    if (!UUID.test(input.elementId)) throw notFound("Elemento no encontrado");
+    if (!UUID_PATTERN.test(input.elementId)) throw notFound("Elemento no encontrado");
     const result = await tx.execute(sql`
       select e.id, e.element_key, e.discipline, e.apparatus, e.element_group, e.value_letter,
         e.value_points::text as value_points, e.fig_reference, e.name, e.short_name, e.description,
@@ -265,7 +266,8 @@ export async function getCatalogElement(
         row.note !== null && row.note_revision !== null && row.note_updated_at !== null
           ? { text: row.note, revision: Number(row.note_revision), updatedAt: iso(row.note_updated_at) }
           : null,
-      readOnly: !(await isOrganizationWritable(tx, query.organizationId)),
+      // Sin el cerrojo de la academia: la lectura no bloquea a quien escribe.
+      readOnly: await isOrganizationReadOnly(tx, query.organizationId),
     };
   });
 }
@@ -304,7 +306,7 @@ export async function getCatalogLinkView(
   client: DatabaseClient,
   ids: readonly string[]
 ): Promise<Map<string, CatalogLinkView>> {
-  const unique = [...new Set(ids)].filter((id) => UUID.test(id));
+  const unique = [...new Set(ids)].filter((id) => UUID_PATTERN.test(id));
   const views = new Map<string, CatalogLinkView>();
   if (unique.length === 0) return views;
   const result = await client.execute(sql`
@@ -353,7 +355,7 @@ export async function findLinkableCatalogElement(
   id: string,
   input: { discipline: string; apparatus: string }
 ): Promise<{ id: string } | null> {
-  if (!UUID.test(id)) return null;
+  if (!UUID_PATTERN.test(id)) return null;
   const result = await client.execute(sql`
     select e.id
     from zaltyko.catalog_elements as e

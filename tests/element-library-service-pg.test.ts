@@ -14,6 +14,7 @@ import {
   isElementLibraryAvailable,
   isElementLibraryAvailableForPage,
   isElementLibraryStorageInstalled,
+  recordElementLibraryView,
   saveElementNote,
   searchCatalogElements,
 } from "@/modules/element-library/application/element-library-service";
@@ -22,6 +23,9 @@ import {
   ELEMENT_LIBRARY_ENV_FLAG,
   ELEMENT_LIBRARY_UNAVAILABLE_REASON,
 } from "@/modules/element-library/domain/element-library";
+import { resetUsageStorageCache } from "@/modules/habitual-use/application/storage";
+import { recordStaffVisit } from "@/modules/habitual-use/application/usage-events";
+import { HABITUAL_USE_FLAGS } from "@/modules/habitual-use/domain/flags";
 import { SKILL_LEVELS_ENV_FLAG } from "@/modules/skill-levels/domain/skill-levels";
 
 /**
@@ -85,8 +89,15 @@ const PLANS = "20261111200000_session_plans_candidate.sql";
 const LEVELS = "20261114121000_skill_levels_candidate.sql";
 const LIBRARY = "20261119120000_element_library_candidate.sql";
 const NOTES = "20261119120500_element_library_notes_candidate.sql";
+const HABITUAL_USE = "20261114130000_habitual_use_candidate.sql";
 
-const FLAGS = [ELEMENT_LIBRARY_ENV_FLAG, ELEMENT_LIBRARY_DESCRIPTIONS_ENV_FLAG, SKILL_LEVELS_ENV_FLAG] as const;
+const FLAGS = [
+  ELEMENT_LIBRARY_ENV_FLAG,
+  ELEMENT_LIBRARY_DESCRIPTIONS_ENV_FLAG,
+  SKILL_LEVELS_ENV_FLAG,
+  HABITUAL_USE_FLAGS.master,
+  HABITUAL_USE_FLAGS.usageMetrics,
+] as const;
 
 function setFlag(name: (typeof FLAGS)[number], on: boolean) {
   if (on) process.env[name] = "true";
@@ -394,16 +405,22 @@ describe.skipIf(!disposablePgEnabled)("biblioteca de elementos: servicio en Post
     expect(await isElementLibraryAvailableForPage(db)).toBe(true);
 
     setFlag(ELEMENT_LIBRARY_ENV_FLAG, false);
-    expect(await isElementLibraryAvailableForPage(db)).toBe(false);
-    await expect(search(ownerA)).rejects.toMatchObject({
-      code: "FEATURE_NOT_AVAILABLE",
-      details: { reason: ELEMENT_LIBRARY_UNAVAILABLE_REASON },
-    });
-    setFlag(ELEMENT_LIBRARY_ENV_FLAG, true);
+    try {
+      expect(await isElementLibraryAvailableForPage(db)).toBe(false);
+      await expect(search(ownerA)).rejects.toMatchObject({
+        code: "FEATURE_NOT_AVAILABLE",
+        details: { reason: ELEMENT_LIBRARY_UNAVAILABLE_REASON },
+      });
+    } finally {
+      setFlag(ELEMENT_LIBRARY_ENV_FLAG, true);
+    }
     setFlag(SKILL_LEVELS_ENV_FLAG, false);
-    expect(await isElementLibraryAvailableForPage(db)).toBe(false);
-    await expect(save(ownerA, vaultOne, "Nota", null)).rejects.toMatchObject({ code: "FEATURE_NOT_AVAILABLE", status: 503 });
-    setFlag(SKILL_LEVELS_ENV_FLAG, true);
+    try {
+      expect(await isElementLibraryAvailableForPage(db)).toBe(false);
+      await expect(save(ownerA, vaultOne, "Nota", null)).rejects.toMatchObject({ code: "FEATURE_NOT_AVAILABLE", status: 503 });
+    } finally {
+      setFlag(SKILL_LEVELS_ENV_FLAG, true);
+    }
 
     // Una columna de más, o niveles o guiones sin la columna de enlace: no disponible.
     expect(await availableWith("alter table zaltyko.academy_element_notes add column video_url text")).toBe(false);
@@ -601,6 +618,62 @@ describe.skipIf(!disposablePgEnabled)("biblioteca de elementos: servicio en Post
     expect((await search(ownerC, {}, sc)).elements).toHaveLength(4);
     await expect(save(ownerC, vaultTwo, "Nota", null, sc)).rejects.toMatchObject({ code: "PLAN_OVER_CAPACITY", status: 409 });
     expect(await noteRows(vaultTwo)).toEqual([]);
+  });
+
+  it("con la medición encendida y sin la candidata del evento, la búsqueda funciona y la ficha no cuenta nada", async () => {
+    const usageTablePresent = async () =>
+      (
+        (await db.execute(sql`select to_regclass('public.usage_events') is not null as present`)).rows[0] as {
+          present: boolean;
+        }
+      ).present;
+    const usageRows = async () =>
+      (
+        await db.execute(sql`
+          select event_name, actor_role, occurrences from public.usage_events
+          where organization_id = ${a.organizationId}::uuid
+          order by event_name, actor_role
+        `)
+      ).rows;
+    let installedUsage = false;
+    if (!(await usageTablePresent())) {
+      await runOnOwnConnection(candidate(HABITUAL_USE));
+      installedUsage = true;
+    }
+    resetUsageStorageCache();
+    setFlag(HABITUAL_USE_FLAGS.master, true);
+    setFlag(HABITUAL_USE_FLAGS.usageMetrics, true);
+    try {
+      // La candidata del evento (20261119121500) no está: la tabla no admite el nombre.
+      const check = await db.execute(sql`
+        select pg_get_constraintdef(oid) as definition from pg_constraint
+        where conrelid = to_regclass('public.usage_events') and conname = 'usage_events_event_name_check'
+      `);
+      expect((check.rows[0] as { definition: string }).definition).not.toContain("element_library_view");
+      const before = await usageRows();
+
+      // La búsqueda responde aunque el evento no se pueda guardar.
+      expect((await search(ownerA)).elements.map((entry) => entry.id)).toEqual([vaultOne, vaultTwo, barsOne, beamOne]);
+      expect(await recordElementLibraryView({ organizationId: a.organizationId, role: "owner" })).toBe(false);
+      // La ficha no registra ninguna consulta.
+      expect((await card(ownerA, vaultTwo)).id).toBe(vaultTwo);
+      expect(await usageRows()).toEqual(before);
+
+      // La medición sí está viva: una visita del equipo se cuenta.
+      expect(await recordStaffVisit({ organizationId: a.organizationId, role: "owner" })).toBe(true);
+    } finally {
+      setFlag(HABITUAL_USE_FLAGS.master, false);
+      setFlag(HABITUAL_USE_FLAGS.usageMetrics, false);
+      resetUsageStorageCache();
+      if (installedUsage) {
+        // Vuelta atrás documentada en la candidata del uso habitual.
+        await db.execute(sql`drop index if exists zaltyko.sessions_starts_at_idx`);
+        await db.execute(sql`drop index if exists zaltyko.sessions_ends_at_idx`);
+        await db.execute(sql`drop table if exists public.usage_events`);
+      } else {
+        await db.execute(sql`delete from public.usage_events where organization_id = ${a.organizationId}::uuid`);
+      }
+    }
   });
 
   it("vista de enlaces y elementos enlazables para niveles y guiones", async () => {

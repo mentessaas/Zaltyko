@@ -7,6 +7,7 @@
  * - access.ts: autorización (equipo técnico, sede y plan en solo lectura).
  * - catalog-reads.ts: búsqueda, ficha, vista de enlaces y uso habitual.
  * - notes.ts: nota de la academia sobre un elemento.
+ * - values.ts: patrón de uuid y fechas ISO compartidos.
  * - page-data.ts: disciplinas publicadas y nombres de los grupos para la página.
  * Cada operación de la academia abre su propia transacción y vuelve a
  * autorizarlo todo. `getCatalogLinkView` y `findLinkableCatalogElement` no
