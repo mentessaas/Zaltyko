@@ -103,7 +103,8 @@ function candidateColumns(block: string): CandidateColumn[] {
     .sort(byName);
 }
 
-const normalize = (expression: string) => expression.replace(/\s+/g, " ").trim().toLowerCase();
+/** Solo se normalizan los espacios: el texto del CHECK se compara tal cual. */
+const normalize = (expression: string) => expression.replace(/\s+/g, " ").trim();
 
 /** `constraint <nombre> check (<expresión>)`, con paréntesis equilibrados. */
 function candidateChecks(block: string): Map<string, string> {
@@ -341,6 +342,8 @@ describe("candidatas SQL de la biblioteca de elementos", () => {
     const names = [...body.matchAll(/(?:constraint|create index) ([a-z_]+)/g)].map((match) => match[1]!);
     expect(names.length).toBeGreaterThan(45);
     for (const name of names) expect(name.length, name).toBeLessThan(63);
+    expect(names).toContain("academy_element_notes_created_by_fk");
+    expect(names).toContain("academy_element_notes_updated_by_fk");
   });
 
   it("declara las claves foráneas del catálogo, los avisos y las notas", () => {
@@ -362,6 +365,16 @@ describe("candidatas SQL de la biblioteca de elementos", () => {
         `foreign key (organization_id, ${column}) references zaltyko.organization_members(organization_id, id) on delete set null (${column})`
       );
     }
+    // Las dos claves compuestas de autoría llevan nombre, igual en el espejo.
+    const authorship = ["academy_element_notes_created_by_fk", "academy_element_notes_updated_by_fk"];
+    for (const name of authorship) expect(notes, name).toContain(`constraint ${name} foreign key (organization_id, `);
+    expect(
+      drizzleTables
+        .get("academy_element_notes")!
+        .foreignKeys.map((foreignKey) => foreignKey.getName())
+        .filter((name) => authorship.includes(name))
+        .sort()
+    ).toEqual(authorship);
     // El catálogo y los avisos son globales: sin organization_id.
     for (const table of LIBRARY_TABLES) expect(blocks.get(table), table).not.toContain("organization_id");
   });

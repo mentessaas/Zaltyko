@@ -265,6 +265,8 @@ describe.skipIf(!disposablePgEnabled)("biblioteca de elementos en PostgreSQL des
   let libraryWithoutLevels: PgFailure = null;
   let notesWithoutLibrary: PgFailure = null;
   let baseShape: string[] = [];
+  /** Academia de prueba del test de claves foráneas; se borra al terminar. */
+  let organizationId: string | null = null;
 
   beforeAll(async () => {
     assertDisposableTarget();
@@ -291,6 +293,10 @@ describe.skipIf(!disposablePgEnabled)("biblioteca de elementos en PostgreSQL des
 
   afterAll(async () => {
     if (!disposablePgEnabled) return;
+    // La academia de prueba se va con sus plantillas, niveles y elementos (cascada).
+    if (organizationId) {
+      await db.execute(sql`delete from zaltyko.organizations where id = ${organizationId}::uuid`);
+    }
     // Por si un test falló antes de la vuelta atrás: deja la base como estaba.
     await db.execute(sql`drop table if exists zaltyko.academy_element_notes`);
     for (const table of LINKED_TABLES) {
@@ -486,7 +492,7 @@ describe.skipIf(!disposablePgEnabled)("biblioteca de elementos en PostgreSQL des
 
   it("no deja borrar un elemento enlazado desde niveles ni una edición con elementos", async () => {
     const element = await elementRow("ci_vault_two");
-    const organizationId = randomUUID();
+    organizationId = randomUUID();
     const templateId = randomUUID();
     const levelId = randomUUID();
     await db.execute(sql`

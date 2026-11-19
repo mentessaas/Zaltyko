@@ -1135,8 +1135,8 @@ commit;
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261119120000_element_library_candidate.sql` | `593971811ff713ff31093ab45db5739d919d989c1c3bbb7a23059c8b57e3e825` | No aplicada | No aplicada |
-| `20261119120500_element_library_notes_candidate.sql` | `37ad011fb9000cdbe20d1982204b778ca091eaecfbf884e7a7c5b8c8b9d29a13` | No aplicada | No aplicada |
+| `20261119120000_element_library_candidate.sql` | `584d44defba1a8d54976f53bef07cbad9f4047b56094ed4d762a4ef99800d6d5` | No aplicada | No aplicada |
+| `20261119120500_element_library_notes_candidate.sql` | `e521dccf2731854da916f1986764e0e40b5823ec4bd3952dc86797d47a846abb` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno (staging y
 producción) necesita una autorización expresa de Elvis. La CI verde no

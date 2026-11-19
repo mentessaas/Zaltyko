@@ -57,8 +57,8 @@ create table zaltyko.academy_element_notes (
     check (length(btrim(note)) >= 1 and length(note) <= 500),
   constraint academy_element_notes_revision_check
     check (revision > 0),
-  foreign key (organization_id, created_by_member_id) references zaltyko.organization_members(organization_id, id) on delete set null (created_by_member_id),
-  foreign key (organization_id, updated_by_member_id) references zaltyko.organization_members(organization_id, id) on delete set null (updated_by_member_id)
+  constraint academy_element_notes_created_by_fk foreign key (organization_id, created_by_member_id) references zaltyko.organization_members(organization_id, id) on delete set null (created_by_member_id),
+  constraint academy_element_notes_updated_by_fk foreign key (organization_id, updated_by_member_id) references zaltyko.organization_members(organization_id, id) on delete set null (updated_by_member_id)
 );
 
 -- Borrar o retirar un elemento busca sus notas; dar de baja a una integrante,

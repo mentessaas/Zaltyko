@@ -148,10 +148,7 @@ export const catalogElements = zaltyko.table(
       )
     ),
     check("catalog_elements_source_page_check", raw("source_page > 0")),
-    check(
-      "catalog_elements_drafted_by_check",
-      raw("length(btrim(drafted_by)) between 1 and 40 and drafted_by !~ '[[:cntrl:]]'")
-    ),
+    check("catalog_elements_drafted_by_check", raw("length(btrim(drafted_by)) >= 1 and length(drafted_by) <= 40")),
     check("catalog_elements_batch_check", raw("batch > 0")),
     check("catalog_elements_review_status_check", raw("review_status in ('draft', 'reviewed')")),
     check("catalog_elements_reviewed_on_check", raw("(review_status = 'reviewed') = (reviewed_on is not null)")),
@@ -276,10 +273,12 @@ export const academyElementNotes = zaltyko.table(
     check("academy_element_notes_note_check", raw("length(btrim(note)) >= 1 and length(note) <= 500")),
     check("academy_element_notes_revision_check", raw("revision > 0")),
     foreignKey({
+      name: "academy_element_notes_created_by_fk",
       columns: [table.organizationId, table.createdByMemberId],
       foreignColumns: [organizationMembers.organizationId, organizationMembers.id],
     }),
     foreignKey({
+      name: "academy_element_notes_updated_by_fk",
       columns: [table.organizationId, table.updatedByMemberId],
       foreignColumns: [organizationMembers.organizationId, organizationMembers.id],
     }),

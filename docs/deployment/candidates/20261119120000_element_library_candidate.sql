@@ -191,7 +191,7 @@ create table zaltyko.catalog_elements (
   constraint catalog_elements_source_page_check
     check (source_page > 0),
   constraint catalog_elements_drafted_by_check
-    check (length(btrim(drafted_by)) between 1 and 40 and drafted_by !~ '[[:cntrl:]]'),
+    check (length(btrim(drafted_by)) >= 1 and length(drafted_by) <= 40),
   constraint catalog_elements_batch_check
     check (batch > 0),
   constraint catalog_elements_review_status_check
