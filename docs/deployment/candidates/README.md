@@ -1288,6 +1288,49 @@ Decisión: ADR-0029 §7.
   tres tablas de `src/db/schema/` y sus referencias de RLS y CI.
 - **Pruebas.** `tests/legacy-skill-catalog-retirement-contract.test.ts`.
 
+## Candidata del evento de consulta a la biblioteca (uso habitual, 19-11-2026)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261119121500_element_library_usage_event_candidate.sql` | `fbdf191475e0f4772de62ed8a35c11c73d0fdf31098948c4acb19ad0e92ea7ad` | No aplicada | No aplicada |
+
+**Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
+autorización expresa de Elvis; la CI verde no equivale a autorización.
+Decisión: ADR-0029 §11.
+
+- **Qué cambia.** Solo `usage_events_event_name_check` de
+  `public.usage_events`: admite también `element_library_view` (consultas a la
+  biblioteca, contadas por academia, rol y día, sin identificar a nadie). No
+  cambia filas ni columnas ni `usage_events_role_event_check`: el evento nuevo
+  solo se cuenta para el equipo, nunca para una familia.
+- **Requiere antes** `20261114130000_habitual_use_candidate.sql`, con su
+  restricción de tipos de evento tal cual la instala. Abre y cierra su
+  transacción con `lock_timeout` de 5 s y aborta antes de tocar nada si falta
+  `public.usage_events` o si la restricción no tiene exactamente esa forma
+  (también al reinstalarla).
+- **Sin aplicarla**, la biblioteca funciona igual y no cuenta las consultas: la
+  restricción rechaza el evento y el registro, que nunca lanza, devuelve
+  `false`.
+- **Pruebas.** `tests/element-library-usage-event-contract.test.ts` (forma de
+  la candidata, nombres de evento y este hash) y
+  `tests/element-library-usage-event-pg.test.ts` (solo en el PostgreSQL
+  desechable de GitHub: el evento se rechaza sin la candidata, se guarda con
+  ella para el equipo y no para familias, la reinstalación aborta y la vuelta
+  atrás de abajo deja la restricción como estaba).
+- **Vuelta atrás.** Va comentada al final del `.sql` y requiere la misma
+  autorización. Borra los contadores de consultas a la biblioteca:
+
+```sql
+begin;
+set local lock_timeout = '5s';
+delete from public.usage_events where event_name = 'element_library_view';
+alter table public.usage_events
+  drop constraint usage_events_event_name_check,
+  add constraint usage_events_event_name_check
+    check (event_name in ('staff_visit', 'family_portal_view'));
+commit;
+```
+
 ## Comprobar los hashes
 
 Antes de aplicar una candidata, comprueba que el SHA-256 del `.sql` coincide con el documentado aquí:
