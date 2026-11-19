@@ -25,6 +25,7 @@ const footerLinks: { title: string; links: { label: string; href: string }[] }[]
       { label: "Términos del servicio", href: "/terminos" },
       { label: "Política de privacidad", href: "/politica-privacidad" },
       { label: "Cookies", href: "/politica-privacidad" },
+      { label: "Avisar de un contenido", href: "/avisos-de-contenido" },
     ],
   },
 ];

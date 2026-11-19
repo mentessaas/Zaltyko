@@ -52,6 +52,7 @@ async function fetchNotices(cursor: string | null, status: ContentNoticeStatus |
 
 function NoticeEditor({ notice, onSaved }: { notice: ContentNoticeView; onSaved: (notice: ContentNoticeView) => void }) {
   const [sending, setSending] = useState(false);
+  const [status, setStatus] = useState<ContentNoticeStatus>(notice.status);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
   async function save(body: { status?: ContentNoticeStatus; response?: string }) {
@@ -75,7 +76,9 @@ function NoticeEditor({ notice, onSaved }: { notice: ContentNoticeView; onSaved:
         });
         return;
       }
-      onSaved(payload.data as ContentNoticeView);
+      const saved = payload.data as ContentNoticeView;
+      setStatus(saved.status);
+      onSaved(saved);
       setMessage({ kind: "ok", text: "Guardado." });
     } catch {
       setMessage({ kind: "error", text: "No se pudo guardar el aviso. Inténtalo de nuevo." });
@@ -88,15 +91,20 @@ function NoticeEditor({ notice, onSaved }: { notice: ContentNoticeView; onSaved:
     event.preventDefault();
     if (sending) return;
     const form = new FormData(event.currentTarget);
-    const status = CONTENT_NOTICE_STATUSES.find((value) => value === form.get("status"));
-    void save({ ...(status ? { status } : {}), response: String(form.get("response") ?? "") });
+    void save({ status, response: String(form.get("response") ?? "") });
   }
 
   return (
     <form onSubmit={onSubmit} className="mt-4 grid gap-3 border-t border-white/10 pt-4">
       <label className="grid gap-1.5 text-sm font-medium text-white/85 sm:max-w-xs">
         Estado
-        <select name="status" defaultValue={notice.status} className={fieldClassName} disabled={sending}>
+        <select
+          name="status"
+          value={status}
+          onChange={(event) => setStatus(CONTENT_NOTICE_STATUSES.find((value) => value === event.target.value) ?? status)}
+          className={fieldClassName}
+          disabled={sending}
+        >
           {CONTENT_NOTICE_STATUSES.map((status) => (
             <option key={status} value={status}>
               {CONTENT_NOTICE_STATUS_LABELS[status]}
@@ -289,7 +297,7 @@ export function SuperAdminContentNotices() {
                 </div>
               </dl>
 
-              <NoticeEditor key={`${notice.id}:${notice.status}:${notice.response ?? ""}`} notice={notice} onSaved={replace} />
+              <NoticeEditor key={notice.id} notice={notice} onSaved={replace} />
             </li>
           ))}
         </ul>

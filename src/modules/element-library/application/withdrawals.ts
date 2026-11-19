@@ -12,7 +12,10 @@ import {
   type ElementWithdrawal,
   type ElementWithdrawalResult,
 } from "@/modules/element-library/domain/content-notices";
-import type { EditionCode } from "@/modules/element-library/domain/element-library";
+import {
+  ELEMENT_LIBRARY_UNAVAILABLE_REASON,
+  type EditionCode,
+} from "@/modules/element-library/domain/element-library";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 import { isElementLibraryStorageInstalled } from "./storage";
@@ -36,7 +39,7 @@ export function elementReviewUnavailable(): OperationalError {
     "FEATURE_NOT_AVAILABLE",
     "Las tablas de la biblioteca de elementos todavía no están instaladas.",
     503,
-    { reason: "element_library_storage_missing" }
+    { reason: ELEMENT_LIBRARY_UNAVAILABLE_REASON }
   );
 }
 

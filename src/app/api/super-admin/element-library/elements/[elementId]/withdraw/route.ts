@@ -29,11 +29,13 @@ export const POST = withSuperAdmin(async (request, context) => {
   if (!elementId.success) return noStore(apiError("NOT_FOUND", "No encontramos ese elemento.", 404));
   const parsed = elementWithdrawalSchema.safeParse(await readJson(request));
   if (!parsed.success) {
-    return noStore(
-      apiError("VALIDATION_ERROR", "Indica el motivo de la retirada (entre 10 y 500 caracteres).", 400, {
-        fields: [...new Set(parsed.error.issues.map((issue) => String(issue.path[0] ?? "")))],
-      })
-    );
+    const fields = [...new Set(parsed.error.issues.map((issue) => String(issue.path[0] ?? "")))];
+    const message = fields.includes("reason")
+      ? "Indica el motivo de la retirada (entre 10 y 500 caracteres)."
+      : fields.includes("noticeId")
+        ? "La referencia del aviso no es válida. Cópiala tal cual de Avisos o déjala vacía."
+        : "Revisa los datos de la retirada.";
+    return noStore(apiError("VALIDATION_ERROR", message, 400, { fields }));
   }
   try {
     const withdrawn = await withdrawCatalogElement(elementId.data, parsed.data);

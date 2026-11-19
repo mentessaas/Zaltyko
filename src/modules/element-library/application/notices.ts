@@ -13,7 +13,10 @@ import {
   type ContentNoticeView,
   type PublicContentNotice,
 } from "@/modules/element-library/domain/content-notices";
-import { CONTENT_NOTICE_SENDER_RETENTION_DAYS } from "@/modules/element-library/domain/element-library";
+import {
+  CONTENT_NOTICE_SENDER_RETENTION_DAYS,
+  ELEMENT_LIBRARY_UNAVAILABLE_REASON,
+} from "@/modules/element-library/domain/element-library";
 import { sqlUuidArray } from "@/modules/owner-dashboard/application/sql-uuid-array";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -40,7 +43,7 @@ export function contentNoticesUnavailable(): OperationalError {
     "FEATURE_NOT_AVAILABLE",
     "El formulario de avisos no está disponible ahora mismo. Inténtalo más tarde.",
     503,
-    { reason: "content_notices_unavailable" }
+    { reason: ELEMENT_LIBRARY_UNAVAILABLE_REASON }
   );
 }
 
@@ -71,9 +74,8 @@ export function contentNoticeSubmissionHash(notice: PublicContentNotice): string
 
 /**
  * Guarda el aviso. `replayed` es true si ya existía uno idéntico; la ruta
- * responde igual en los dos casos. Si la huella coincide con un aviso cuyo
- * remitente ya se borró, tampoco se crea otro: es el mismo texto del mismo
- * correo.
+ * responde igual en los dos casos. Al borrar el remitente también se cambia
+ * la huella, así que un aviso igual enviado después crea otra fila.
  */
 export async function submitContentNotice(notice: PublicContentNotice): Promise<{ replayed: boolean }> {
   const submissionHash = contentNoticeSubmissionHash(notice);
@@ -248,7 +250,10 @@ export type NoticeRetentionResult = {
 
 /**
  * Borra nombre y correo de los avisos cerrados hace más de dos años
- * (`CONTENT_NOTICE_SENDER_RETENTION_DAYS`), por lotes de 100: lee los ids y
+ * (`CONTENT_NOTICE_SENDER_RETENTION_DAYS`) y sustituye la huella del envío,
+ * que se calculó con ellos: con la antigua, quien tuviera un nombre y un
+ * correo candidatos podría confirmar quién avisó. La nueva sale solo del id
+ * (sigue siendo única y cumple el CHECK). Por lotes de 100: lee los ids y
  * vuelve a bloquearlos `FOR UPDATE` con el mismo criterio dentro de una
  * transacción por lote. Volver a ejecutarlo no cambia nada más.
  *
@@ -284,7 +289,8 @@ export async function eraseExpiredNoticeSenders(): Promise<NoticeRetentionResult
       if (lockedIds.length === 0) return 0;
       const updated = await tx.execute(sql`
         update zaltyko.content_notices
-        set sender_name = null, sender_email = null, sender_erased_at = now(), updated_at = now()
+        set sender_name = null, sender_email = null, sender_erased_at = now(), updated_at = now(),
+            submission_hash = encode(sha256(convert_to('erased:' || id::text, 'UTF8')), 'hex')
         where id = any(${sqlUuidArray(lockedIds)})
         returning id
       `);

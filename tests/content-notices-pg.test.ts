@@ -110,12 +110,13 @@ type NoticeRow = {
   status: string;
   response: string | null;
   closed_at: string | null;
+  submission_hash: string;
 };
 
 async function noticeRow(id: string): Promise<NoticeRow> {
   const result = await db.execute(sql`
     select id, sender_name, sender_email, sender_erased_at::text as sender_erased_at, status, response,
-      closed_at::text as closed_at
+      closed_at::text as closed_at, submission_hash
     from zaltyko.content_notices where id = ${id}::uuid
   `);
   expect(result.rows).toHaveLength(1);
@@ -261,11 +262,12 @@ describe.skipIf(!disposablePgEnabled)("avisos sobre contenido en PostgreSQL dese
     expect((missing as OperationalError).status).toBe(404);
   });
 
-  it("borra solo el remitente de avisos cerrados hace más de 730 días y repetirlo no cambia nada", async () => {
+  it("borra solo el remitente (y su huella) de avisos cerrados hace más de 730 días y repetirlo no cambia nada", async () => {
     const expired = await insertNotice({ status: "closed", closedDaysAgo: 731 });
     const recent = await insertNotice({ status: "closed", closedDaysAgo: 729 });
     const open = await insertNotice({ status: "reviewing", closedDaysAgo: null });
     const alreadyErased = await insertNotice({ status: "closed", closedDaysAgo: 900, erased: true });
+    const expiredHash = (await noticeRow(expired)).submission_hash;
     const before = {
       recent: await noticeRow(recent),
       open: await noticeRow(open),
@@ -277,6 +279,9 @@ describe.skipIf(!disposablePgEnabled)("avisos sobre contenido en PostgreSQL dese
     const erasedRow = await noticeRow(expired);
     expect(erasedRow).toMatchObject({ sender_name: null, sender_email: null, status: "closed" });
     expect(erasedRow.sender_erased_at).not.toBeNull();
+    // La huella original se calculó con nombre y correo: se sustituye por una que solo sale del id.
+    expect(erasedRow.submission_hash).not.toBe(expiredHash);
+    expect(erasedRow.submission_hash).toBe(createHash("sha256").update(`erased:${expired}`, "utf8").digest("hex"));
     expect(await noticeRow(recent)).toEqual(before.recent);
     expect(await noticeRow(open)).toEqual(before.open);
     expect(await noticeRow(alreadyErased)).toEqual(before.alreadyErased);
@@ -284,5 +289,23 @@ describe.skipIf(!disposablePgEnabled)("avisos sobre contenido en PostgreSQL dese
     const second = await eraseExpiredNoticeSenders();
     expect(second).toEqual({ enabled: true, erased: 0, batches: 0 });
     expect(await noticeRow(expired)).toEqual(erasedRow);
+  });
+
+  it("tras borrar el remitente, la huella antigua ya no reconoce el mismo aviso", async () => {
+    const input = notice({ reason: "Aviso que se cerrará y se borrará a los dos años." });
+    expect(await submitContentNotice(input)).toEqual({ replayed: false });
+    const hash = contentNoticeSubmissionHash(input);
+    await db.execute(sql`
+      update zaltyko.content_notices
+      set status = 'closed', closed_at = now() - interval '800 days'
+      where submission_hash = ${hash}
+    `);
+    expect(await eraseExpiredNoticeSenders()).toEqual({ enabled: true, erased: 1, batches: 1 });
+    const stillThere = await db.execute(
+      sql`select count(*)::int as count from zaltyko.content_notices where submission_hash = ${hash}`
+    );
+    expect(stillThere.rows).toEqual([{ count: 0 }]);
+    // Un aviso igual enviado ahora es otro aviso, con su remitente.
+    expect(await submitContentNotice(input)).toEqual({ replayed: false });
   });
 });

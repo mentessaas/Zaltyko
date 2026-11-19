@@ -1,4 +1,5 @@
 import { apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 import { hasSameOrigin } from "@/modules/saas-billing/application/owner-access";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
@@ -38,10 +39,22 @@ export async function readJson(request: Request): Promise<unknown> {
   return request.json().catch(() => null);
 }
 
-/** Errores previstos con su estado; cualquier otro, 500 sin detalles. */
+/**
+ * Solo el tipo y el código del error (por ejemplo, el SQLSTATE de PostgreSQL):
+ * el mensaje o el detalle pueden llevar el nombre o el correo de quien avisa.
+ */
+export function errorSummary(error: unknown): { name: string; code: string | null } {
+  const name = error instanceof Error ? error.name : "unknown";
+  const withCode = error as { code?: unknown; cause?: { code?: unknown } } | null;
+  const code = typeof withCode?.code === "string" ? withCode.code : typeof withCode?.cause?.code === "string" ? withCode.cause.code : null;
+  return { name, code };
+}
+
+/** Errores previstos con su estado; cualquier otro, 500 sin detalles y registro mínimo. */
 export function failure(error: unknown, fallback: string): Response {
   if (error instanceof OperationalError) {
     return noStore(apiError(error.code, error.message, error.status, error.details));
   }
+  logger.error("Error inesperado en la biblioteca o los avisos (superadministrador)", errorSummary(error));
   return noStore(apiError("INTERNAL_ERROR", fallback, 500));
 }

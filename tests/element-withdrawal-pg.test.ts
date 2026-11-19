@@ -7,6 +7,7 @@ import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { db } from "@/db";
+import { searchCatalogElements } from "@/modules/element-library/application/element-library-service";
 import { submitContentNotice } from "@/modules/element-library/application/notices";
 import {
   isContentWithdrawn,
@@ -14,18 +15,23 @@ import {
   withdrawCatalogElement,
 } from "@/modules/element-library/application/withdrawals";
 import { publicContentNoticeSchema } from "@/modules/element-library/domain/content-notices";
+import { ELEMENT_LIBRARY_ENV_FLAG } from "@/modules/element-library/domain/element-library";
+import { HABITUAL_USE_FLAGS } from "@/modules/habitual-use/domain/flags";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
+import { getSkillTemplate } from "@/modules/skill-levels/application/skill-level-service";
+import { SKILL_LEVELS_ENV_FLAG } from "@/modules/skill-levels/domain/skill-levels";
 
 /**
  * Retirada de contenido (ADR-0029 §8.3) sobre PostgreSQL desechable de GitHub.
  * Instala las candidatas de objetivos, guiones y niveles si faltan y después
  * las dos de la biblioteca, solo aquí y después de todos los guardas, y lo
  * retira todo al terminar; nunca en un proyecto enlazado ni con credenciales
- * externas. Cubre: «Retirar» oculta el elemento de lo que ven las academias
- * (consulta directa de visibilidad: revisado, edición publicada y sin
- * retirar), el nivel que lo enlaza conserva su fila y lo ve retirado, una
- * segunda retirada da 409, el aviso de referencia tiene que existir, la lista
- * de revisión por estado y `isContentWithdrawn` para las plantillas.
+ * externas. Cubre: «Retirar» oculta el elemento de la búsqueda real de la
+ * biblioteca (y de la consulta de visibilidad: revisado, edición publicada y
+ * sin retirar), la plantilla de niveles que lo enlaza se sigue leyendo con el
+ * enlace «withdrawn» y conserva su fila, una segunda retirada da 409, el aviso
+ * de referencia tiene que existir, la lista de revisión por estado y
+ * `isContentWithdrawn` para las plantillas.
  */
 const disposablePgEnabled =
   process.env.ZALTYKO_PG_INTEGRATION === "1" &&
@@ -121,10 +127,38 @@ async function skillElementSnapshot(id: string): Promise<unknown> {
   return (result.rows[0] as { row: unknown }).row;
 }
 
+/** Banderas que encienden la biblioteca y los niveles; las de uso habitual, apagadas. */
+const FLAGS_ON = [ELEMENT_LIBRARY_ENV_FLAG, SKILL_LEVELS_ENV_FLAG] as const;
+const FLAGS_OFF = [HABITUAL_USE_FLAGS.master, HABITUAL_USE_FLAGS.usageMetrics] as const;
+
+/** Ejecuta `run` con las banderas puestas y deja el entorno como estaba. */
+async function withLibraryFlags<T>(run: () => Promise<T>): Promise<T> {
+  const names = [...FLAGS_ON, ...FLAGS_OFF];
+  const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  for (const name of FLAGS_ON) process.env[name] = "true";
+  for (const name of FLAGS_OFF) delete process.env[name];
+  try {
+    return await run();
+  } finally {
+    for (const name of names) {
+      const value = previous[name];
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+}
+
 describe.skipIf(!disposablePgEnabled)("retirada de contenido en PostgreSQL desechable", () => {
   const installedHere = { progress: false, plans: false, levels: false };
-  /** Academia de prueba; se borra al terminar con sus plantillas, niveles y elementos. */
-  let organizationId: string | null = null;
+  /**
+   * Academia de prueba con una sede y su dirección. Se queda en la base, como
+   * en tests/element-library-service-pg.test.ts (su registro de auditoría no
+   * admite borrado); las tablas y columnas de la biblioteca se retiran todas.
+   */
+  let organizationId = "";
+  let locationId = "";
+  let owner = { userId: "", memberId: "" };
+  let templateId = "";
   let reviewedId = "";
   let draftId = "";
   let skillElementId = "";
@@ -172,13 +206,29 @@ describe.skipIf(!disposablePgEnabled)("retirada de contenido en PostgreSQL desec
     draftId = await element("ci_withdraw_draft", false);
 
     organizationId = randomUUID();
-    const templateId = randomUUID();
+    locationId = randomUUID();
+    templateId = randomUUID();
     const levelId = randomUUID();
     skillElementId = randomUUID();
     await db.execute(sql`
       insert into zaltyko.organizations (id, name, status)
       values (${organizationId}::uuid, 'CI retirada de elementos', 'active')
     `);
+    await db.execute(sql`
+      insert into zaltyko.locations (id, organization_id, code, name, timezone, is_active)
+      values (${locationId}::uuid, ${organizationId}::uuid, ${`ci-withdraw-${organizationId.slice(0, 8)}`},
+        'Sede de prueba', 'Europe/Madrid', true)
+    `);
+    const userId = randomUUID();
+    const memberId = randomUUID();
+    await db.execute(
+      sql`insert into auth.users (id, email) values (${userId}::uuid, ${`ci-withdraw-${userId}@example.invalid`})`
+    );
+    await db.execute(sql`
+      insert into zaltyko.organization_members (id, organization_id, user_id, role, status, location_scope_mode)
+      values (${memberId}::uuid, ${organizationId}::uuid, ${userId}::uuid, 'owner', 'active', 'all')
+    `);
+    owner = { userId, memberId };
     await db.execute(sql`
       insert into zaltyko.skill_templates (id, organization_id, client_request_id, discipline, name)
       values (${templateId}::uuid, ${organizationId}::uuid, ${randomUUID()}::uuid, 'artistic_female', 'Plantilla de prueba')
@@ -196,9 +246,6 @@ describe.skipIf(!disposablePgEnabled)("retirada de contenido en PostgreSQL desec
 
   afterAll(async () => {
     if (!disposablePgEnabled) return;
-    if (organizationId) {
-      await db.execute(sql`delete from zaltyko.organizations where id = ${organizationId}::uuid`);
-    }
     await db.execute(sql`drop table if exists zaltyko.academy_element_notes`);
     for (const table of ["skill_elements", "session_plan_blocks"]) {
       await db.execute(sql.raw(`alter table if exists zaltyko.${table} drop column if exists catalog_element_id`));
@@ -229,6 +276,17 @@ describe.skipIf(!disposablePgEnabled)("retirada de contenido en PostgreSQL desec
     }
   });
 
+  const scope = () => ({ organizationId, locationId });
+  /** Búsqueda real de la biblioteca (fachada), como la ve la academia. */
+  const searchIds = () =>
+    withLibraryFlags(async () =>
+      (await searchCatalogElements({ actor: owner, query: { ...scope(), discipline: "artistic_female" } })).elements.map(
+        (item) => item.id
+      )
+    );
+  /** Lectura real de la plantilla de niveles, con sus enlaces a la biblioteca. */
+  const readTemplate = () => withLibraryFlags(() => getSkillTemplate({ actor: owner, templateId, query: scope() }));
+
   it("la lista de revisión separa borradores y revisados", async () => {
     const drafts = await listCatalogElementsForReview({ state: "draft", cursor: null });
     expect(drafts.items.map((item) => item.id)).toEqual([draftId]);
@@ -236,6 +294,11 @@ describe.skipIf(!disposablePgEnabled)("retirada de contenido en PostgreSQL desec
     expect(reviewed.items.map((item) => item.id)).toEqual([reviewedId]);
     expect(reviewed.items[0]).toMatchObject({ state: "reviewed", valuePoints: 2.4, withdrawnAt: null });
     expect(await visibleElementIds()).toEqual([reviewedId]);
+    expect(await searchIds()).toEqual([reviewedId]);
+    const template = await readTemplate();
+    expect(template.levels[0]!.elements).toMatchObject([
+      { name: "Salto de la academia", catalogLink: { id: reviewedId, status: "current" } },
+    ]);
   });
 
   it("no retira con un aviso que no existe ni un elemento que no existe", async () => {
@@ -280,6 +343,7 @@ describe.skipIf(!disposablePgEnabled)("retirada de contenido en PostgreSQL desec
     });
     expect(result).toMatchObject({ id: reviewedId, elementKey: "ci_withdraw_reviewed", editionCode: "fig-wag-2025-2028" });
     expect(await visibleElementIds()).toEqual([]);
+    expect(await searchIds()).toEqual([]);
     expect(await elementState(reviewedId)).toMatchObject({
       withdrawn_reason: "Aviso de la federación sobre el texto",
       review_status: "reviewed",
@@ -295,6 +359,11 @@ describe.skipIf(!disposablePgEnabled)("retirada de contenido en PostgreSQL desec
       where s.id = ${skillElementId}::uuid
     `);
     expect(link.rows).toEqual([{ withdrawn: true }]);
+    // La plantilla de la academia se sigue leyendo y muestra el enlace como retirado.
+    const template = await readTemplate();
+    expect(template.levels[0]!.elements).toMatchObject([
+      { name: "Salto de la academia", catalogLink: { id: reviewedId, status: "withdrawn", replacementId: null } },
+    ]);
 
     const withdrawn = await listCatalogElementsForReview({ state: "withdrawn", cursor: null });
     expect(withdrawn.items.map((item) => item.id)).toEqual([reviewedId]);

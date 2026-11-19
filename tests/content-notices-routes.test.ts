@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   withdraw: vi.fn(),
   logAdminAction: vi.fn(),
   execute: vi.fn(),
+  loggerError: vi.fn(),
 }));
 
 vi.mock("@/db", () => ({ db: { execute: mocks.execute, select: vi.fn() } }));
@@ -39,7 +40,7 @@ vi.mock("@/lib/rate-limit", () => ({
   rateLimit: mocks.rateLimit,
   rateLimitExceededResponse: () => new Response(JSON.stringify({ ok: false }), { status: 429 }),
 }));
-vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
+vi.mock("@/lib/logger", () => ({ logger: { error: mocks.loggerError, warn: vi.fn(), info: vi.fn() } }));
 vi.mock("@/lib/admin-logs", () => ({ logAdminAction: mocks.logAdminAction }));
 vi.mock("@/lib/cron-lease", () => ({
   runCronWithLease: vi.fn(async (_name: string, job: () => Promise<unknown>) => ({ acquired: true, value: await job() })),
@@ -211,6 +212,16 @@ describe("POST /api/public/content-notices", () => {
     const response = await submitRoute(request(PUBLIC_PATH, "POST", noticeBody()));
     expect(response.status).toBe(503);
   });
+
+  it("un error inesperado da 500 y solo registra su tipo, nunca el detalle con datos", async () => {
+    const failure = Object.assign(new Error("duplicate key (ana@example.invalid)"), { detail: "Ana Pérez" });
+    mocks.submit.mockRejectedValueOnce(failure);
+    const response = await submitRoute(request(PUBLIC_PATH, "POST", noticeBody()));
+    expect(response.status).toBe(500);
+    expect(JSON.stringify(await response.json())).not.toContain("ana@example.invalid");
+    expect(mocks.loggerError).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(mocks.loggerError.mock.calls[0])).not.toMatch(/ana@example|Ana Pérez/);
+  });
 });
 
 describe("rutas del superadministrador", () => {
@@ -295,7 +306,24 @@ describe("rutas del superadministrador", () => {
       params({ elementId: ELEMENT })
     );
     expect(crossSite.status).toBe(403);
+    const badNotice = await withdrawRoute(
+      request(`/api/super-admin/element-library/elements/${ELEMENT}/withdraw`, "POST", {
+        reason: "Aviso de la federación",
+        noticeId: "no-es-una-referencia",
+      }),
+      params({ elementId: ELEMENT })
+    );
+    expect(badNotice.status).toBe(400);
+    expect((await badNotice.json()).message).toMatch(/referencia del aviso/);
     expect(mocks.withdraw).not.toHaveBeenCalled();
+  });
+
+  it("un error inesperado del panel da 500 y registra solo tipo y código", async () => {
+    const failure = Object.assign(new Error("violates check (ana@example.invalid)"), { code: "23514" });
+    mocks.listNotices.mockRejectedValueOnce(failure);
+    const response = await listNoticesRoute(request("/api/super-admin/content-notices", "GET"), {});
+    expect(response.status).toBe(500);
+    expect(mocks.loggerError).toHaveBeenCalledWith(expect.any(String), { name: "Error", code: "23514" });
   });
 
   it("propaga 409 si el elemento ya estaba retirado, sin constancia nueva", async () => {

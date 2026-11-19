@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { operationalProblem, problemResponse } from "@/app/api/v1/problem";
 import { apiCreated } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 import {
   getAddressHashRateLimitIdentifier,
   getClientIdentifier,
@@ -107,6 +108,17 @@ export async function POST(request: Request) {
     return received();
   } catch (error) {
     if (error instanceof OperationalError) return noStore(operationalProblem(error));
-    throw error;
+    // Solo el tipo: un error de PostgreSQL puede llevar el nombre o el correo en su detalle.
+    logger.error("Error inesperado guardando un aviso de contenido", {
+      name: error instanceof Error ? error.name : "unknown",
+    });
+    return noStore(
+      problemResponse({
+        status: 500,
+        title: "No se pudo enviar el aviso",
+        detail: "Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos minutos.",
+        type: "internal-error",
+      })
+    );
   }
 }
