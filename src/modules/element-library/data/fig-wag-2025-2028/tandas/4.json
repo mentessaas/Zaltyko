@@ -96,7 +96,8 @@
       "ub_pak_salto",
       "ub_pak_salto_full_turn",
       "ub_tkatchev_straddled",
-      "ub_tkatchev_piked"
+      "ub_tkatchev_piked",
+      "ub_stalder_bwd_lb_counter_flight_hb"
     ],
     "checkedOn": "2026-11-20",
     "checkedBy": "Claude"
