@@ -19,7 +19,7 @@ Zaltyko tampoco custodia el dinero de las familias: con Stripe Connect Standard,
 | Frontend | Next.js 15 App Router, React 18, Tailwind CSS, shadcn/ui |
 | Backend | Next.js Route Handlers, Drizzle ORM |
 | Base de datos | Supabase PostgreSQL + RLS |
-| Autenticación | NextAuth.js v5 + Supabase |
+| Autenticación | Supabase Auth (`@supabase/ssr`) |
 | Cobros | Stripe Billing + Stripe Connect Standard |
 | Email | Brevo |
 | Infraestructura | Vercel + Supabase |
