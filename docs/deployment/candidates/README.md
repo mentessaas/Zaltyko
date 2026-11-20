@@ -1221,6 +1221,11 @@ commit;
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
 | `20261120003000_element_catalog_seed_fig-wag-2025-2028_3.sql` (semilla de la tanda 3, revisada el 23-11-2026 por delegación de Elvis; en borrador era `d2e93819…`) | `374016d60c1876b71b935c4cd22bc04016b08a2f753306f5335e175fc319fe42` | No aplicada | No aplicada |
+## Semilla de la tanda 6 de la biblioteca: barra, grupo 1 (20-11-2026)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261120033000_element_catalog_seed_fig-wag-2025-2028_6.sql` (semilla de la tanda 6) | `e83fe56181a47b9ac75cace3b7d1b7a4f6c4ec51f998fcb8eae35d142631fd3c` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1281,6 +1286,14 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
   independiente de las demás semillas, con la misma semántica, y solo escribe
   los elementos de la tanda 5.
 - **Registro:** `src/modules/element-library/data/fig-wag-2025-2028/tandas/5.json`.
+- **Qué carga.** 51 entradas de barra de equilibrio de la edición
+  `fig-wag-2025-2028`, **en borrador**. Las academias no las ven hasta que
+  Elvis revise la tanda; al revisarla se vuelve a generar con el mismo nombre
+  y su hash cambia.
+- **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
+  independiente de las demás semillas, con la misma semántica, y solo escribe
+  los elementos de la tanda 6.
+- **Registro:** `src/modules/element-library/data/fig-wag-2025-2028/tandas/6.json`.
 
 ## Criterio de revisión y aplicación futura
 

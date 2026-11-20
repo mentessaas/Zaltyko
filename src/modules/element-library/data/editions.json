@@ -23,6 +23,9 @@
         { "key": "4", "label": "Stalder" },
         { "key": "5", "label": "Vueltas carpadas" },
         { "key": "6", "label": "Salidas" }
+      ],
+      "beam": [
+        { "key": "1", "label": "Entradas" }
       ]
     }
   }
