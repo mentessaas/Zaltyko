@@ -25,7 +25,9 @@
         { "key": "6", "label": "Salidas" }
       ],
       "beam": [
-        { "key": "1", "label": "Entradas" }
+        { "key": "1", "label": "Entradas" },
+        { "key": "2", "label": "Saltos" },
+        { "key": "3", "label": "Giros" }
       ]
     }
   }
