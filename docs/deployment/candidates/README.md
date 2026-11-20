@@ -1220,7 +1220,7 @@ commit;
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120003000_element_catalog_seed_fig-wag-2025-2028_3.sql` (semilla de la tanda 3) | `b6b257aa8680d0fcfea1badadd82c0bc270abac83854f04509d1d46dfa926273` | No aplicada | No aplicada |
+| `20261120003000_element_catalog_seed_fig-wag-2025-2028_3.sql` (semilla de la tanda 3) | `6009ff97d4e19794fae63aa872e94327793e7e747db49ad51dd86a74dcdf9cc1` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
