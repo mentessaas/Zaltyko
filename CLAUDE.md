@@ -6,11 +6,11 @@ Before any relevant code, product, pricing, migration, security, roadmap, or doc
 
 ## Stack
 
-- **Framework:** Next.js 14.2 (App Router)
+- **Framework:** Next.js 15.5 (App Router)
 - **Database:** Supabase PostgreSQL + RLS
 - **ORM:** Drizzle ORM
 - **Styling:** Tailwind CSS + shadcn/ui
-- **Auth:** NextAuth.js v5 (Supabase)
+- **Auth:** Supabase Auth (`@supabase/ssr`)
 - **Payments:** Stripe
 - **Deployment:** Vercel
 
@@ -92,7 +92,6 @@ See `.env.example`. Required:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key
 - `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role (for admin)
 - `STRIPE_SECRET_KEY` - Stripe secret key
-- `NEXTAUTH_SECRET` - NextAuth secret
 
 ## Key Files
 

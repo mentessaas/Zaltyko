@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-Next.js 14.2 (App Router) · Supabase (PostgreSQL 17 + RLS + Storage + Realtime) · Drizzle ORM · Stripe (Checkout + Portal + Webhooks) · NextAuth v5 · Vercel · Tailwind + shadcn/ui. Multi-tenant: app connects as `postgres` with `BYPASSRLS`; tenant isolation depends on auth wrappers (`withTenant`, `withSuperAdmin`, `withBearerTenant`), not on RLS — RLS is defense-in-depth for direct Supabase-client access. Marketing + dashboard + super-admin + onboarding in a single Next.js codebase.
+Next.js 15.5 (App Router) · Supabase (PostgreSQL 17 + RLS + Storage + Realtime) · Drizzle ORM · Stripe (Checkout + Portal + Webhooks) · Supabase Auth (`@supabase/ssr`) · Vercel · Tailwind + shadcn/ui. Multi-tenant: app connects as `postgres` with `BYPASSRLS`; tenant isolation depends on auth wrappers (`withTenant`, `withSuperAdmin`, `withBearerTenant`), not on RLS — RLS is defense-in-depth for direct Supabase-client access. Marketing + dashboard + super-admin + onboarding in a single Next.js codebase.
 
 ## Users
 
