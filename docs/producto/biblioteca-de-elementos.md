@@ -130,6 +130,12 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 - Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/8.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,5; se volvieron a redactar 23 elementos (15 por parecido y 8 por errores técnicos o por mencionar el dibujo del Código, que la ficha no tiene). Muestra manual: 6 elementos, pendiente de Elvis.
 - Semilla: `docs/deployment/candidates/20261120053000_element_catalog_seed_fig-wag-2025-2028_8.sql`, sin aplicar.
 
+### Novena tanda
+
+- Edición `fig-wag-2025-2028`, barra de equilibrio, grupo 5 (acrobacia con vuelo): **36 elementos, en borrador**. Con ella queda completa la barra. Va encima de la octava tanda, porque comparte `beam.json`.
+- Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/9.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; se volvieron a redactar 18 elementos (13 por parecido, 3 por errores técnicos y 2 más para que su nombre corto no coincida con otros de barra). Muestra manual: 4 elementos, pendiente de Elvis.
+- Semilla: `docs/deployment/candidates/20261120063000_element_catalog_seed_fig-wag-2025-2028_9.sql`, sin aplicar.
+
 ## Retiradas y avisos sobre contenido
 
 - **Formulario público** `/avisos-de-contenido` (Reglamento de Servicios Digitales, art. 16), obligatorio antes de encender la bandera en producción. Pide motivo, dirección exacta, nombre, correo y una declaración de buena fe. Contra abusos: límite por IP y por correo, campo trampa, longitudes máximas y texto sin enlaces activos. No necesita cuenta ni depende de la bandera; sin las tablas, la página no existe y el envío a la API responde que no está disponible (503). El enlace «Avisar de un contenido» del pie de página se añade al instalar las tablas. **Un aviso no retira nada por sí solo.**

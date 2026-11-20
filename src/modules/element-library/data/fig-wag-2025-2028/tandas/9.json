@@ -1,0 +1,99 @@
+{
+  "batch": 9,
+  "edition": "fig-wag-2025-2028",
+  "apparatus": [
+    "beam"
+  ],
+  "elementKeys": [
+    "bb_handspring_fwd_flight_one_or_two_feet",
+    "bb_flic_flac_two_feet",
+    "bb_flic_flac_step_out",
+    "bb_gainer_flic_flac",
+    "bb_flic_flac_high_flight_swing_down_straddle_sit",
+    "bb_round_off",
+    "bb_handspring_fwd_leg_change_flight",
+    "bb_flic_flac_half_twist_handstand_hold",
+    "bb_flic_flac_quarter_twist_handstand_hold",
+    "bb_flic_flac_half_twist_after_hand_support",
+    "bb_gainer_flic_flac_quarter_twist_handstand_hold",
+    "bb_flic_flac_pike_open_swing_down_straddle_sit",
+    "bb_liukin_salto_fwd_tucked_one_leg_takeoff",
+    "bb_salto_bwd_step_out_tucked",
+    "bb_gainer_salto_bwd_step_out_tucked",
+    "bb_jump_bwd_half_twist_walkover_fwd",
+    "bb_flic_flac_side_half_twist_side_handstand",
+    "bb_flic_flac_three_quarter_twist_side_handstand_hold",
+    "bb_flic_flac_three_quarter_twist_before_hand_support",
+    "bb_flic_flac_side_step_out",
+    "bb_gainer_flic_flac_three_quarter_twist_before_hand_support",
+    "bb_flic_flac_full_twist_swing_down_straddle_sit",
+    "bb_aerial_cartwheel",
+    "bb_aerial_walkover_fwd_free_landing_one_foot",
+    "bb_salto_fwd_tucked_to_cross_stand",
+    "bb_salto_sideways_tucked_one_leg_takeoff_side_stand",
+    "bb_jump_bwd_half_twist_handspring_fwd",
+    "bb_flic_flac_side_full_twist_hip_circle_bwd",
+    "bb_aerial_round_off_tucked_piked",
+    "bb_salto_fwd_piked_to_cross_stand",
+    "bb_schaefer_salto_sideways_tucked_half_twist",
+    "bb_salto_bwd_stretched_legs_together",
+    "bb_lobaznyuk_arabian_salto_tucked",
+    "bb_shishova_salto_bwd_tucked_full_twist",
+    "bb_jump_fwd_half_twist_salto_bwd_tucked",
+    "bb_shishova_salto_bwd_stretched_full_twist"
+  ],
+  "procedure": {
+    "name": "sala-limpia",
+    "version": "1",
+    "steps": [
+      "Extracción de hechos: un subagente lee el PDF oficial y guarda solo número, grupo, valor, epónimo, página y un desglose técnico con valores cerrados, sin frases del Código.",
+      "Redacción en sala limpia: otro subagente, que no ve el Código, redacta nombre, nombre corto y descripción en español a partir solo de esos hechos.",
+      "Comprobación entre idiomas: un tercer subagente compara cada descripción con el texto inglés del Código; lo que supera el umbral se vuelve a redactar en sala limpia.",
+      "Revisión de Elvis: exactitud técnica de toda la tanda y comparación manual con el Código de la muestra indicada."
+    ]
+  },
+  "factsExtractedOn": "2026-11-20",
+  "draftedBy": "Claude",
+  "draftedOn": "2026-11-20",
+  "similarityCheck": {
+    "method": "Comparación frase a frase entre idiomas con el texto inglés del Código, por un revisor independiente",
+    "threshold": 0.5,
+    "maxScore": 0.45,
+    "redrafted": [
+      "bb_handspring_fwd_flight_one_or_two_feet",
+      "bb_flic_flac_quarter_twist_handstand_hold",
+      "bb_gainer_flic_flac_quarter_twist_handstand_hold",
+      "bb_flic_flac_pike_open_swing_down_straddle_sit",
+      "bb_liukin_salto_fwd_tucked_one_leg_takeoff",
+      "bb_jump_bwd_half_twist_walkover_fwd",
+      "bb_flic_flac_side_half_twist_side_handstand",
+      "bb_flic_flac_three_quarter_twist_side_handstand_hold",
+      "bb_gainer_flic_flac_three_quarter_twist_before_hand_support",
+      "bb_flic_flac_full_twist_swing_down_straddle_sit",
+      "bb_aerial_cartwheel",
+      "bb_salto_fwd_tucked_to_cross_stand",
+      "bb_jump_bwd_half_twist_handspring_fwd",
+      "bb_aerial_round_off_tucked_piked",
+      "bb_salto_fwd_piked_to_cross_stand",
+      "bb_schaefer_salto_sideways_tucked_half_twist",
+      "bb_lobaznyuk_arabian_salto_tucked",
+      "bb_jump_fwd_half_twist_salto_bwd_tucked"
+    ],
+    "checkedOn": "2026-11-20",
+    "checkedBy": "Claude"
+  },
+  "manualSample": {
+    "sampleKeys": [
+      "bb_flic_flac_pike_open_swing_down_straddle_sit",
+      "bb_jump_bwd_half_twist_walkover_fwd",
+      "bb_aerial_round_off_tucked_piked",
+      "bb_shishova_salto_bwd_tucked_full_twist"
+    ],
+    "checkedBy": null,
+    "checkedOn": null,
+    "result": null
+  },
+  "reviewedBy": null,
+  "reviewedOn": null,
+  "aviso": "Datos: número, grupo y valor tomados del Código de Puntuación de la FIG como hechos. Nombres y descripciones redactados por Zaltyko; no son texto oficial ni traducción. © Zaltyko. No copiar el texto del Código."
+}
