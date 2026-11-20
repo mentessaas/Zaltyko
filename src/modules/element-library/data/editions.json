@@ -27,7 +27,9 @@
       "beam": [
         { "key": "1", "label": "Entradas" },
         { "key": "2", "label": "Saltos" },
-        { "key": "3", "label": "Giros" }
+        { "key": "3", "label": "Giros" },
+        { "key": "4", "label": "Posiciones y acrobacia sin vuelo" },
+        { "key": "6", "label": "Salidas" }
       ]
     }
   }
