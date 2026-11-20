@@ -33,7 +33,11 @@
         { "key": "6", "label": "Salidas" }
       ],
       "floor": [
-        { "key": "1", "label": "Saltos" }
+        { "key": "1", "label": "Saltos" },
+        { "key": "2", "label": "Giros" },
+        { "key": "3", "label": "Elementos con apoyo de manos" },
+        { "key": "4", "label": "Mortales adelante" },
+        { "key": "5", "label": "Mortales atrás" }
       ]
     }
   }

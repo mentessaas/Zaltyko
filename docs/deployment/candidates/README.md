@@ -1361,6 +1361,24 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
   los elementos de la tanda 10.
 - **Registro:** `src/modules/element-library/data/fig-wag-2025-2028/tandas/10.json`.
 
+## Semilla de la tanda 11 de la biblioteca: suelo, grupos 2 a 5 (20-11-2026)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261120083000_element_catalog_seed_fig-wag-2025-2028_11.sql` (semilla de la tanda 11) | `12cf7e9ce0b9f38b75e01edb068a86e35aec1560f3b3e411bba482f63020b548` | No aplicada | No aplicada |
+
+**Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
+autorización expresa de Elvis; la CI verde no equivale a autorización.
+
+- **Qué carga.** 63 elementos de suelo de la edición `fig-wag-2025-2028`
+  (giros, apoyo de manos y mortales), **en borrador**. Las academias no los ven
+  hasta que Elvis revise la tanda; al revisarla se vuelve a generar con el
+  mismo nombre y su hash cambia.
+- **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
+  independiente de las demás semillas, con la misma semántica, y solo escribe
+  los elementos de la tanda 11.
+- **Registro:** `src/modules/element-library/data/fig-wag-2025-2028/tandas/11.json`.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.
