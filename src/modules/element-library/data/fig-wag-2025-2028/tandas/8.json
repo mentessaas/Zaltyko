@@ -99,7 +99,8 @@
       "bb_dismount_gainer_salto_stretched_two_half_twist_side",
       "bb_dismount_gainer_salto_stretched_triple_twist_side",
       "bb_dismount_double_salto_bwd_tucked_or_piked_full_twist",
-      "bb_dismount_double_salto_bwd_tucked_double_twist"
+      "bb_dismount_double_salto_bwd_tucked_double_twist",
+      "bb_dismount_salto_bwd_one_half_twist"
     ],
     "checkedOn": "2026-11-20",
     "checkedBy": "Claude"

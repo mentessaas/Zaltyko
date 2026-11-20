@@ -1233,7 +1233,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120043000_element_catalog_seed_fig-wag-2025-2028_7.sql` (semilla de la tanda 7) | `237bb4b71b064f2e57a0acd06e1065a46e5b7a43410d0a945d33d13a55be0fa5` | No aplicada | No aplicada |
+| `20261120043000_element_catalog_seed_fig-wag-2025-2028_7.sql` (semilla de la tanda 7) | `5f2e72f1b2e5be50ee1387982e7bcfd786e06370ac7eacd4e1f0353f862f90ae` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1251,7 +1251,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120053000_element_catalog_seed_fig-wag-2025-2028_8.sql` (semilla de la tanda 8) | `f5f811268e0097f52b3843532c4f940a609002661f1760f6bd182f308ef7df48` | No aplicada | No aplicada |
+| `20261120053000_element_catalog_seed_fig-wag-2025-2028_8.sql` (semilla de la tanda 8) | `9e02723c63602cc19b3e9974c34554700e5f0ee635fb05bba196ac1e0a3f62f4` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
