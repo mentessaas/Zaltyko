@@ -31,6 +31,9 @@
         { "key": "4", "label": "Posiciones y acrobacia sin vuelo" },
         { "key": "5", "label": "Acrobacia con vuelo" },
         { "key": "6", "label": "Salidas" }
+      ],
+      "floor": [
+        { "key": "1", "label": "Saltos" }
       ]
     }
   }
