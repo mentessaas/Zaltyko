@@ -83,6 +83,12 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 
 **Cuando Elvis la revisa,** se marca cada elemento como revisado con su fecha en el archivo de datos, se completa el registro de la tanda y se vuelve a generar la semilla. Una semilla nunca devuelve un elemento revisado a borrador, nunca deshace una retirada y aborta si un elemento revisado cambia sin una fecha de revisión posterior.
 
+### Sexta tanda
+
+- Edición `fig-wag-2025-2028`, barra de equilibrio, grupo 1 (entradas): **51 elementos, en borrador**. Es la primera tanda de barra; añade `beam.json` y no depende de las tandas de asimétricas.
+- Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/6.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; se volvieron a redactar 16 elementos (8 por parecido y 8 por errores técnicos, uno de ellos en los hechos). Muestra manual: 6 elementos, pendiente de Elvis.
+- Semilla: `docs/deployment/candidates/20261120033000_element_catalog_seed_fig-wag-2025-2028_6.sql`, sin aplicar.
+
 ## Retiradas y avisos sobre contenido
 
 - **Formulario público** `/avisos-de-contenido` (Reglamento de Servicios Digitales, art. 16), obligatorio antes de encender la bandera en producción. Pide motivo, dirección exacta, nombre, correo y una declaración de buena fe. Contra abusos: límite por IP y por correo, campo trampa, longitudes máximas y texto sin enlaces activos. No necesita cuenta ni depende de la bandera; sin las tablas, la página no existe y el envío a la API responde que no está disponible (503). El enlace «Avisar de un contenido» del pie de página se añade al instalar las tablas. **Un aviso no retira nada por sí solo.**
