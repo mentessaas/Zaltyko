@@ -92,7 +92,11 @@
       "ub_round_off_arabian_tucked_over_lb_hang_hb",
       "ub_round_off_arabian_piked_over_lb_hang_hb",
       "ub_hip_circle_bwd_hecht_half_turn_hang",
-      "ub_clear_hip_circle_hb_counter_straddle_hang_hb"
+      "ub_clear_hip_circle_hb_counter_straddle_hang_hb",
+      "ub_hecht_jump_full_turn_over_lb_hang_hb",
+      "ub_round_off_salto_bwd_tucked_hang_lb",
+      "ub_clear_hip_circle_fwd_full_turn_handstand",
+      "ub_clear_hip_circle_hb_counter_pike_hang_hb"
     ],
     "checkedOn": "2026-11-20",
     "checkedBy": "Claude"
