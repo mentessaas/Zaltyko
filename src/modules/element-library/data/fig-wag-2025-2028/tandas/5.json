@@ -116,7 +116,10 @@
       "ub_dismount_hip_circle_hecht_salto_bwd_tucked",
       "ub_dismount_clear_underswing_salto_fwd_tucked_one_and_half_turn",
       "ub_dismount_swing_bwd_double_salto_fwd_tucked_half_turn",
-      "ub_dismount_hip_circle_hecht_half_turn_salto_fwd_tucked"
+      "ub_dismount_hip_circle_hecht_half_turn_salto_fwd_tucked",
+      "ub_dismount_on_hb_salto_fwd_piked",
+      "ub_toe_underswing_hb_counter_salto_fwd_straddled_reverse_grip",
+      "ub_dismount_underswing_half_turn_salto_bwd"
     ],
     "checkedOn": "2026-11-20",
     "checkedBy": "Claude"
