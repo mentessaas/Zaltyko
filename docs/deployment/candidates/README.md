@@ -1335,7 +1335,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120063000_element_catalog_seed_fig-wag-2025-2028_9.sql` (semilla de la tanda 9) | `4e078617ccf4d37f2447d91205b0a0bb21de49501fad7999951a4f009ea627b6` | No aplicada | No aplicada |
+| `20261120063000_element_catalog_seed_fig-wag-2025-2028_9.sql` (semilla de la tanda 9) | `2bbf1b7501752c6de1b563fbc887737b7f6d8496e7c39e66062627a19bfccf77` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
