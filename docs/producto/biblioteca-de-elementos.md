@@ -90,6 +90,13 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 - Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/10.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; se volvieron a redactar 25 elementos (10 por parecido y 15 por datos que el Código no exige, como el momento del giro o el pie de caída). Muestra manual: 5 elementos, pendiente de Elvis.
 - Semilla: `docs/deployment/candidates/20261120073000_element_catalog_seed_fig-wag-2025-2028_10.sql`, sin aplicar.
 
+### Undécima tanda
+
+- Edición `fig-wag-2025-2028`, suelo, grupos 2 (giros, 18), 3 (elementos con apoyo de manos, 11), 4 (mortales adelante, 16) y 5 (mortales atrás, 18): **63 elementos, en borrador**. Con ella quedan completos el suelo y el Código femenino (las tandas 1 a 11). Va encima de la décima tanda, porque comparte `floor.json`.
+- Incluye valores hasta J (5.1002). Solo se dice «se cuenta una vez» en las casillas con asterisco; en el resto, las formas con distinta posición del cuerpo o pirueta son elementos distintos con el mismo valor.
+- Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/11.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; se volvieron a redactar 31 elementos (15 por parecido y 16 por errores técnicos, varios en los hechos: regla de contar una vez, epónimos Kim y Mukhina, datos solo del dibujo). Muestra manual: 7 elementos, pendiente de Elvis.
+- Semilla: `docs/deployment/candidates/20261120083000_element_catalog_seed_fig-wag-2025-2028_11.sql`, sin aplicar.
+
 ## Retiradas y avisos sobre contenido
 
 - **Formulario público** `/avisos-de-contenido` (Reglamento de Servicios Digitales, art. 16), obligatorio antes de encender la bandera en producción. Pide motivo, dirección exacta, nombre, correo y una declaración de buena fe. Contra abusos: límite por IP y por correo, campo trampa, longitudes máximas y texto sin enlaces activos. No necesita cuenta ni depende de la bandera; sin las tablas, la página no existe y el envío a la API responde que no está disponible (503). El enlace «Avisar de un contenido» del pie de página se añade al instalar las tablas. **Un aviso no retira nada por sí solo.**
