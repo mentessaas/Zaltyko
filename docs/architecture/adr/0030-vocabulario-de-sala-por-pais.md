@@ -1,7 +1,8 @@
 # ADR-0030 — Vocabulario de sala por país en la biblioteca de elementos
 
-- Estado: **propuesto** el 21-11-2026. Espera la aprobación de Elvis. No
-  autoriza encender ninguna bandera en staging ni en producción.
+- Estado: **aceptado** el 21-11-2026 por Elvis (opción A con la búsqueda).
+  No autoriza encender ninguna bandera en staging ni en producción: cada
+  entorno necesita su permiso.
 - Alcance: `src/modules/element-library/` (ficha y búsqueda). No toca la base
   de datos.
 - Relacionados: ADR-0029 (biblioteca de elementos); investigación de
@@ -69,7 +70,7 @@ descripción sigue en vocabulario de España.
 - En contra: son unos 560 nombres más que revisar por país, y alguien de
   México tendría que leerlos. No arregla la descripción.
 
-## Decisión (propuesta)
+## Decisión
 
 **A ahora, con la búsqueda por palabras del país. C solo si, con la
 biblioteca en uso, las academias mexicanas lo piden.**
@@ -136,11 +137,23 @@ biblioteca en uso, las academias mexicanas lo piden.**
 - Revisión de `mx.json` por Elvis (o por una entrenadora mexicana) antes de
   pedir permiso para encender la bandera en staging.
 
-## Preguntas para Elvis
+## Decisiones de Elvis
 
-1. ¿Apruebas A con la búsqueda, y dejar C para cuando lo pidan?
-2. ¿Entran los 17 términos de confianza «media» (por ejemplo «ángel» por
-   «hecht» o «dislocar»), o solo los de «alta»? Propuesta: entran, marcados
-   como borrador hasta tu revisión.
-3. ¿Quién revisa las palabras de México: tú, o una entrenadora de una
-   academia mexicana? Propuesta: una entrenadora, si hay alguna a mano.
+Tomadas el 21-11-2026, al aprobar este ADR:
+
+1. Opción A con la búsqueda. La C, solo si las academias mexicanas la piden.
+2. Entran también los términos de confianza «media»; todos empiezan como
+   borrador y solo se ven cuando están revisados.
+3. Las palabras de México las revisa una entrenadora de una academia
+   mexicana si la hay; si no, Elvis.
+
+## Notas de la primera versión
+
+- `mx.json` sale con todas las entradas en borrador: con la bandera encendida
+  no se ve nada hasta que alguien las revise.
+- «flik-flak» (RFEG) frente a «flic-flac» (México) es solo grafía y se
+  pronuncia igual: no entra, para no llenar 60 fichas con un par que no
+  ayuda.
+- Los prefijos «salto leap» y «salto jump» de los documentos mexicanos son
+  estilo de esos documentos, no palabras de sala: tampoco entran, salvo en
+  los nombres de salto que cambian del todo («salto gato», «salto oveja»).

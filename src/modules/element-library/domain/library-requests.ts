@@ -11,6 +11,7 @@ import {
   type CatalogApparatus,
   type CatalogDiscipline,
 } from "./element-library";
+import type { LocalTermMatch } from "./local-vocabulary";
 
 /**
  * Biblioteca de elementos: peticiones de la API (búsqueda, ficha y nota de la
@@ -154,10 +155,21 @@ export type ElementNoteView = {
   updatedAt: string;
 };
 
+export type CardLocalVocabulary = {
+  country: string;
+  countryName: string;
+  terms: LocalTermMatch[];
+};
+
 export type CatalogElementCard = Omit<CatalogElementSummary, "hasNote"> & {
   discipline: CatalogDiscipline;
   /** Solo con ZALTYKO_ELEMENT_LIBRARY_DESCRIPTIONS_ENABLED; si no, null. */
   description: string | null;
+  /**
+   * Palabras de la ficha que en el país de la academia se dicen distinto
+   * (ADR-0030). Null con la bandera apagada, sin archivo del país o sin pares.
+   */
+  localVocabulary: CardLocalVocabulary | null;
   edition: EditionView;
   attribution: string;
   note: ElementNoteView | null;
