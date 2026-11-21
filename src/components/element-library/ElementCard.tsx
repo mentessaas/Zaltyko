@@ -100,6 +100,31 @@ export function ElementCard({
         </section>
       ) : null}
 
+      {card.localVocabulary ? (
+        <section className="grid gap-2" aria-labelledby={`${noteId}-local`}>
+          <h3 id={`${noteId}-local`} className={ownerUi.label}>
+            Así se dice en {card.localVocabulary.countryName}
+          </h3>
+          <p className={ownerUi.help}>Esta ficha usa las palabras de España. En tu país se dice:</p>
+          <dl className="grid gap-2">
+            {card.localVocabulary.terms.map((term) => (
+              <div key={term.key} className="grid gap-0.5">
+                <dt className="text-sm text-z-ink">
+                  <span className="sr-only">En España, </span>
+                  {term.es}
+                </dt>
+                <dd className="text-sm font-semibold text-z-ink">
+                  <span className="sr-only">en {card.localVocabulary?.countryName}, </span>
+                  <span aria-hidden="true">→ </span>
+                  {term.local.join(" o ")}
+                  {term.note ? <span className={cn(ownerUi.help, "block font-normal")}>{term.note}</span> : null}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
+
       <form className="grid gap-2" onSubmit={save} noValidate>
         <label htmlFor={noteId} className={ownerUi.label}>
           Nota de la academia

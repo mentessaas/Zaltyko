@@ -49,11 +49,14 @@ function dataDir(root: string): string {
   return join(root, ELEMENT_DATA_DIR);
 }
 
+/** Vocabulario de sala por país (ADR-0030): no es una edición. */
+const VOCABULARY_DIR = "vocabulario";
+
 /** Directorios de edición presentes en `data/`, en orden. */
 function editionDirs(root: string): string[] {
   const dir = dataDir(root);
   return readdirSync(dir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
+    .filter((entry) => entry.isDirectory() && entry.name !== VOCABULARY_DIR)
     .map((entry) => entry.name)
     .sort();
 }
