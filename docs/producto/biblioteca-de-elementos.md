@@ -91,6 +91,12 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 - Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/1.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 13 elementos se volvieron a redactar. Muestra manual: 5 elementos.
 - Semilla: `docs/deployment/candidates/20261121120000_element_catalog_seed_fig-mag-2025-2028_1.sql`, sin aplicar en ningún entorno.
 
+### Segunda tanda de la masculina
+
+- Suelo, grupos II (acrobacia adelante), III (acrobacia atrás) y IV (mortal simple con pirueta): **51 elementos, en borrador**, redactados el 21-11-2026. Con ella el suelo masculino queda completo (96 elementos).
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/2.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,4; 6 elementos se volvieron a redactar. Muestra manual: 6 elementos.
+- Semilla: `docs/deployment/candidates/20261121130000_element_catalog_seed_fig-mag-2025-2028_2.sql`, sin aplicar en ningún entorno.
+
 ## Retiradas y avisos sobre contenido
 
 - **Formulario público** `/avisos-de-contenido` (Reglamento de Servicios Digitales, art. 16), obligatorio antes de encender la bandera en producción. Pide motivo, dirección exacta, nombre, correo y una declaración de buena fe. Contra abusos: límite por IP y por correo, campo trampa, longitudes máximas y texto sin enlaces activos. No necesita cuenta ni depende de la bandera; sin las tablas, la página no existe y el envío a la API responde que no está disponible (503). El enlace «Avisar de un contenido» del pie de página se añade al instalar las tablas. **Un aviso no retira nada por sí solo.**
