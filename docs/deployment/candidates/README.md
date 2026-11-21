@@ -1211,6 +1211,26 @@ drop table zaltyko.catalog_element_editions;
 commit;
 ```
 
+## Semilla de la tanda 3 de la biblioteca: asimétricas, grupos 1 y 2 (20-11-2026)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261120003000_element_catalog_seed_fig-wag-2025-2028_3.sql` (semilla de la tanda 3) | `d2e93819b0bc689e4dbf22743c953f4d8958b1e6646b150d021277ec8f5a995f` | No aplicada | No aplicada |
+
+**Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
+autorización expresa de Elvis; la CI verde no equivale a autorización.
+
+- **Qué carga.** 51 elementos de paralelas asimétricas de la edición
+  `fig-wag-2025-2028` (entradas, impulsos y vueltas libres), **en borrador**.
+  Las academias no los ven hasta que Elvis revise la tanda; al revisarla se
+  vuelve a generar con el mismo nombre y su hash cambia.
+- **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
+  independiente de las semillas de las tandas 1 y 2: la misma semántica
+  (actualiza la edición sin bajarla, nunca toca las retiradas ni devuelve un
+  revisado a borrador, y repetirla no cambia nada) y solo escribe los elementos
+  de la tanda 3.
+- **Registro:** `src/modules/element-library/data/fig-wag-2025-2028/tandas/3.json`.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.
