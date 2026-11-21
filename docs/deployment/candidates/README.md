@@ -1211,6 +1211,25 @@ drop table zaltyko.catalog_element_editions;
 commit;
 ```
 
+## Semilla de la tanda 1 de la masculina: suelo, grupo I (21-11-2026)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261121120000_element_catalog_seed_fig-mag-2025-2028_1.sql` (semilla de la tanda 1 de la masculina) | `a0cc9b45a439a01ec563c609072774dce30f25e633a69289b96ae8cda28d51e9` | No aplicada | No aplicada |
+
+**Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
+autorización expresa de Elvis; la CI verde no equivale a autorización.
+
+- **Qué carga.** La edición `fig-mag-2025-2028` (artística masculina, estado
+  `published`) y 45 elementos de suelo del grupo I, **en borrador**. Las
+  academias no los ven hasta que Elvis revise la tanda; al revisarla se vuelve
+  a generar con el mismo nombre y su hash cambia.
+- **Requiere antes** `20261119120000_element_library_candidate.sql`, que ya
+  admite la edición masculina y sus seis aparatos. Misma semántica que las
+  semillas femeninas: actualiza la edición sin bajarla, nunca toca las
+  retiradas ni devuelve un revisado a borrador, y repetirla no cambia nada.
+- **Registro:** `src/modules/element-library/data/fig-mag-2025-2028/tandas/1.json`.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.

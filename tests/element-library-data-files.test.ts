@@ -56,8 +56,11 @@ function elementsByBatch() {
 }
 
 describe("data/editions.json", () => {
-  it("solo la edición GAF 2025-2028, publicada, con los grupos de salto", () => {
-    expect(editions).toHaveLength(1);
+  it("las ediciones GAF y GAM 2025-2028, publicadas, en ese orden", () => {
+    expect(editions.map((edition) => edition.code)).toEqual(["fig-wag-2025-2028", "fig-mag-2025-2028"]);
+  });
+
+  it("la edición GAF 2025-2028, publicada, con los grupos de salto", () => {
     const [wag] = editions;
     expect(wag).toMatchObject({
       code: "fig-wag-2025-2028",
@@ -75,6 +78,26 @@ describe("data/editions.json", () => {
       { key: "3", label: "Tsukahara: paloma con 1/4–1/2 giro y mortal atrás" },
       { key: "4", label: "Yurchenko: rondada y mortal atrás" },
       { key: "5", label: "Rondada con 1/2 giro y mortal adelante" },
+    ]);
+  });
+
+  it("la edición GAM 2025-2028, publicada, con los grupos de suelo", () => {
+    const mag = editions[1];
+    expect(mag).toMatchObject({
+      code: "fig-mag-2025-2028",
+      discipline: "artistic_male",
+      cycleStart: 2025,
+      cycleEnd: 2028,
+      title: "Código de Puntuación de Gimnasia Artística Masculina 2025-2028",
+      documentUrl: "https://www.gymnastics.sport/publicdir/rules/files/en_1.1%20-%20MAG%20Code%20of%20Points%202025-2028.pdf",
+      coverDate: "2026-11-16",
+      status: "published",
+    });
+    expect(mag.groups.floor).toEqual([
+      { key: "I", label: "Elementos sin acrobacia" },
+      { key: "II", label: "Acrobacia adelante" },
+      { key: "III", label: "Acrobacia atrás" },
+      { key: "IV", label: "Mortal simple adelante o atrás con pirueta" },
     ]);
   });
 });
