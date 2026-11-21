@@ -1231,6 +1231,24 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
   de la tanda 3.
 - **Registro:** `src/modules/element-library/data/fig-wag-2025-2028/tandas/3.json`.
 
+## Semilla de la tanda 4 de la biblioteca: asimétricas, grupos 3 y 4 (20-11-2026)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261120013000_element_catalog_seed_fig-wag-2025-2028_4.sql` (semilla de la tanda 4) | `7f6e0cd0ca13ec1c813abdb43fcf578ac981ff80153121ccd7e498a01e5c4c29` | No aplicada | No aplicada |
+
+**Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
+autorización expresa de Elvis; la CI verde no equivale a autorización.
+
+- **Qué carga.** 58 elementos de paralelas asimétricas de la edición
+  `fig-wag-2025-2028` (gigantes y Stalder), **en borrador**. Las academias no
+  los ven hasta que Elvis revise la tanda; al revisarla se vuelve a generar con
+  el mismo nombre y su hash cambia.
+- **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
+  independiente de las demás semillas, con la misma semántica, y solo escribe
+  los elementos de la tanda 4.
+- **Registro:** `src/modules/element-library/data/fig-wag-2025-2028/tandas/4.json`.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.
