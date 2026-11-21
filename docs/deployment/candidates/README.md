@@ -1215,7 +1215,7 @@ commit;
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120033000_element_catalog_seed_fig-wag-2025-2028_6.sql` (semilla de la tanda 6) | `e83fe56181a47b9ac75cace3b7d1b7a4f6c4ec51f998fcb8eae35d142631fd3c` | No aplicada | No aplicada |
+| `20261120033000_element_catalog_seed_fig-wag-2025-2028_6.sql` (semilla de la tanda 6) | `cc7f14d2cee13eb14081a0278ce07776190010319714194791a2db2915143135` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1233,7 +1233,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120043000_element_catalog_seed_fig-wag-2025-2028_7.sql` (semilla de la tanda 7) | `5f2e72f1b2e5be50ee1387982e7bcfd786e06370ac7eacd4e1f0353f862f90ae` | No aplicada | No aplicada |
+| `20261120043000_element_catalog_seed_fig-wag-2025-2028_7.sql` (semilla de la tanda 7) | `d16a2a9ec45c5a6759c9bcd4db3add70b07ca56f23ce29298ef5f139af817b8e` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1251,7 +1251,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120053000_element_catalog_seed_fig-wag-2025-2028_8.sql` (semilla de la tanda 8) | `9e02723c63602cc19b3e9974c34554700e5f0ee635fb05bba196ac1e0a3f62f4` | No aplicada | No aplicada |
+| `20261120053000_element_catalog_seed_fig-wag-2025-2028_8.sql` (semilla de la tanda 8) | `597a06f402acd8f105a688ecd8fd8117ecb7a4f30d8609f05a146881c34e2ab2` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
