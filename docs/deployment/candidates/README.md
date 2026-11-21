@@ -1393,6 +1393,23 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
   retiradas ni devuelve un revisado a borrador, y repetirla no cambia nada.
 - **Registro:** `src/modules/element-library/data/fig-mag-2025-2028/tandas/1.json`.
 
+## Semilla de la tanda 2 de la masculina: suelo, grupos II a IV (21-11-2026)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261121130000_element_catalog_seed_fig-mag-2025-2028_2.sql` (semilla de la tanda 2 de la masculina) | `5c63a1b9257f4226bcd5fe36921f58d81af5adb25a20e8a47374400961a27603` | No aplicada | No aplicada |
+
+**Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
+autorización expresa de Elvis; la CI verde no equivale a autorización.
+
+- **Qué carga.** 51 elementos de suelo de la edición `fig-mag-2025-2028`
+  (acrobacia adelante, acrobacia atrás y mortal simple con pirueta), **en
+  borrador**: con ella el suelo masculino queda completo.
+- **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
+  independiente de la semilla de la tanda 1 de la masculina, con la misma
+  semántica, y solo escribe los elementos de esta tanda.
+- **Registro:** `src/modules/element-library/data/fig-mag-2025-2028/tandas/2.json`.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.
