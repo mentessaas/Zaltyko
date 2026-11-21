@@ -15,6 +15,9 @@
         { "key": "3", "label": "Tsukahara: paloma con 1/4–1/2 giro y mortal atrás" },
         { "key": "4", "label": "Yurchenko: rondada y mortal atrás" },
         { "key": "5", "label": "Rondada con 1/2 giro y mortal adelante" }
+      ],
+      "beam": [
+        { "key": "1", "label": "Entradas" }
       ]
     }
   }
