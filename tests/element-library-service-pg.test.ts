@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 import { sql } from "drizzle-orm";
 import { Client } from "pg";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { db } from "@/db";
 import {
@@ -23,12 +23,28 @@ import {
   ELEMENT_LIBRARY_ENV_FLAG,
   ELEMENT_LIBRARY_UNAVAILABLE_REASON,
 } from "@/modules/element-library/domain/element-library";
+import { LOCAL_VOCABULARY_ENV_FLAG } from "@/modules/element-library/domain/local-vocabulary";
 import { resetUsageStorageCache } from "@/modules/habitual-use/application/storage";
 import { recordStaffVisit } from "@/modules/habitual-use/application/usage-events";
 import { HABITUAL_USE_FLAGS } from "@/modules/habitual-use/domain/flags";
 import { SKILL_LEVELS_ENV_FLAG } from "@/modules/skill-levels/domain/skill-levels";
 
 import { dropElementLibraryCandidates } from "./helpers/element-library-candidate";
+
+// Vocabulario de México de prueba (ADR-0030): dos entradas revisadas y una en
+// borrador, que no debe verse. Nada sale del archivo real.
+vi.mock("@/modules/element-library/data/vocabulario/mx.json", () => ({
+  default: {
+    aviso: "Vocabulario de prueba para la integración continua.",
+    country: "MX",
+    countryName: "México",
+    entries: [
+      { key: "rondada", es: ["rondada"], local: ["redondilla"], confidence: "alta", source: "Prueba", reviewStatus: "reviewed" },
+      { key: "paloma", es: ["paloma"], local: ["resorte"], confidence: "alta", source: "Prueba", reviewStatus: "reviewed" },
+      { key: "prueba", es: ["prueba"], local: ["ensayo"], confidence: "media", source: "Prueba", reviewStatus: "draft" },
+    ],
+  },
+}));
 
 /**
  * Servicio de la biblioteca de elementos sobre PostgreSQL desechable de
@@ -96,6 +112,7 @@ const HABITUAL_USE = "20261114130000_habitual_use_candidate.sql";
 const FLAGS = [
   ELEMENT_LIBRARY_ENV_FLAG,
   ELEMENT_LIBRARY_DESCRIPTIONS_ENV_FLAG,
+  LOCAL_VOCABULARY_ENV_FLAG,
   SKILL_LEVELS_ENV_FLAG,
   HABITUAL_USE_FLAGS.master,
   HABITUAL_USE_FLAGS.usageMetrics,
@@ -177,11 +194,11 @@ async function member(
   return { userId, memberId };
 }
 
-async function academy(label: string, sites: number) {
+async function academy(label: string, sites: number, countryCode = "ES") {
   const organizationId = randomUUID();
   await db.execute(sql`
-    insert into zaltyko.organizations (id, name, status)
-    values (${organizationId}::uuid, ${`CI biblioteca ${label}`}, 'active')
+    insert into zaltyko.organizations (id, name, status, country_code)
+    values (${organizationId}::uuid, ${`CI biblioteca ${label}`}, 'active', ${countryCode})
   `);
   const locationIds: string[] = [];
   for (let index = 0; index < sites; index += 1) {
@@ -473,6 +490,36 @@ describe.skipIf(!disposablePgEnabled)("biblioteca de elementos: servicio en Post
     }
     for (const hidden of [vaultDraft, vaultWithdrawn, maleFloor, randomUUID()]) {
       await expect(card(ownerA, hidden)).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
+    }
+  });
+
+  it("con el vocabulario de México, la ficha enseña sus palabras y la búsqueda las entiende (ADR-0030)", async () => {
+    const mx = await academy("MX", 1, "MX");
+    const ownerMx = await member(mx.organizationId, "owner", "all", [], "ownerMx");
+    const sm = { organizationId: mx.organizationId, locationId: mx.locationIds[0]! };
+    const ids = async (actor: Actor, q: string, scope = s1()) =>
+      (await search(actor, { q }, scope)).elements.map((entry) => entry.id);
+
+    // Bandera apagada: México ve lo mismo que España.
+    expect((await card(ownerMx, vaultOne, sm)).localVocabulary).toBeNull();
+    expect(await ids(ownerMx, "redondilla", sm)).toEqual([]);
+
+    setFlag(LOCAL_VOCABULARY_ENV_FLAG, true);
+    try {
+      // «Rondada con medio giro de prueba»: «prueba» está en borrador y no sale.
+      expect((await card(ownerMx, vaultOne, sm)).localVocabulary).toEqual({
+        country: "MX",
+        countryName: "México",
+        terms: [{ key: "rondada", es: "rondada", local: ["redondilla"], note: null }],
+      });
+      expect(await ids(ownerMx, "redondilla", sm)).toEqual([vaultOne]);
+      expect(await ids(ownerMx, "RESORTE", sm)).toEqual([vaultTwo]);
+      expect(await ids(ownerMx, "ensayo", sm)).toEqual([]);
+      // España no cambia: ni recuadro ni palabras de México en la búsqueda.
+      expect((await card(ownerA, vaultOne)).localVocabulary).toBeNull();
+      expect(await ids(ownerA, "redondilla")).toEqual([]);
+    } finally {
+      setFlag(LOCAL_VOCABULARY_ENV_FLAG, false);
     }
   });
 

@@ -7,6 +7,20 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-11-21 — Biblioteca: vocabulario de sala por país (ADR-0030, apagado)
+
+**Contexto.** Los textos de la biblioteca usan el vocabulario de España (RFEG), decisión de Elvis del 21-11-2026. México dice distinto casi la mitad de los términos de sala. ADR-0030 aceptado por Elvis el 21-11-2026 (opción A con la búsqueda). Rama `biblioteca/vocabulario-por-pais`.
+
+**Cambio.**
+- `src/modules/element-library/data/vocabulario/mx.json`: 57 pares España → México con su confianza y una etiqueta de fuente, todos **en borrador**.
+- Dominio `local-vocabulary.ts`: esquema estricto, coincidencias (sin acentos, palabra completa, la más larga primero, sin solapes) y variantes de búsqueda.
+- La ficha muestra «Así se dice en México» y la búsqueda entiende las palabras del país. El país sale de `organizations.country_code`; España y los países sin archivo no cambian.
+- Sin migración ni datos nuevos en la base; nada nuevo en data-rights.
+
+**No se ejecutó.** Bandera `ZALTYKO_ELEMENT_LIBRARY_LOCAL_VOCABULARY_ENABLED` apagada en todos los entornos.
+
+**Pendiente.** Revisión de `mx.json`; permiso de Elvis para encender la bandera en staging.
+
 ## 2026-11-19 — Biblioteca de elementos, fase C (ADR-0029): catálogo, nota de la academia, avisos y primera tanda (apagado)
 
 **Contexto.** ADR-0029, aceptado el 19-11-2026 con las decisiones 1–14 de Elvis. Rama `biblioteca/fase-c-catalogo`, sin push.

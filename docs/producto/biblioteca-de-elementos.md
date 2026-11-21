@@ -12,6 +12,8 @@ Si falta la bandera o las tablas: la página da 404, las API responden 503 con e
 
 Las descripciones van aparte, con su propia bandera: `ZALTYKO_ELEMENT_LIBRARY_DESCRIPTIONS_ENABLED=true` (por defecto `false`). Apagada, la ficha muestra nombre, aparato, grupo y valor, sin descripción.
 
+El vocabulario de sala por país también va aparte (ADR-0030): `ZALTYKO_ELEMENT_LIBRARY_LOCAL_VOCABULARY_ENABLED=true` (por defecto `false`). Encendida, una academia de un país con archivo revisado (`src/modules/element-library/data/vocabulario/<país>.json`, primero México) ve en la ficha el recuadro «Así se dice en México» con las palabras de esa ficha que cambian («rondada → redondilla»), y puede buscar con sus palabras («redondilla» encuentra «rondada»). Los textos del catálogo no cambian y siguen en vocabulario de España. Solo se ven las entradas revisadas; `mx.json` sale con todas en borrador.
+
 ## Qué resuelve
 
 Hasta ahora cada academia escribía a mano el nombre de cada elemento de sus niveles. La biblioteca da un **vocabulario común**: el grupo y el valor de cada elemento según el Código de Puntuación de la FIG, con un nombre en español y, si se enciende, una descripción breve redactada por Zaltyko. La academia sigue escribiendo lo suyo: su nombre para el elemento, su nota técnica, sus niveles y sus guiones. Nada de lo que ya existe cambia.
@@ -119,6 +121,7 @@ Con la migración en todos los entornos, una PR posterior quitará el conjunto a
 |---|---|---|---|
 | C | `ZALTYKO_ELEMENT_LIBRARY_ENABLED` (con `ZALTYKO_SKILL_LEVELS_ENABLED`) | Biblioteca con nombre, grupo y valor; nota de la academia; «Añadir desde la biblioteca»; enlace en el guion | Revisar las tandas; permiso para cada candidata y semilla por entorno; encender la bandera; aprobar el formulario de avisos |
 | C | `ZALTYKO_ELEMENT_LIBRARY_DESCRIPTIONS_ENABLED` | Descripciones propias | Revisar cada tanda; permiso para encenderla (no espera a L10) |
+| C | `ZALTYKO_ELEMENT_LIBRARY_LOCAL_VOCABULARY_ENABLED` | Palabras del país de la academia en la ficha y la búsqueda (ADR-0030) | Revisar `mx.json` (o que lo revise una entrenadora mexicana); permiso para encenderla |
 | D | `ZALTYKO_FEDERATION_LEVEL_TEMPLATES_ENABLED` | Importar plantillas de niveles de la RFEG | Solo hechos, sin licencia; revisar cada plantilla contra el PDF; permiso para el perfil `rfeg-2027` y la bandera |
 | E | Ninguna aquí | Modelo por país | Su propio ADR |
 
