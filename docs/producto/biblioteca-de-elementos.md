@@ -152,6 +152,14 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 - Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/11.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; se volvieron a redactar 31 elementos (15 por parecido y 16 por errores técnicos, varios en los hechos: regla de contar una vez, epónimos Kim y Mukhina, datos solo del dibujo). Muestra manual: 7 elementos, pendiente de Elvis.
 - Semilla: `docs/deployment/candidates/20261120083000_element_catalog_seed_fig-wag-2025-2028_11.sql`, sin aplicar.
 
+### Primera tanda de la masculina
+
+- Edición `fig-mag-2025-2028` (Código de Puntuación de Gimnasia Artística Masculina 2025-2028, PDF oficial de la FIG del 16-11-2026). Las tandas se numeran por edición: esta es la tanda 1 de la masculina.
+- Suelo, grupo I (elementos sin acrobacia: fuerza, pinos, planchas, spagat, balanzas, mariposas, molinos y molinos rusos): **45 elementos, en borrador**, redactados el 21-11-2026 con el vocabulario del programa técnico GAM 2026 de la RFEG.
+- `sourcePage` es la página del PDF, no el número impreso al pie, que en las tablas va una por detrás.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/1.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 13 elementos se volvieron a redactar. Muestra manual: 5 elementos.
+- Semilla: `docs/deployment/candidates/20261121120000_element_catalog_seed_fig-mag-2025-2028_1.sql`, sin aplicar en ningún entorno.
+
 ## Retiradas y avisos sobre contenido
 
 - **Formulario público** `/avisos-de-contenido` (Reglamento de Servicios Digitales, art. 16), obligatorio antes de encender la bandera en producción. Pide motivo, dirección exacta, nombre, correo y una declaración de buena fe. Contra abusos: límite por IP y por correo, campo trampa, longitudes máximas y texto sin enlaces activos. No necesita cuenta ni depende de la bandera; sin las tablas, la página no existe y el envío a la API responde que no está disponible (503). El enlace «Avisar de un contenido» del pie de página se añade al instalar las tablas. **Un aviso no retira nada por sí solo.**
