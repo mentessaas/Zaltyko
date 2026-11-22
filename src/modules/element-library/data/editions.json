@@ -68,6 +68,13 @@
         { "key": "II", "label": "Fuerza y posiciones mantenidas" },
         { "key": "III", "label": "Balanceo a posición de fuerza" },
         { "key": "IV", "label": "Salidas" }
+      ],
+      "vault": [
+        { "key": "I", "label": "Paloma y mortal adelante con pirueta compleja" },
+        { "key": "II", "label": "Paloma y mortal, con o sin pirueta simple, y dobles mortales adelante" },
+        { "key": "III", "label": "Paloma lateral y Tsukahara, y dobles mortales atrás" },
+        { "key": "IV", "label": "Entrada en rondada y mortal con pirueta compleja" },
+        { "key": "V", "label": "Entrada en rondada con o sin pirueta simple, y dobles mortales" }
       ]
     }
   }
