@@ -81,7 +81,7 @@ describe("data/editions.json", () => {
     ]);
   });
 
-  it("la edición GAM 2025-2028, publicada, con los grupos de suelo, caballo con arcos y anillas", () => {
+  it("la edición GAM 2025-2028, publicada, con los grupos de suelo, caballo con arcos, anillas y salto", () => {
     const mag = editions[1];
     expect(mag).toMatchObject({
       code: "fig-mag-2025-2028",
@@ -110,6 +110,13 @@ describe("data/editions.json", () => {
       { key: "II", label: "Fuerza y posiciones mantenidas" },
       { key: "III", label: "Balanceo a posición de fuerza" },
       { key: "IV", label: "Salidas" },
+    ]);
+    expect(mag.groups.vault).toEqual([
+      { key: "I", label: "Paloma y mortal adelante con pirueta compleja" },
+      { key: "II", label: "Paloma y mortal, con o sin pirueta simple, y dobles mortales adelante" },
+      { key: "III", label: "Paloma lateral y Tsukahara, y dobles mortales atrás" },
+      { key: "IV", label: "Entrada en rondada y mortal con pirueta compleja" },
+      { key: "V", label: "Entrada en rondada con o sin pirueta simple, y dobles mortales" },
     ]);
   });
 });
