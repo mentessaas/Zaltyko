@@ -209,6 +209,12 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 - Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/9.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,3; 3 saltos se retocaron. Muestra manual: 6 saltos.
 - Semilla: `docs/deployment/candidates/20261122180000_element_catalog_seed_fig-mag-2025-2028_9.sql`, sin aplicar en ningún entorno.
 
+### Décima tanda de la masculina
+
+- Paralelas, grupo II (elementos en apoyo o pasando por el apoyo en las dos barras): **57 elementos, en borrador**, redactados el 22-11-2026. Es el primer grupo de paralelas.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/10.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 9 elementos se volvieron a redactar. Muestra manual: 6 elementos.
+- Semilla: `docs/deployment/candidates/20261122190000_element_catalog_seed_fig-mag-2025-2028_10.sql`, sin aplicar en ningún entorno.
+
 ## Retiradas y avisos sobre contenido
 
 - **Formulario público** `/avisos-de-contenido` (Reglamento de Servicios Digitales, art. 16), obligatorio antes de encender la bandera en producción. Pide motivo, dirección exacta, nombre, correo y una declaración de buena fe. Contra abusos: límite por IP y por correo, campo trampa, longitudes máximas y texto sin enlaces activos. No necesita cuenta ni depende de la bandera; sin las tablas, la página no existe y el envío a la API responde que no está disponible (503). El enlace «Avisar de un contenido» del pie de página se añade al instalar las tablas. **Un aviso no retira nada por sí solo.**

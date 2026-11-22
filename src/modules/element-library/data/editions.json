@@ -75,6 +75,12 @@
         { "key": "III", "label": "Paloma lateral y Tsukahara, y dobles mortales atrás" },
         { "key": "IV", "label": "Entrada en rondada y mortal con pirueta compleja" },
         { "key": "V", "label": "Entrada en rondada con o sin pirueta simple, y dobles mortales" }
+      ],
+      "parallel_bars": [
+        { "key": "I", "label": "Elementos desde apoyo braquial" },
+        { "key": "II", "label": "Elementos en apoyo o pasando por el apoyo en las dos barras" },
+        { "key": "III", "label": "Balanceos largos en suspensión y balanceos por debajo" },
+        { "key": "IV", "label": "Salidas" }
       ]
     }
   }
