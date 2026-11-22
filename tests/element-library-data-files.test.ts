@@ -81,7 +81,7 @@ describe("data/editions.json", () => {
     ]);
   });
 
-  it("la edición GAM 2025-2028, publicada, con los grupos de suelo, caballo con arcos, anillas y salto", () => {
+  it("la edición GAM 2025-2028, publicada, con los grupos de suelo, caballo con arcos, anillas, salto y paralelas", () => {
     const mag = editions[1];
     expect(mag).toMatchObject({
       code: "fig-mag-2025-2028",
@@ -117,6 +117,12 @@ describe("data/editions.json", () => {
       { key: "III", label: "Paloma lateral y Tsukahara, y dobles mortales atrás" },
       { key: "IV", label: "Entrada en rondada y mortal con pirueta compleja" },
       { key: "V", label: "Entrada en rondada con o sin pirueta simple, y dobles mortales" },
+    ]);
+    expect(mag.groups.parallel_bars).toEqual([
+      { key: "I", label: "Elementos desde apoyo braquial" },
+      { key: "II", label: "Elementos en apoyo o pasando por el apoyo en las dos barras" },
+      { key: "III", label: "Balanceos largos en suspensión y balanceos por debajo" },
+      { key: "IV", label: "Salidas" },
     ]);
   });
 });
