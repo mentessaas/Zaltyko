@@ -233,6 +233,12 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 - Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/13.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 37 elementos se volvieron a redactar. Muestra manual: 6 elementos.
 - Semilla: `docs/deployment/candidates/20261122220000_element_catalog_seed_fig-mag-2025-2028_13.sql`, sin aplicar en ningún entorno.
 
+### Decimocuarta tanda de la masculina
+
+- Barra fija, grupos II (elementos de vuelo) y IV (salidas): **72 elementos, en borrador**, redactados el 22-11-2026. Con ella la barra fija queda completa (131 elementos) y **la biblioteca masculina queda completa: 737 elementos en los seis aparatos**, todos en borrador hasta la revisión de Elvis.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/14.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 28 elementos se volvieron a redactar. Muestra manual: 8 elementos.
+- Semilla: `docs/deployment/candidates/20261122230000_element_catalog_seed_fig-mag-2025-2028_14.sql`, sin aplicar en ningún entorno.
+
 ## Retiradas y avisos sobre contenido
 
 - **Formulario público** `/avisos-de-contenido` (Reglamento de Servicios Digitales, art. 16), obligatorio antes de encender la bandera en producción. Pide motivo, dirección exacta, nombre, correo y una declaración de buena fe. Contra abusos: límite por IP y por correo, campo trampa, longitudes máximas y texto sin enlaces activos. No necesita cuenta ni depende de la bandera; sin las tablas, la página no existe y el envío a la API responde que no está disponible (503). El enlace «Avisar de un contenido» del pie de página se añade al instalar las tablas. **Un aviso no retira nada por sí solo.**
