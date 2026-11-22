@@ -62,6 +62,12 @@
         { "key": "II", "label": "Molinos y flairs" },
         { "key": "III", "label": "Desplazamientos" },
         { "key": "IV", "label": "Salidas" }
+      ],
+      "rings": [
+        { "key": "I", "label": "Kippe, balanceos y vuelos al pino" },
+        { "key": "II", "label": "Fuerza y posiciones mantenidas" },
+        { "key": "III", "label": "Balanceo a posición de fuerza" },
+        { "key": "IV", "label": "Salidas" }
       ]
     }
   }
