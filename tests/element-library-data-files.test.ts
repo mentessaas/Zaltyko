@@ -81,7 +81,7 @@ describe("data/editions.json", () => {
     ]);
   });
 
-  it("la edición GAM 2025-2028, publicada, con los grupos de suelo, caballo con arcos, anillas, salto y paralelas", () => {
+  it("la edición GAM 2025-2028, publicada, con los grupos de los seis aparatos", () => {
     const mag = editions[1];
     expect(mag).toMatchObject({
       code: "fig-mag-2025-2028",
@@ -122,6 +122,12 @@ describe("data/editions.json", () => {
       { key: "I", label: "Elementos desde apoyo braquial" },
       { key: "II", label: "Elementos en apoyo o pasando por el apoyo en las dos barras" },
       { key: "III", label: "Balanceos largos en suspensión y balanceos por debajo" },
+      { key: "IV", label: "Salidas" },
+    ]);
+    expect(mag.groups.high_bar).toEqual([
+      { key: "I", label: "Balanceos largos en suspensión y giros" },
+      { key: "II", label: "Elementos de vuelo" },
+      { key: "III", label: "Elementos en barra y Adler" },
       { key: "IV", label: "Salidas" },
     ]);
   });
