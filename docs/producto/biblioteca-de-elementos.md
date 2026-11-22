@@ -134,6 +134,12 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 - Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/8.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,3; 6 saltos se retocaron. Muestra manual: 6 saltos.
 - Semilla: `docs/deployment/candidates/20261122170000_element_catalog_seed_fig-mag-2025-2028_8.sql`, sin aplicar en ningún entorno.
 
+### Novena tanda de la masculina
+
+- Salto, grupos IV (entrada en rondada y mortal con pirueta compleja) y V (entrada en rondada con o sin pirueta simple, y dobles mortales): **35 saltos, en borrador**, redactados el 22-11-2026. Con ella el salto masculino queda completo (83 saltos).
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/9.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,3; 3 saltos se retocaron. Muestra manual: 6 saltos.
+- Semilla: `docs/deployment/candidates/20261122180000_element_catalog_seed_fig-mag-2025-2028_9.sql`, sin aplicar en ningún entorno.
+
 ## Retiradas y avisos sobre contenido
 
 - **Formulario público** `/avisos-de-contenido` (Reglamento de Servicios Digitales, art. 16), obligatorio antes de encender la bandera en producción. Pide motivo, dirección exacta, nombre, correo y una declaración de buena fe. Contra abusos: límite por IP y por correo, campo trampa, longitudes máximas y texto sin enlaces activos. No necesita cuenta ni depende de la bandera; sin las tablas, la página no existe y el envío a la API responde que no está disponible (503). El enlace «Avisar de un contenido» del pie de página se añade al instalar las tablas. **Un aviso no retira nada por sí solo.**
