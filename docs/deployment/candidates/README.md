@@ -1476,6 +1476,23 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
   solo escribe los elementos de esta tanda.
 - **Registro:** `src/modules/element-library/data/fig-mag-2025-2028/tandas/6.json`.
 
+## Semilla de la tanda 7 de la masculina: anillas, grupos III y IV (22-11-2026)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261122160000_element_catalog_seed_fig-mag-2025-2028_7.sql` (semilla de la tanda 7 de la masculina) | `06ec921116455b1e3dbb8c621284003bed6f340ea8d27538d68f242c4e56d247` | No aplicada | No aplicada |
+
+**Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
+autorización expresa de Elvis; la CI verde no equivale a autorización.
+
+- **Qué carga.** 54 elementos de anillas de la edición `fig-mag-2025-2028`
+  (balanceo a posición de fuerza y salidas), **en borrador**: con ella las
+  anillas quedan completas.
+- **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
+  independiente de las demás semillas masculinas, con la misma semántica, y
+  solo escribe los elementos de esta tanda.
+- **Registro:** `src/modules/element-library/data/fig-mag-2025-2028/tandas/7.json`.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.
