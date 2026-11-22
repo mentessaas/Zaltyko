@@ -81,7 +81,7 @@ describe("data/editions.json", () => {
     ]);
   });
 
-  it("la edición GAM 2025-2028, publicada, con los grupos de suelo y caballo con arcos", () => {
+  it("la edición GAM 2025-2028, publicada, con los grupos de suelo, caballo con arcos y anillas", () => {
     const mag = editions[1];
     expect(mag).toMatchObject({
       code: "fig-mag-2025-2028",
@@ -103,6 +103,12 @@ describe("data/editions.json", () => {
       { key: "I", label: "Balanceos de una pierna y tijeras" },
       { key: "II", label: "Molinos y flairs" },
       { key: "III", label: "Desplazamientos" },
+      { key: "IV", label: "Salidas" },
+    ]);
+    expect(mag.groups.rings).toEqual([
+      { key: "I", label: "Kippe, balanceos y vuelos al pino" },
+      { key: "II", label: "Fuerza y posiciones mantenidas" },
+      { key: "III", label: "Balanceo a posición de fuerza" },
       { key: "IV", label: "Salidas" },
     ]);
   });
