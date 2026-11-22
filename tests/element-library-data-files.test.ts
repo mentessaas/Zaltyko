@@ -81,7 +81,7 @@ describe("data/editions.json", () => {
     ]);
   });
 
-  it("la edición GAM 2025-2028, publicada, con los grupos de suelo", () => {
+  it("la edición GAM 2025-2028, publicada, con los grupos de suelo y caballo con arcos", () => {
     const mag = editions[1];
     expect(mag).toMatchObject({
       code: "fig-mag-2025-2028",
@@ -98,6 +98,12 @@ describe("data/editions.json", () => {
       { key: "II", label: "Acrobacia adelante" },
       { key: "III", label: "Acrobacia atrás" },
       { key: "IV", label: "Mortal simple adelante o atrás con pirueta" },
+    ]);
+    expect(mag.groups.pommel_horse).toEqual([
+      { key: "I", label: "Balanceos de una pierna y tijeras" },
+      { key: "II", label: "Molinos y flairs" },
+      { key: "III", label: "Desplazamientos" },
+      { key: "IV", label: "Salidas" },
     ]);
   });
 });

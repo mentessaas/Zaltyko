@@ -1410,6 +1410,22 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
   semántica, y solo escribe los elementos de esta tanda.
 - **Registro:** `src/modules/element-library/data/fig-mag-2025-2028/tandas/2.json`.
 
+## Semilla de la tanda 3 de la masculina: caballo con arcos, grupos I, II (inicio) y IV (22-11-2026)
+
+| Candidata | SHA-256 | Producción | Staging |
+|---|---|---|---|
+| `20261122120000_element_catalog_seed_fig-mag-2025-2028_3.sql` (semilla de la tanda 3 de la masculina) | `3c4639b0e8a543bfdbd69145351c682f45e67b07406ba208858edc818eaab753` | No aplicada | No aplicada |
+
+**Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
+autorización expresa de Elvis; la CI verde no equivale a autorización.
+
+- **Qué carga.** 47 elementos de caballo con arcos de la edición
+  `fig-mag-2025-2028` (tijeras, primeros molinos y salidas), **en borrador**.
+- **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
+  independiente de las semillas de suelo masculino, con la misma semántica, y
+  solo escribe los elementos de esta tanda.
+- **Registro:** `src/modules/element-library/data/fig-mag-2025-2028/tandas/3.json`.
+
 ## Criterio de revisión y aplicación futura
 
 1. Verificar el hash exacto del SQL generado, su manifiesto y la procedencia.

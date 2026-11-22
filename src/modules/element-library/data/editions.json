@@ -56,6 +56,12 @@
         { "key": "II", "label": "Acrobacia adelante" },
         { "key": "III", "label": "Acrobacia atrás" },
         { "key": "IV", "label": "Mortal simple adelante o atrás con pirueta" }
+      ],
+      "pommel_horse": [
+        { "key": "I", "label": "Balanceos de una pierna y tijeras" },
+        { "key": "II", "label": "Molinos y flairs" },
+        { "key": "III", "label": "Desplazamientos" },
+        { "key": "IV", "label": "Salidas" }
       ]
     }
   }
