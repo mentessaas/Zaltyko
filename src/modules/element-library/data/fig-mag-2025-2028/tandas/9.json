@@ -1,0 +1,85 @@
+{
+  "batch": 9,
+  "edition": "fig-mag-2025-2028",
+  "apparatus": [
+    "vault"
+  ],
+  "elementKeys": [
+    "mvt_yurchenko_tucked_twist_360",
+    "mvt_yurchenko_tucked_twist_540",
+    "mvt_yurchenko_tucked_twist_720",
+    "mvt_yurchenko_tucked_twist_900",
+    "mvt_yurchenko_stretched_twist_360",
+    "mvt_yurchenko_stretched_twist_540",
+    "mvt_yurchenko_stretched_twist_720",
+    "mvt_yurchenko_stretched_twist_900",
+    "mvt_yurchenko_stretched_twist_1080",
+    "mvt_yurchenko_stretched_twist_1260",
+    "mvt_round_off_half_turn_hdspr_salto_fwd_tucked_twist_180",
+    "mvt_round_off_half_turn_hdspr_salto_fwd_piked_twist_180",
+    "mvt_round_off_half_turn_hdspr_salto_fwd_stretched_twist_180",
+    "mvt_round_off_half_turn_hdspr_salto_fwd_stretched_twist_360",
+    "mvt_round_off_half_turn_hdspr_salto_fwd_stretched_twist_540",
+    "mvt_round_off_half_turn_hdspr_salto_fwd_stretched_twist_720",
+    "mvt_round_off_half_turn_hdspr_salto_fwd_stretched_twist_900",
+    "mvt_round_off_handspring_bwd",
+    "mvt_round_off_handspring_bwd_twist_180",
+    "mvt_round_off_handspring_bwd_twist_360",
+    "mvt_yurchenko_tucked",
+    "mvt_yurchenko_tucked_twist_180",
+    "mvt_yurchenko_piked",
+    "mvt_yurchenko_stretched",
+    "mvt_yurchenko_stretched_twist_180",
+    "mvt_round_off_half_turn_handspring_fwd",
+    "mvt_round_off_half_turn_handspring_fwd_twist_180",
+    "mvt_round_off_half_turn_handspring_fwd_twist_360",
+    "mvt_round_off_half_turn_hdspr_salto_fwd_tucked",
+    "mvt_round_off_half_turn_hdspr_salto_fwd_piked",
+    "mvt_round_off_half_turn_hdspr_salto_fwd_stretched",
+    "mvt_yurchenko_double_salto_bwd_tucked",
+    "mvt_melissanidis_piked",
+    "mvt_round_off_half_turn_hdspr_double_salto_fwd_tucked",
+    "mvt_yurchenko_double_salto_bwd_tucked_twist_360"
+  ],
+  "procedure": {
+    "name": "sala-limpia",
+    "version": "1",
+    "steps": [
+      "Extracción de hechos: un subagente lee el PDF oficial y guarda solo número, grupo, valor, epónimo, página y un desglose técnico con valores cerrados, sin frases del Código.",
+      "Redacción en sala limpia: otro subagente, que no ve el Código, redacta nombre, nombre corto y descripción en español a partir solo de esos hechos.",
+      "Comprobación entre idiomas: un tercer subagente compara cada descripción con el texto inglés del Código; lo que supera el umbral se vuelve a redactar en sala limpia.",
+      "Revisión de Elvis: exactitud técnica de toda la tanda y comparación manual con el Código de la muestra indicada."
+    ]
+  },
+  "factsExtractedOn": "2026-11-22",
+  "draftedBy": "Claude",
+  "draftedOn": "2026-11-22",
+  "similarityCheck": {
+    "method": "Comparación frase a frase entre idiomas con el texto inglés del Código, por un revisor independiente",
+    "threshold": 0.5,
+    "maxScore": 0.3,
+    "redrafted": [
+      "mvt_yurchenko_tucked_twist_360",
+      "mvt_yurchenko_tucked_twist_540",
+      "mvt_yurchenko_stretched_twist_360"
+    ],
+    "checkedOn": "2026-11-22",
+    "checkedBy": "Claude"
+  },
+  "manualSample": {
+    "sampleKeys": [
+      "mvt_yurchenko_tucked_twist_900",
+      "mvt_yurchenko_stretched_twist_1080",
+      "mvt_round_off_half_turn_hdspr_salto_fwd_stretched_twist_180",
+      "mvt_yurchenko_tucked",
+      "mvt_yurchenko_double_salto_bwd_tucked",
+      "mvt_yurchenko_double_salto_bwd_tucked_twist_360"
+    ],
+    "checkedBy": null,
+    "checkedOn": null,
+    "result": null
+  },
+  "reviewedBy": null,
+  "reviewedOn": null,
+  "aviso": "Datos: número, grupo y valor tomados del Código de Puntuación de la FIG como hechos. Nombres y descripciones redactados por Zaltyko; no son texto oficial ni traducción. © Zaltyko. No copiar el texto del Código."
+}
