@@ -40,6 +40,6 @@ Stripe Live ni cambios de credenciales.
 | [0028](./0028-cobro-automatico-de-cuotas-con-connect.md)          | Cobro automático de cuotas: Connect v2, tarjeta y SEPA    |
 | [0029](./0029-biblioteca-de-elementos-y-niveles.md)               | Biblioteca de elementos y plantillas de niveles RFEG      |
 | [0030](./0030-vocabulario-de-sala-por-pais.md)                    | Vocabulario de sala por país en la biblioteca             |
-| [0031](./0031-pictogramas-y-animaciones-de-elementos.md)          | Pictogramas y animaciones propios de los elementos (propuesto) |
+| [0031](./0031-pictogramas-y-animaciones-de-elementos.md)          | Pictogramas y animaciones propios de los elementos |
 
 Contrato analítico inicial: [diccionario de métricas v0](../metric-dictionary-v0.md).
