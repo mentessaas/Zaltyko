@@ -25,9 +25,11 @@ import {
   type CatalogSearchResult,
   type EditionView,
 } from "@/modules/element-library/domain/library-requests";
+import { expandLocalSearchQuery, findLocalTerms } from "@/modules/element-library/domain/local-vocabulary";
 import { sqlUuidArray } from "@/modules/owner-dashboard/application/sql-uuid-array";
 
 import { authorizeLibraryMember, isOrganizationReadOnly, notFound, type ActorInput } from "./access";
+import { loadAcademyVocabulary } from "./local-vocabulary";
 import { iso, UUID_PATTERN } from "./values";
 
 /**
@@ -174,7 +176,12 @@ export async function searchCatalogElements(input: ActorInput & { query: unknown
       shortName: row.short_name,
       hasNote: row.has_note === true,
     }));
-    const matching = filterCatalogElements(summaries, { value: query.value, query: query.q }).sort(compareElements);
+    // Con el vocabulario del país, «redondilla» también encuentra «rondada» (ADR-0030).
+    const vocabulary = query.q ? await loadAcademyVocabulary(tx, query.organizationId) : null;
+    const queryVariants = query.q ? expandLocalSearchQuery(query.q, vocabulary) : [];
+    const matching = filterCatalogElements(summaries, { value: query.value, query: query.q, queryVariants }).sort(
+      compareElements
+    );
     return {
       result: { edition, elements: matching.slice(0, limit), truncated: matching.length > limit },
       role: access.role,
@@ -250,6 +257,10 @@ export async function getCatalogElement(
       cover_date: row.edition_cover_date,
       document_url: row.edition_document_url,
     });
+    const description = isElementLibraryDescriptionsFlagOn() ? row.description : null;
+    // Solo sobre lo que la ficha enseña: sin descripción, no se busca en ella.
+    const vocabulary = await loadAcademyVocabulary(tx, query.organizationId);
+    const localTerms = vocabulary ? findLocalTerms([row.name, row.short_name, description], vocabulary, row.apparatus) : [];
     return {
       id: row.id,
       elementKey: row.element_key,
@@ -261,7 +272,11 @@ export async function getCatalogElement(
       figReference: row.fig_reference,
       name: row.name,
       shortName: row.short_name,
-      description: isElementLibraryDescriptionsFlagOn() ? row.description : null,
+      description,
+      localVocabulary:
+        vocabulary && localTerms.length > 0
+          ? { country: vocabulary.country, countryName: vocabulary.countryName, terms: localTerms }
+          : null,
       edition,
       attribution: edition.attribution,
       note:

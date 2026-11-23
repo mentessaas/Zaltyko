@@ -56,8 +56,11 @@ function elementsByBatch() {
 }
 
 describe("data/editions.json", () => {
-  it("solo la edición GAF 2025-2028, publicada, con los grupos de salto", () => {
-    expect(editions).toHaveLength(1);
+  it("las ediciones GAF y GAM 2025-2028, publicadas, en ese orden", () => {
+    expect(editions.map((edition) => edition.code)).toEqual(["fig-wag-2025-2028", "fig-mag-2025-2028"]);
+  });
+
+  it("la edición GAF 2025-2028, publicada, con los grupos de salto", () => {
     const [wag] = editions;
     expect(wag).toMatchObject({
       code: "fig-wag-2025-2028",
@@ -75,6 +78,57 @@ describe("data/editions.json", () => {
       { key: "3", label: "Tsukahara: paloma con 1/4–1/2 giro y mortal atrás" },
       { key: "4", label: "Yurchenko: rondada y mortal atrás" },
       { key: "5", label: "Rondada con 1/2 giro y mortal adelante" },
+    ]);
+  });
+
+  it("la edición GAM 2025-2028, publicada, con los grupos de los seis aparatos", () => {
+    const mag = editions[1];
+    expect(mag).toMatchObject({
+      code: "fig-mag-2025-2028",
+      discipline: "artistic_male",
+      cycleStart: 2025,
+      cycleEnd: 2028,
+      title: "Código de Puntuación de Gimnasia Artística Masculina 2025-2028",
+      documentUrl: "https://www.gymnastics.sport/publicdir/rules/files/en_1.1%20-%20MAG%20Code%20of%20Points%202025-2028.pdf",
+      coverDate: "2026-11-16",
+      status: "published",
+    });
+    expect(mag.groups.floor).toEqual([
+      { key: "I", label: "Elementos sin acrobacia" },
+      { key: "II", label: "Acrobacia adelante" },
+      { key: "III", label: "Acrobacia atrás" },
+      { key: "IV", label: "Mortal simple adelante o atrás con pirueta" },
+    ]);
+    expect(mag.groups.pommel_horse).toEqual([
+      { key: "I", label: "Balanceos de una pierna y tijeras" },
+      { key: "II", label: "Molinos y flairs" },
+      { key: "III", label: "Desplazamientos" },
+      { key: "IV", label: "Salidas" },
+    ]);
+    expect(mag.groups.rings).toEqual([
+      { key: "I", label: "Kippe, balanceos y vuelos al pino" },
+      { key: "II", label: "Fuerza y posiciones mantenidas" },
+      { key: "III", label: "Balanceo a posición de fuerza" },
+      { key: "IV", label: "Salidas" },
+    ]);
+    expect(mag.groups.vault).toEqual([
+      { key: "I", label: "Paloma y mortal adelante con pirueta compleja" },
+      { key: "II", label: "Paloma y mortal, con o sin pirueta simple, y dobles mortales adelante" },
+      { key: "III", label: "Paloma lateral y Tsukahara, y dobles mortales atrás" },
+      { key: "IV", label: "Entrada en rondada y mortal con pirueta compleja" },
+      { key: "V", label: "Entrada en rondada con o sin pirueta simple, y dobles mortales" },
+    ]);
+    expect(mag.groups.parallel_bars).toEqual([
+      { key: "I", label: "Elementos desde apoyo braquial" },
+      { key: "II", label: "Elementos en apoyo o pasando por el apoyo en las dos barras" },
+      { key: "III", label: "Balanceos largos en suspensión y balanceos por debajo" },
+      { key: "IV", label: "Salidas" },
+    ]);
+    expect(mag.groups.high_bar).toEqual([
+      { key: "I", label: "Balanceos largos en suspensión y giros" },
+      { key: "II", label: "Elementos de vuelo" },
+      { key: "III", label: "Elementos en barra y Adler" },
+      { key: "IV", label: "Salidas" },
     ]);
   });
 });

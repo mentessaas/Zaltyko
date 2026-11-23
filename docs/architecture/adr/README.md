@@ -39,5 +39,6 @@ Stripe Live ni cambios de credenciales.
 | [0026](./0026-cuota-mensual-por-gimnasta-y-tarifa.md)             | Cuota mensual completa por gimnasta y tarifa efectiva     |
 | [0028](./0028-cobro-automatico-de-cuotas-con-connect.md)          | Cobro automático de cuotas: Connect v2, tarjeta y SEPA    |
 | [0029](./0029-biblioteca-de-elementos-y-niveles.md)               | Biblioteca de elementos y plantillas de niveles RFEG      |
+| [0030](./0030-vocabulario-de-sala-por-pais.md)                    | Vocabulario de sala por país en la biblioteca             |
 
 Contrato analítico inicial: [diccionario de métricas v0](../metric-dictionary-v0.md).

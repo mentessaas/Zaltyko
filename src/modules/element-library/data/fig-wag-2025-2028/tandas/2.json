@@ -1,0 +1,82 @@
+{
+  "batch": 2,
+  "edition": "fig-wag-2025-2028",
+  "apparatus": [
+    "vault"
+  ],
+  "elementKeys": [
+    "vt_ro_bwd_tuck",
+    "vt_ro_bwd_tuck_tw180",
+    "vt_ro_bwd_tuck_tw360",
+    "vt_ro_bwd_tuck_tw540",
+    "vt_ro_bwd_tuck_tw720",
+    "vt_ro_bwd_pike",
+    "vt_ro_bwd_layout",
+    "vt_ro_bwd_layout_tw180",
+    "vt_ro_bwd_layout_tw360",
+    "vt_ro_bwd_layout_tw540",
+    "vt_ro_bwd_layout_tw720",
+    "vt_ro_bwd_layout_tw900",
+    "vt_ro270_bwd_tuck",
+    "vt_ro270_bwd_tuck_tw180",
+    "vt_ro270_bwd_tuck_tw360",
+    "vt_ro270_bwd_pike",
+    "vt_ro270_bwd_layout",
+    "vt_ro270_bwd_layout_tw180",
+    "vt_ro270_bwd_layout_tw360",
+    "vt_ro_double_bwd_pike",
+    "vt_ro180_fwd_tuck",
+    "vt_ro180_fwd_tuck_tw180",
+    "vt_ro180_fwd_tuck_tw360",
+    "vt_ro180_fwd_tuck_tw540",
+    "vt_ro180_fwd_pike",
+    "vt_ro180_fwd_pike_tw180",
+    "vt_ro180_fwd_pike_tw360",
+    "vt_ro180_fwd_layout",
+    "vt_ro180_fwd_layout_tw180",
+    "vt_ro180_fwd_layout_tw360",
+    "vt_ro180_fwd_layout_tw540",
+    "vt_ro180_fwd_layout_tw720"
+  ],
+  "procedure": {
+    "name": "sala-limpia",
+    "version": "1",
+    "steps": [
+      "Extracción de hechos: un subagente lee el PDF oficial y guarda solo número, grupo, valor, epónimo, página y un desglose técnico con valores cerrados, sin frases del Código.",
+      "Redacción en sala limpia: otro subagente, que no ve el Código, redacta nombre, nombre corto y descripción en español a partir solo de esos hechos.",
+      "Comprobación entre idiomas: un tercer subagente compara cada descripción con el texto inglés del Código; lo que supera el umbral se vuelve a redactar en sala limpia.",
+      "Revisión delegada en Claude (decisión de Elvis, 23-11-2026): una sesión distinta de la que redacta comparó toda la tanda con el Código oficial (texto y dibujos); las correcciones volvieron como hechos a la sala limpia y se comprobaron de nuevo."
+    ]
+  },
+  "factsExtractedOn": "2026-11-19",
+  "draftedBy": "Claude",
+  "draftedOn": "2026-11-19",
+  "similarityCheck": {
+    "method": "Comparación frase a frase entre idiomas con el texto inglés del Código, por un revisor independiente",
+    "threshold": 0.5,
+    "maxScore": 0.45,
+    "redrafted": [
+      "vt_ro180_fwd_layout_tw360",
+      "vt_ro180_fwd_layout_tw540",
+      "vt_ro180_fwd_tuck_tw180",
+      "vt_ro_bwd_layout_tw540"
+    ],
+    "checkedOn": "2026-11-23",
+    "checkedBy": "Claude"
+  },
+  "manualSample": {
+    "sampleKeys": [
+      "vt_ro180_fwd_tuck_tw180",
+      "vt_ro180_fwd_pike_tw180",
+      "vt_ro_bwd_layout",
+      "vt_ro180_fwd_tuck_tw360",
+      "vt_ro270_bwd_tuck"
+    ],
+    "checkedBy": "Claude",
+    "checkedOn": "2026-11-23",
+    "result": "5 de 5 correctas (4.30, 4.40, 5.11, 5.12, 5.21): valor, grupo, epónimo y hacia dónde cae coinciden con el Código y el dibujo. Ninguna sigue el texto oficial; el Código solo da el título del salto. Revisión completa de la tanda contra el Código: 3 observaciones corregidas, 3 descripciones rehechas en sala limpia y comprobadas de nuevo."
+  },
+  "reviewedBy": "Claude",
+  "reviewedOn": "2026-11-23",
+  "aviso": "Datos: número, grupo y valor tomados del Código de Puntuación de la FIG como hechos. Nombres y descripciones redactados por Zaltyko; no son texto oficial ni traducción. © Zaltyko. No copiar el texto del Código."
+}
