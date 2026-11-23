@@ -58,10 +58,25 @@ in `work/` to generate families of specs (e.g. "back salto with N twists") inste
 - Holds (strength): show a short, plausible entry (0.5–1 s) and then hold the pose with `dt: 2.0`.
 - Front-view elements (cross on rings): `"view": "front"` and `"front": true` in the poses.
 
+## Technique first (mandatory)
+Read the family sections of `tecnica/swing.md`, `tecnica/acro-dance-vault.md` and
+`tecnica/pommel-strength.md` that apply to your batch BEFORE writing specs, and key every element by
+its real technique: entries (giant from handstand + tap before releases and dismounts; run/hurdle,
+round-off or flic-flac before tumbling saltos; step/chassé and plié before leaps; preparation before
+holds), the phases in the documented order and timing, the coaching cues, and none of the typical
+errors listed there. A movement that is physically possible but not how a coach teaches it is wrong.
+Use `authoring.py` (`leg_to`, `pelvis_of`) to put feet/hands exactly on surfaces: never leave a foot
+floating or sunk. Angles interpolate linearly as written: write continuous numbers (e.g. 355 → 380, not
+355 → 20) so limbs move the anatomically right way; the validator rejects impossible paths.
+
 ## Physics and body logic (what a coach would immediately see)
-- Typical centre-of-mass rise: floor single saltos 0.9–1.3 m, doubles 1.3–1.8 m; beam acro 0.5–0.8 m;
-  leaps/jumps 0.35–0.55 m; bar releases 0.5–1.0 m above the release point; dismounts from bars/rings
-  1.0–1.6 m; vault post-flight 0.8–1.3 m. Validate against the facts (higher value for harder elements).
+- Typical centre-of-mass rise (measured, see tecnica files): floor single saltos 0.9–1.2 m; floor doubles
+  ≈ 0.65 m (women) / 0.9 m (men) above take-off; beam acro 0.5–0.8 m; split leaps 0.22–0.35 m (beam
+  0.2–0.3); bar releases: peak 0.5–1.0 m above the bar (use `apexAbove`); dismounts from bars/rings
+  1.0–1.6 m; vault post-flight ≈ 0.3 m (women) / 0.5 m (men) above the table-push height.
+- Contacts in good technique are short: tumbling rebounds 0.12–0.13 s, board 0.09–0.15 s, leap
+  take-off 0.15–0.25 s; a long soft contact before a salto reads as "beginner".
+- Speed limits per frame (30 fps): trunk 28°, legs 35°, arms 40° (≈ 840/1050/1200 °/s).
 - Takeoff speeds must be plausible (the report shows them in m/s: horizontal ≤ 7, vertical 2–6).
 - Before a jump/salto there is a preparation (knee and hip bend, arm swing); after landing an
   absorption (knees and hips bend) and recovery. Arms move in sensible arcs, not snaps.

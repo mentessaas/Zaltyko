@@ -33,6 +33,8 @@ def build(spec):
             f = ph['flight']; land = f['land']; pt = sc.at(land['at']) if isinstance(land['at'], str) else tuple(land['at'])
             p0, pel0, _ = tl.last; c0y = pel0[1] + com(p0)[1]
             apex = c0y - f['riseM'] * PX_PER_M if 'riseM' in f else None
+            if 'apexAbove' in f:   # e.g. {"at": "bar", "m": 0.8}: COM peak this high above an anchor
+                apex = sc.at(f['apexAbove']['at'])[1] - f['apexAbove']['m'] * PX_PER_M
             shapes = [(0.0, Shape.of(p0, getattr(p0, 'facing', 1)))] + [(s['u'], shape_of(s['pose'])) for s in f['shapes']]
             start = len(tl.frames)
             info = flight(tl, f.get('durationS'), shapes, f['rotation'], land['joint'], pt, p0.torso + f['rotation'],

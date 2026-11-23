@@ -38,7 +38,7 @@ class Shape:
         return p
 
 def lerp_shape(a, b, u):
-    l = lambda x, y: x + (((y - x) + 180) % 360 - 180) * u   # shortest path between angles
+    l = lambda x, y: x + (y - x) * u   # follow the direction written in the spec (validator catches impossible paths)
     pr = lambda p, q: (l(p[0], q[0]), l(p[1], q[1]))
     return Shape(pr(a.arm_n, b.arm_n), pr(a.arm_f, b.arm_f), pr(a.leg_n, b.leg_n), pr(a.leg_f, b.leg_f), l(a.head, b.head),
                  a.facing if u < 0.5 else b.facing)
@@ -168,10 +168,13 @@ def validate(tl, floor_y=None, bars=(), max_step=28, front=False):
             jn, pt = meta['contact']
             if math.dist(j[jn], pt) > 1.0: problems.append(f'frame {i}: contact {jn} slipped')
         if prev is not None:
+            # per-segment speed limits (deg per frame at 30 fps), from biomechanics:
+            # trunk ~840 deg/s, leg kicks ~1050 deg/s, arm swings ~1200 deg/s
+            limit = {'torso': max_step, 'leg_n': 35, 'leg_f': 35, 'arm_n': 40, 'arm_f': 40}
             for attr in ['torso'] + SEG:
                 a, b = getattr(prev, attr), getattr(p, attr)
                 a = a if isinstance(a, tuple) else (a,); b = b if isinstance(b, tuple) else (b,)
                 for x, y in zip(a, b):
-                    if abs(_wrap(y - x)) > max_step: problems.append(f'frame {i}: {attr} jumps {abs(_wrap(y - x)):.0f}°'); break
+                    if abs(y - x) > limit[attr]: problems.append(f'frame {i}: {attr} jumps {abs(y - x):.0f}°'); break
         prev = p
     return problems

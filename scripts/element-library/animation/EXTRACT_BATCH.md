@@ -11,6 +11,6 @@ Render pages with `pdftoppm -f P -l P -r 150 -png "<pdf>" <workdir>/pages/p<P>` 
 Never open anything under "Upgrade Gymnastics" or GymPro.
 Input: the batch list (elementKey, apparatus, figReference, sourcePage, and our own name/description).
 Output: `work/poses-<edition>-<batch>.json` = {elementKey: {...}} in the same shape as the pilot file
-`specs/pilot/poses-example.json`. Also give, per element, a `physics` hint: expected centre-of-mass
+`tecnica/poses-example.json`. Also give, per element, a `physics` hint: expected centre-of-mass
 rise (low/medium/high), number of saltos and twists, rotation direction, and where the gymnast takes
 off and lands.
