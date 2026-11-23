@@ -28,14 +28,15 @@ def beam():
     return Scene('beam', 340, fy, {'beam': (0, top), 'floor': (0, fy)}, draw=d, solids=[(16, top, 344, top + 9)])
 
 def beam_mount():
-    """Beam mounts: 7.5 m wide, springboard in front of the left end of a 5 m beam."""
-    fy, top, w = 330, 330 - round(1.25 * M), 640
-    x0, x1 = 170, 170 + round(5.0 * M)
+    """Beam mounts: 9.4 m wide, 3 m of run-up, springboard in front of the left end of a 5 m beam."""
+    fy, top, w = 330, 330 - round(1.25 * M), 800
+    x0, x1 = 330, 330 + round(5.0 * M)
+    board = (262, fy - 10)
     def d(u):
-        return (_floor(fy, w) + f'<polygon points="62,{fy} 120,{fy} 120,{fy-14}" fill="{metal(u)}"/>'
+        return (_floor(fy, w) + f'<polygon points="{board[0]-34},{fy} {board[0]+24},{fy} {board[0]+24},{fy-14}" fill="{metal(u)}"/>'
                 f'<rect x="{x0+70}" y="{top+9}" width="6" height="{fy-top-9}" fill="{APP_L}"/><rect x="{x1-76}" y="{top+9}" width="6" height="{fy-top-9}" fill="{APP_L}"/>'
                 f'<rect x="{x0}" y="{top}" width="{x1-x0}" height="9" rx="3" fill="{metal(u)}"/>')
-    return Scene('beam_mount', 340, fy, {'beam': (0, top), 'floor': (0, fy), 'board': (100, fy - 10)}, draw=d, w=w,
+    return Scene('beam_mount', 340, fy, {'beam': (0, top), 'floor': (0, fy), 'board': board}, draw=d, w=w,
                  solids=[(x0, top, x1, top + 9)])
 
 def high_bar():
