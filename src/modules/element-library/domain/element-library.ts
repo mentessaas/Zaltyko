@@ -77,7 +77,7 @@ export const EDITION_DISCIPLINE = {
 export const EDITION_STATUSES = ["draft", "published", "retired"] as const;
 export type EditionStatus = (typeof EDITION_STATUSES)[number];
 
-/** `draft` = «borrador»; `reviewed` = «revisado por Elvis». */
+/** `draft` = «borrador»; `reviewed` = «revisado» (por Elvis o, por delegación suya, por Claude). */
 export const REVIEW_STATUSES = ["draft", "reviewed"] as const;
 export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 
@@ -285,8 +285,12 @@ export type ElementDataFile = z.infer<typeof elementDataFileSchema>;
 /**
  * Registro de una tanda, `data/<edición>/tandas/<n>.json` (ADR-0029 §1.7).
  * Sin datos personales: quien redacta y comprueba es «Claude»; quien hace la
- * muestra manual y la revisión, «Elvis», y queda nulo hasta que la hace.
+ * muestra manual y la revisión, «Elvis» o, por delegación suya (23-11-2026),
+ * «Claude» desde una sesión distinta de la que redacta. Nulo hasta que se hace.
  */
+/** Quién puede revisar una tanda: Elvis o, por delegación suya, Claude. */
+export const REVIEWERS = ["Elvis", "Claude"] as const;
+
 export const batchRecordSchema = z
   .object({
     batch: z.number().int().positive(),
@@ -317,12 +321,12 @@ export const batchRecordSchema = z
     manualSample: z
       .object({
         sampleKeys: z.array(elementKeySchema).min(1),
-        checkedBy: z.literal("Elvis").nullable(),
+        checkedBy: z.enum(REVIEWERS).nullable(),
         checkedOn: isoDateSchema.nullable(),
         result: cleanText(1, 500).nullable(),
       })
       .strict(),
-    reviewedBy: z.literal("Elvis").nullable(),
+    reviewedBy: z.enum(REVIEWERS).nullable(),
     reviewedOn: isoDateSchema.nullable(),
     aviso: z.literal(ELEMENT_DATA_NOTICE),
   })

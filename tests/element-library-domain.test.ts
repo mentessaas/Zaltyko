@@ -270,7 +270,8 @@ describe("esquema de tanda", () => {
     ).toBe(true);
   });
 
-  it("solo «Elvis» revisa: ningún otro nombre", () => {
+  it("revisa «Elvis» o, por delegación, «Claude»: ningún otro nombre", () => {
+    expect(batchRecordSchema.safeParse({ ...batchRecord, reviewedBy: "Claude", reviewedOn: "2026-11-23" }).success).toBe(true);
     expect(batchRecordSchema.safeParse({ ...batchRecord, reviewedBy: "Otra persona", reviewedOn: "2026-11-22" }).success).toBe(
       false
     );
