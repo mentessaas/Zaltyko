@@ -1220,7 +1220,7 @@ commit;
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120003000_element_catalog_seed_fig-wag-2025-2028_3.sql` (semilla de la tanda 3) | `d2e93819b0bc689e4dbf22743c953f4d8958b1e6646b150d021277ec8f5a995f` | No aplicada | No aplicada |
+| `20261120003000_element_catalog_seed_fig-wag-2025-2028_3.sql` (semilla de la tanda 3, revisada el 23-11-2026 por delegación de Elvis; en borrador era `d2e93819…`) | `374016d60c1876b71b935c4cd22bc04016b08a2f753306f5335e175fc319fe42` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1236,7 +1236,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
   tanda 2.
 - **Registro:** `src/modules/element-library/data/fig-wag-2025-2028/tandas/2.json`.
 - **Qué carga.** 51 elementos de paralelas asimétricas de la edición
-  `fig-wag-2025-2028` (entradas, impulsos y vueltas libres), **en borrador**.
+  `fig-wag-2025-2028` (entradas, impulsos y vueltas libres), **revisados el 23-11-2026** (revisión delegada en Claude).
   Las academias no los ven hasta que Elvis revise la tanda; al revisarla se
   vuelve a generar con el mismo nombre y su hash cambia.
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
@@ -1250,13 +1250,13 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120013000_element_catalog_seed_fig-wag-2025-2028_4.sql` (semilla de la tanda 4) | `7f6e0cd0ca13ec1c813abdb43fcf578ac981ff80153121ccd7e498a01e5c4c29` | No aplicada | No aplicada |
+| `20261120013000_element_catalog_seed_fig-wag-2025-2028_4.sql` (semilla de la tanda 4, revisada el 23-11-2026 por delegación de Elvis; en borrador era `7f6e0cd0…`) | `d9820ca1eb58474bbb718d3b06ee5254a88a9705d7567a107ffafc7355e51950` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 - **Qué carga.** 58 elementos de paralelas asimétricas de la edición
-  `fig-wag-2025-2028` (gigantes y Stalder), **en borrador**. Las academias no
+  `fig-wag-2025-2028` (gigantes y Stalder), **revisados el 23-11-2026** (revisión delegada en Claude). Las academias no
   los ven hasta que Elvis revise la tanda; al revisarla se vuelve a generar con
   el mismo nombre y su hash cambia.
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
@@ -1268,13 +1268,13 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120023000_element_catalog_seed_fig-wag-2025-2028_5.sql` (semilla de la tanda 5) | `16c6a6cadf94e6ad34ac0460f62b3ce3e6f076ccf27e19e245a8cda076c8ce42` | No aplicada | No aplicada |
+| `20261120023000_element_catalog_seed_fig-wag-2025-2028_5.sql` (semilla de la tanda 5, revisada el 23-11-2026 por delegación de Elvis; en borrador era `16c6a6ca…`) | `dea89d120af2b07756d8c1bd9327e228e83a82bd0a335c8e07d1eaa9dfce4394` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 - **Qué carga.** 69 elementos de paralelas asimétricas de la edición
-  `fig-wag-2025-2028` (vueltas carpadas y salidas), **en borrador**. Las
+  `fig-wag-2025-2028` (vueltas carpadas y salidas), **revisados el 23-11-2026** (revisión delegada en Claude). Las
   academias no los ven hasta que Elvis revise la tanda; al revisarla se vuelve
   a generar con el mismo nombre y su hash cambia.
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es

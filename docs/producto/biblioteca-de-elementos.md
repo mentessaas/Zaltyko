@@ -91,21 +91,21 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 
 ### Tercera tanda
 
-- Edición `fig-wag-2025-2028`, paralelas asimétricas, grupos 1 (entradas) y 2 (impulsos y vueltas libres): **51 elementos, en borrador**. Va en una rama aparte de la segunda tanda: no depende de ella.
+- Edición `fig-wag-2025-2028`, paralelas asimétricas, grupos 1 (entradas) y 2 (impulsos y vueltas libres): **51 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Va en una rama aparte de la segunda tanda: no depende de ella.
 - Cada número del Código es una ficha. Si un mismo número agrupa más de una forma o más de un epónimo (por ejemplo «Jentsch / González»), la ficha los nombra a todos.
 - Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/3.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,5; se volvieron a redactar 18 elementos (9 por parecido y 9 por errores técnicos en los hechos, ya corregidos). Muestra manual: 6 elementos, pendiente de Elvis.
 - Semilla: `docs/deployment/candidates/20261120003000_element_catalog_seed_fig-wag-2025-2028_3.sql`, sin aplicar.
 
 ### Cuarta tanda
 
-- Edición `fig-wag-2025-2028`, paralelas asimétricas, grupos 3 (gigantes, 28) y 4 (Stalder, 30): **58 elementos, en borrador**. Va encima de la tercera tanda, porque comparte el archivo de asimétricas.
+- Edición `fig-wag-2025-2028`, paralelas asimétricas, grupos 3 (gigantes, 28) y 4 (Stalder, 30): **58 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Va encima de la tercera tanda, porque comparte el archivo de asimétricas.
 - Los nombres comunes que el Código cita sin ser epónimo oficial (Tkatchev, Deltchev, Gienger, Jaeger) se usan en el nombre; el epónimo de una forma alternativa va entre paréntesis en el nombre corto.
 - Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/4.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,5; se volvieron a redactar 15 elementos (10 por parecido y 5 por errores técnicos). Muestra manual: 6 elementos, pendiente de Elvis.
 - Semilla: `docs/deployment/candidates/20261120013000_element_catalog_seed_fig-wag-2025-2028_4.sql`, sin aplicar.
 
 ### Quinta tanda
 
-- Edición `fig-wag-2025-2028`, paralelas asimétricas, grupos 5 (vueltas carpadas, 30) y 6 (salidas, 39): **69 elementos, en borrador**. Con ella quedan completas las asimétricas. Va encima de la cuarta tanda, porque comparte el archivo de asimétricas.
+- Edición `fig-wag-2025-2028`, paralelas asimétricas, grupos 5 (vueltas carpadas, 30) y 6 (salidas, 39): **69 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Con ella quedan completas las asimétricas. Va encima de la cuarta tanda, porque comparte el archivo de asimétricas.
 - Las salidas de balanceo no fijan barra en el Código; el texto dice «normalmente desde la barra alta» o no nombra barra. Cuando el momento de la pirueta no consta, solo se dan los grados.
 - Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/5.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; se volvieron a redactar 24 elementos (15 por parecido y 9 por errores técnicos, varios de ellos en los hechos). Muestra manual: 7 elementos, pendiente de Elvis.
 - Semilla: `docs/deployment/candidates/20261120023000_element_catalog_seed_fig-wag-2025-2028_5.sql`, sin aplicar.

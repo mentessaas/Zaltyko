@@ -71,7 +71,7 @@
       "Extracción de hechos: un subagente lee el PDF oficial y guarda solo número, grupo, valor, epónimo, página y un desglose técnico con valores cerrados, sin frases del Código.",
       "Redacción en sala limpia: otro subagente, que no ve el Código, redacta nombre, nombre corto y descripción en español a partir solo de esos hechos.",
       "Comprobación entre idiomas: un tercer subagente compara cada descripción con el texto inglés del Código; lo que supera el umbral se vuelve a redactar en sala limpia.",
-      "Revisión de Elvis: exactitud técnica de toda la tanda y comparación manual con el Código de la muestra indicada."
+      "Revisión delegada en Claude (decisión de Elvis, 23-11-2026): una sesión distinta de la que redacta comparó toda la tanda con el Código oficial (texto y dibujos); las correcciones volvieron como hechos a la sala limpia y se comprobaron de nuevo."
     ]
   },
   "factsExtractedOn": "2026-11-20",
@@ -82,24 +82,30 @@
     "threshold": 0.5,
     "maxScore": 0.5,
     "redrafted": [
-      "ub_swing_fwd_half_turn_flight_handstand_lb",
-      "ub_l_grip_giant_one_arm_full_turn_handstand",
+      "ub_clear_pike_circle_bwd_counter_pike_reverse_hecht",
+      "ub_clear_pike_circle_bwd_counter_stretched_reverse_hecht",
+      "ub_clear_pike_circle_bwd_lb_counter_flight_hb",
       "ub_clear_pike_circle_bwd_lb_hecht_flight_hb",
-      "ub_giant_circle_fwd",
-      "ub_straddle_flight_bwd_over_lb_handstand_lb",
-      "ub_half_turn_straddle_flight_bwd_over_hb",
-      "ub_counter_salto_fwd_straddled_reverse_grip_hb",
-      "ub_clear_straddle_circle_bwd_hb_flight_lb_clear_support",
-      "ub_stalder_bwd_through_handstand_lb_flight_hb",
       "ub_clear_pike_circle_bwd_through_handstand_flight_hb",
-      "ub_swing_fwd_roll_bwd_straddled_to_lb_clear_support",
+      "ub_clear_straddle_circle_bwd_hb_flight_lb_clear_support",
+      "ub_counter_salto_fwd_straddled_reverse_grip_hb",
+      "ub_giant_circle_fwd",
+      "ub_half_turn_straddle_flight_bwd_over_hb",
+      "ub_l_grip_giant_one_arm_full_turn_handstand",
       "ub_pak_salto",
       "ub_pak_salto_full_turn",
-      "ub_tkatchev_straddled",
+      "ub_stalder_bwd_counter_pike_reverse_hecht",
+      "ub_stalder_bwd_counter_straddle_reverse_hecht",
+      "ub_stalder_bwd_handstand",
+      "ub_stalder_bwd_lb_counter_flight_hb",
+      "ub_stalder_bwd_through_handstand_lb_flight_hb",
+      "ub_straddle_flight_bwd_over_lb_handstand_lb",
+      "ub_swing_fwd_half_turn_flight_handstand_lb",
+      "ub_swing_fwd_roll_bwd_straddled_to_lb_clear_support",
       "ub_tkatchev_piked",
-      "ub_stalder_bwd_lb_counter_flight_hb"
+      "ub_tkatchev_straddled"
     ],
-    "checkedOn": "2026-11-20",
+    "checkedOn": "2026-11-23",
     "checkedBy": "Claude"
   },
   "manualSample": {
@@ -111,11 +117,11 @@
       "ub_giant_circle_fwd",
       "ub_tkatchev_straddled"
     ],
-    "checkedBy": null,
-    "checkedOn": null,
-    "result": null
+    "checkedBy": "Claude",
+    "checkedOn": "2026-11-23",
+    "result": "6 de 6 correctas frente a texto y dibujo (3.206, 3.310, 3.403, 4.205, 4.503, 4.608), sin parecido de copia: todas reordenan o resumen. Revisión completa de la tanda contra el Código: 6 observaciones corregidas, 12 descripciones rehechas en sala limpia y comprobadas de nuevo."
   },
-  "reviewedBy": null,
-  "reviewedOn": null,
+  "reviewedBy": "Claude",
+  "reviewedOn": "2026-11-23",
   "aviso": "Datos: número, grupo y valor tomados del Código de Puntuación de la FIG como hechos. Nombres y descripciones redactados por Zaltyko; no son texto oficial ni traducción. © Zaltyko. No copiar el texto del Código."
 }
