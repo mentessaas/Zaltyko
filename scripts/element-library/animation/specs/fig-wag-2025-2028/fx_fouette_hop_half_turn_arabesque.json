@@ -32,7 +32,7 @@
        "head": 0,
        "facing": 1,
        "yaw": 0,
-       "yawPivot": "pelvis"
+       "yawPivot": "ton"
       }
      },
      {
@@ -58,7 +58,7 @@
        "head": 0,
        "facing": 1,
        "yaw": 0,
-       "yawPivot": "pelvis"
+       "yawPivot": "ton"
       }
      },
      {
@@ -84,7 +84,7 @@
        "head": 0,
        "facing": 1,
        "yaw": 0,
-       "yawPivot": "pelvis"
+       "yawPivot": "ton"
       }
      }
     ]
@@ -118,7 +118,7 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "tof"
       }
      },
      {
@@ -144,7 +144,7 @@
        "head": 0,
        "facing": 1,
        "yaw": 0,
-       "yawPivot": "pelvis"
+       "yawPivot": "tof"
       }
      },
      {
@@ -170,7 +170,7 @@
        "head": 0,
        "facing": 1,
        "yaw": 0,
-       "yawPivot": "pelvis"
+       "yawPivot": "tof"
       }
      },
      {
@@ -196,7 +196,7 @@
        "head": 0,
        "facing": 1,
        "yaw": 0,
-       "yawPivot": "pelvis"
+       "yawPivot": "tof"
       }
      },
      {
@@ -222,7 +222,7 @@
        "head": 0,
        "facing": 1,
        "yaw": 0,
-       "yawPivot": "pelvis"
+       "yawPivot": "tof"
       }
      }
     ]
@@ -611,7 +611,7 @@
        "head": 0,
        "facing": -1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "tof"
       }
      },
      {
@@ -637,7 +637,7 @@
        "head": 0,
        "facing": -1,
        "yaw": 0,
-       "yawPivot": "pelvis"
+       "yawPivot": "tof"
       }
      },
      {
@@ -663,7 +663,7 @@
        "head": 0,
        "facing": -1,
        "yaw": 0,
-       "yawPivot": "pelvis"
+       "yawPivot": "tof"
       }
      }
     ]
