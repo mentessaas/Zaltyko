@@ -186,7 +186,7 @@ T='cuotas?' REV=origin/main; git grep -h -i -P "$T" "$REV" -- src/app/owner src/
 - **Dónde aparece:** la ficha del elemento en `/owner/skills/biblioteca` y `docs/producto/biblioteca-de-elementos.md`. En la base: `academy_element_notes`.
 
 ### Tanda
-- **Elegido:** «tanda», cada grupo de unos 50 elementos de la biblioteca que Zaltyko prepara y Elvis revisa de una vez, con su registro y su semilla («tanda 1: salto, grupos 1 a 3»). Estados del elemento: «borrador» y «revisado por Elvis».
+- **Elegido:** «tanda», cada grupo de unos 50 elementos de la biblioteca que Zaltyko prepara y Elvis revisa de una vez, con su registro y su semilla («tanda 1: salto, grupos 1 a 3»). Estados del elemento: «borrador» y «revisado» (por Elvis o, por delegación suya, por Claude).
 - **Prohibido:** «lote», «importación» o «actualización oficial». Es un término interno: no aparece en las pantallas de la academia.
 - **Dónde aparece:** `src/modules/element-library/data/<edición>/tandas/<n>.json`, las semillas `<ts>_element_catalog_seed_<edición>_<tanda>.sql`, la revisión del superadministrador (`/super-admin/biblioteca`) y `docs/producto/biblioteca-de-elementos.md`.
 
