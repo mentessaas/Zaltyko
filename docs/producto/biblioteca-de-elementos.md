@@ -85,7 +85,7 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 
 ### Segunda tanda
 
-- Edición `fig-wag-2025-2028`, salto, grupos 4 y 5: **32 elementos, en borrador**. Con ella el salto queda completo (83 elementos).
+- Edición `fig-wag-2025-2028`, salto, grupos 4 y 5: **32 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Con ella el salto queda completo (83 elementos).
 - Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/2.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; un elemento se volvió a redactar por parecido. Hacia dónde cae la gimnasta en los 7 saltos con tres cuartos de giro (270°) lo dedujo, como dato, quien lee el PDF. Muestra manual: 5 elementos, pendiente de Elvis.
 - Semilla: `docs/deployment/candidates/20261119123000_element_catalog_seed_fig-wag-2025-2028_2.sql`, sin aplicar.
 
