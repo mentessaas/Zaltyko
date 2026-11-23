@@ -117,7 +117,9 @@ def poster_svg(spec, sc, tl, uid):
     main = ps.get('main', n // 2); ghosts = ps.get('ghosts', [])
     body = sc.draw(uid)
     for g in ghosts:
-        q, qp, _ = tl.frames[g]; body += overlay(sc, q, qp, {}) if sc.kind == 'rings' else ''
+        q, qp, qm = tl.frames[g]
+        # ghosts keep their own overlays (rings straps, and the twist ring + count of a twisting flight)
+        body += f'<g opacity=".55">{overlay(sc, q, qp, qm)}</g>'
         body += V.fig(uid, q, qp, False, .16)
     p, pel, meta = tl.frames[main]
     body += overlay(sc, p, pel, meta) + V.fig(uid, p, pel)
