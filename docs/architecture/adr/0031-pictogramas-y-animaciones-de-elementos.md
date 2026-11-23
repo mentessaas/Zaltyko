@@ -1,6 +1,6 @@
 # ADR-0031 — Pictogramas y animaciones propios de los elementos
 
-- Estado: **propuesto** el 23-11-2026. Necesita la aprobación de Elvis. Con este ADR no se enciende ninguna bandera ni se aplica nada en ningún entorno.
+- Estado: **aceptado** el 23-11-2026 por Elvis. Con este ADR no se enciende ninguna bandera ni se aplica nada en ningún entorno: cada paso necesita su permiso.
 - Alcance:
   - `src/modules/element-library/`: ficha del elemento.
   - `scripts/element-library/animation/`: motor, escenarios, validador y guías.
@@ -65,8 +65,10 @@
 - **Mantenimiento:** el renderizador del navegador y el motor de Python deben dar el mismo resultado. Un test compara los dos.
 - **Ediciones nuevas del Código:** cada edición necesita sus propias animaciones. Los datos de la edición anterior sirven de punto de partida.
 
-## Preguntas para Elvis
+## Decisiones de Elvis
 
-1. ¿Apruebas los datos por elemento animados en el navegador, en lugar de vídeos?
-2. ¿Te vale la misma revisión delegada que en los textos?
-3. ¿Muestro el pictograma animado o fijo por defecto en la ficha?
+Tomadas el 23-11-2026, al aprobar este ADR («apruebo el ADR-0031, sigue con las tandas»):
+
+1. Datos por elemento animados en el navegador, en lugar de vídeos.
+2. La misma revisión delegada que en los textos.
+3. En la ficha, animación en bucle por defecto; pictograma fijo con «reducir movimiento». Es el valor por defecto elegido al aprobar; Elvis puede cambiarlo.
