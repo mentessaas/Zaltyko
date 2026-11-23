@@ -158,7 +158,9 @@ def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=()):
                     problems.append(f'frame {i}: {name} {val:.0f}° outside {lo}..{hi}')
         j = p.joints(pel)
         if floor_y is not None:
-            low = max(y for k, (x, y) in j.items() if k != 'head')
+            # physical heights: the raised camera of yaw-turned frames moves points on screen, not in space
+            jf = p._joints_flat(pel) if getattr(p, 'yaw', 0) else j
+            low = max(y for k, (x, y) in jf.items() if k != 'head')
             if low > floor_y + 2: problems.append(f'frame {i}: below the floor by {low - floor_y:.1f}px')
         for (x0, y0, x1, y1) in solids:
             # side view is depth-ambiguous: head, hands and legs may hang BESIDE a beam; only the trunk

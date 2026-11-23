@@ -26,9 +26,7 @@ def build(spec):
             keys = [(k.get('dt', 0), k['pose']['torso'], shape_of(k['pose'])) for k in c['keys']]
             if tl.frames and keys[0][0] == 0 and len(keys) > 1 and c.get('continue', True):
                 pass
-            contact(tl, keys, c['joint'], pt, surface=sc.floor_y)
-            if c.get('front'):
-                for i in range(len(tl.frames)): tl.frames[i][0].front = True
+            contact(tl, keys, c['joint'], pt, surface=sc.floor_y)   # front view is set per pose ("front": true)
         else:
             f = ph['flight']; land = f['land']; pt = sc.at(land['at']) if isinstance(land['at'], str) else tuple(land['at'])
             p0, pel0, _ = tl.last; c0y = pel0[1] + com(p0)[1]
@@ -68,6 +66,13 @@ def overlay(sc, p, pel, meta):
         o += f'<ellipse cx="{c[0]:.1f}" cy="{c[1]:.1f}" rx="26" ry="8" transform="rotate({p.torso:.1f} {c[0]:.1f} {c[1]:.1f})" fill="none" stroke="{V.BLUE}" stroke-width="3" opacity=".8"/>'
     return o
 
+def floor_band(sc, tl):
+    """With a raised camera (yaw-turned frames) the floor is a plane, not a line: draw it as a soft band."""
+    if not any(getattr(p, 'yaw', 0) for p, _, _ in tl.frames) or sc.kind not in ('floor', 'pommel_horse'):
+        return ''
+    y = sc.floor_y
+    return (f'<rect x="10" y="{y - 22}" width="{sc.w - 20}" height="70" rx="35" fill="#dfe6f5" opacity=".55"/>')
+
 def headroom(tl, margin=22):
     """Pixels to shift the scene down so the highest point of any frame stays inside the canvas."""
     top = min(min(y for k, (x, y) in p.joints(pel).items()) - 12 for p, pel, _ in tl.frames)
@@ -79,7 +84,7 @@ def frame_svg(sc, tl, i, trails=True, uid='a'):
     p, pel, meta = tl.frames[min(i, len(tl.frames) - 1)]
     import math as _m
     behind = _m.sin(_m.radians(getattr(p, 'yaw', 0))) < -0.05
-    body = '' if behind else sc.draw(uid)
+    body = floor_band(sc, tl) + ('' if behind else sc.draw(uid))
     if trails and i < len(tl.frames):
         for lag, op in ((6, .06), (4, .09), (2, .13)):
             k = i - lag
