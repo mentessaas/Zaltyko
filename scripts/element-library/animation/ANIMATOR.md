@@ -28,7 +28,7 @@ in `work/` to generate families of specs (e.g. "back salto with N twists") inste
   `beam` (`beam@X`, top 1.25 m), `high_bar` (`bar`, 2.8 m), `uneven_bars` (`lb` 1.70 m at x 118,
   `hb` 2.50 m at x 248), `rings` (`rings`, 2.75 m; rings and straps are drawn at the hands),
   `parallel_bars` (`rail@X`, 2.0 m), `pommel_horse` (`pommel_l`, `pommel_r`, `horse@X`),
-  `vault` (`board`, `table@X` top 1.25 m with the table between x 190 and 282, `floor@X`, `mat@X`).
+  `vault` (wider canvas, 640 px ≈ 7.5 m: runway from x≈20 for the hurdle/round-off, `board` at x≈280, `table@X` top 1.25 m with the table between x 370 and 462, `floor@X`, `mat@X` between x 478 and 628).
   Use x between ~30 and ~330. The canvas grows upward automatically.
 
 ## Spec
@@ -82,7 +82,9 @@ floating or sunk. Angles interpolate linearly as written: write continuous numbe
   1.0–1.6 m; vault post-flight ≈ 0.3 m (women) / 0.5 m (men) above the table-push height.
 - Contacts in good technique are short: tumbling rebounds 0.12–0.13 s, board 0.09–0.15 s, leap
   take-off 0.15–0.25 s; a long soft contact before a salto reads as "beginner".
-- Speed limits per frame (30 fps): trunk 28°, legs 35°, arms 40° (≈ 840/1050/1200 °/s).
+- Speed limits per frame (30 fps): on contact, trunk 28°, legs 35°, arms 40° (≈ 840/1050/1200 °/s). In
+  the air the trunk may rotate up to 55°/frame (physics sets it) and limbs are limited relative to the
+  trunk: never raise a flight above the measured heights just to satisfy the validator.
 - Takeoff speeds must be plausible (the report shows them in m/s: horizontal ≤ 7, vertical 2–6).
 - Before a jump/salto there is a preparation (knee and hip bend, arm swing); after landing an
   absorption (knees and hips bend) and recovery. Arms move in sensible arcs, not snaps.

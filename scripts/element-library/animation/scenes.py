@@ -3,11 +3,11 @@ from engine2 import PX_PER_M as M
 from volumen import APP_D, APP_L, NAVY, metal
 
 W = 360
-def _floor(y): return f'<line x1="14" y1="{y}" x2="{W-14}" y2="{y}" stroke="{APP_L}" stroke-width="2" stroke-linecap="round"/>'
+def _floor(y, w=W): return f'<line x1="14" y1="{y}" x2="{w-14}" y2="{y}" stroke="{APP_L}" stroke-width="2" stroke-linecap="round"/>'
 
 class Scene:
-    def __init__(self, kind, h, floor_y, anchors, bars=(), draw=None):
-        self.kind, self.h, self.floor_y, self.anchors, self.bars, self._draw = kind, h, floor_y, anchors, bars, draw
+    def __init__(self, kind, h, floor_y, anchors, bars=(), draw=None, w=W):
+        self.kind, self.h, self.floor_y, self.anchors, self.bars, self._draw, self.w = kind, h, floor_y, anchors, bars, draw, w
     def at(self, name):
         if '@' in name:
             base, x = name.split('@'); return (float(x), self.anchors[base][1])
@@ -67,12 +67,13 @@ def pommel():
     return Scene('pommel_horse', 310, fy, {'pommel_l': pl, 'pommel_r': pr, 'horse': (0, top)}, draw=d)
 
 def vault():
-    fy = 330; top = fy - round(1.25 * M)
+    """Wide scene (7.5 m): runway with room for the hurdle/round-off, board, table, landing mat."""
+    fy = 330; top = fy - round(1.25 * M); w = 640
     def d(u):
-        return (_floor(fy) + f'<polygon points="60,{fy} 118,{fy} 118,{fy-14}" fill="{metal(u)}"/>'
-                f'<path d="M226 {fy} l5 -{fy-top-12} h10 l5 {fy-top-12} z" fill="{APP_L}"/><rect x="190" y="{top}" width="92" height="14" rx="7" fill="{metal(u)}"/>'
-                f'<rect x="292" y="{fy-8}" width="64" height="8" rx="3" fill="{APP_L}"/>')
-    return Scene('vault', 340, fy, {'board': (100, fy - 10), 'table': (0, top), 'floor': (0, fy), 'mat': (0, fy - 8)}, draw=d)
+        return (_floor(fy, w) + f'<polygon points="236,{fy} 300,{fy} 300,{fy-14}" fill="{metal(u)}"/>'
+                f'<path d="M406 {fy} l5 -{fy-top-12} h10 l5 {fy-top-12} z" fill="{APP_L}"/><rect x="370" y="{top}" width="92" height="14" rx="7" fill="{metal(u)}"/>'
+                f'<rect x="478" y="{fy-8}" width="150" height="8" rx="3" fill="{APP_L}"/>')
+    return Scene('vault', 340, fy, {'board': (280, fy - 10), 'table': (0, top), 'floor': (0, fy), 'mat': (0, fy - 8)}, draw=d, w=w)
 
 SCENES = {'floor': floor, 'beam': beam, 'high_bar': high_bar, 'uneven_bars': uneven, 'rings': rings,
           'parallel_bars': pbars, 'pommel_horse': pommel, 'vault': vault}

@@ -68,9 +68,10 @@ def pill(uid, x, y, text):
             f'<text x="{x}" y="{y+4.5}" text-anchor="middle" {FONT} font-size="13" font-weight="700" fill="{BLUE}">{text}</text>')
 def note(x, y, text):
     return f'<text x="{x}" y="{y}" text-anchor="middle" {FONT} font-size="12" font-weight="500" fill="#66708d">{text}</text>'
-def frame(uid, body, h=H):
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {h}" width="{W}" height="{h}" role="img">'
-            f'<defs>{defs(uid)}</defs><rect width="{W}" height="{h}" rx="22" fill="url(#{uid}bg)"/>{body}</svg>')
+def frame(uid, body, h=H, w=None):
+    w = w or W
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}" role="img">'
+            f'<defs>{defs(uid)}</defs><rect width="{w}" height="{h}" rx="22" fill="url(#{uid}bg)"/>{body}</svg>')
 
 # ---------- the 10 elements ----------
 def planche(u):

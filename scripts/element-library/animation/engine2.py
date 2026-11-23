@@ -148,7 +148,7 @@ def joint_angles(p):
 
 def validate(tl, floor_y=None, bars=(), max_step=28, front=False):
     problems = []
-    prev = None
+    prev = None; prev_meta = {}
     for i, (p, pel, meta) in enumerate(tl.frames):
         if not front:
             for name, val in joint_angles(p).items():
@@ -170,11 +170,16 @@ def validate(tl, floor_y=None, bars=(), max_step=28, front=False):
         if prev is not None:
             # per-segment speed limits (deg per frame at 30 fps), from biomechanics:
             # trunk ~840 deg/s, leg kicks ~1050 deg/s, arm swings ~1200 deg/s
-            limit = {'torso': max_step, 'leg_n': 35, 'leg_f': 35, 'arm_n': 40, 'arm_f': 40}
+            # In the air the whole-body rotation is set by angular momentum (physics), so the trunk
+            # may turn up to ~1650 deg/s (tight tucks) and limbs are limited RELATIVE to the trunk.
+            in_air = bool(meta.get('flight')) and bool(prev_meta.get('flight'))
+            limit = {'torso': 55 if in_air else max_step, 'leg_n': 35, 'leg_f': 35, 'arm_n': 40, 'arm_f': 40}
+            dt_trunk = p.torso - prev.torso
             for attr in ['torso'] + SEG:
                 a, b = getattr(prev, attr), getattr(p, attr)
                 a = a if isinstance(a, tuple) else (a,); b = b if isinstance(b, tuple) else (b,)
                 for x, y in zip(a, b):
-                    if abs(y - x) > limit[attr]: problems.append(f'frame {i}: {attr} jumps {abs(y - x):.0f}°'); break
-        prev = p
+                    d = (y - x) - (dt_trunk if (in_air and attr != 'torso') else 0)
+                    if abs(d) > limit[attr]: problems.append(f'frame {i}: {attr} jumps {abs(d):.0f}°'); break
+        prev, prev_meta = p, meta
     return problems

@@ -8,7 +8,7 @@
    "contact": {
     "joint": "ton",
     "at": [
-     206.0,
+     190.0,
      340
     ],
     "keys": [
@@ -144,7 +144,7 @@
      "joint": "han",
      "at": "hb"
     },
-    "riseM": 0.77,
+    "riseM": 1.02,
     "twist": 360,
     "twistWindow": [
      0.1,
@@ -258,10 +258,10 @@
   }
  ],
  "poster": {
-  "main": 20,
+  "main": 22,
   "ghosts": [
    5,
-   39
+   42
   ]
  }
 }

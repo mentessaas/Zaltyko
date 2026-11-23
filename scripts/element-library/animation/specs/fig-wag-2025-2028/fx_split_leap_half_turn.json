@@ -254,14 +254,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@74"
+     "at": "floor@74.0"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@74",
+    "at": "floor@74.0",
     "keys": [
      {
       "dt": 0,
@@ -347,7 +347,7 @@
   {
    "contact": {
     "joint": "tof",
-    "at": "floor@120",
+    "at": "floor@120.0",
     "keys": [
      {
       "dt": 0,
@@ -509,7 +509,7 @@
        ],
        "head": 0.0,
        "facing": 1,
-       "yaw": 13.499999999999996,
+       "yaw": 12.98076923076923,
        "yawPivot": "pelvis"
       }
      },
@@ -535,7 +535,7 @@
        ],
        "head": 0.0,
        "facing": 1,
-       "yaw": 50.999999999999986,
+       "yaw": 49.03846153846153,
        "yawPivot": "pelvis"
       }
      },
@@ -561,7 +561,7 @@
        ],
        "head": 0.0,
        "facing": 1,
-       "yaw": 88.49999999999999,
+       "yaw": 85.09615384615384,
        "yawPivot": "pelvis"
       }
      },
@@ -586,8 +586,8 @@
         182.5
        ],
        "head": 0.0,
-       "facing": -1,
-       "yaw": 125.99999999999997,
+       "facing": 1,
+       "yaw": 121.15384615384615,
        "yawPivot": "pelvis"
       }
      },
@@ -613,7 +613,7 @@
        ],
        "head": 0.0,
        "facing": -1,
-       "yaw": 163.49999999999997,
+       "yaw": 151.70454545454547,
        "yawPivot": "pelvis"
       }
      },
@@ -639,7 +639,7 @@
        ],
        "head": 0.0,
        "facing": -1,
-       "yaw": 180.0,
+       "yaw": 160.22727272727272,
        "yawPivot": "pelvis"
       }
      },
@@ -665,7 +665,7 @@
        ],
        "head": 0.0,
        "facing": -1,
-       "yaw": 180.0,
+       "yaw": 168.75,
        "yawPivot": "pelvis"
       }
      },
@@ -691,7 +691,7 @@
        ],
        "head": 0.0,
        "facing": -1,
-       "yaw": 180.0,
+       "yaw": 177.27272727272728,
        "yawPivot": "pelvis"
       }
      },
@@ -906,24 +906,24 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@200"
+     "at": "floor@200.0"
     },
     "twist": 180,
     "twistWindow": [
      0.04,
-     0.34
+     0.52
     ]
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@200",
+    "at": "floor@200.0",
     "keys": [
      {
       "dt": 0,
       "pose": {
-       "torso": 1.0000000000000004,
+       "torso": 0.9999999999999999,
        "arm_n": [
         62.0,
         52.0
@@ -1003,7 +1003,7 @@
   }
  ],
  "poster": {
-  "main": 37,
+  "main": 35,
   "ghosts": [
    30,
    27

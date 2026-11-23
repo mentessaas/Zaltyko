@@ -546,7 +546,8 @@ in post-flight; short landing.
   second flight is shorter than in handsprings [M30]. Angular energy built on the board is
   largely kept through the table push [M30].
 - **Post-flight**: a *backward* salto (tuck, pike, layout, with twists) because the body now faces
-  the table. Land with the back to the table.
+  the table. Without a twist (or with whole twists) the gymnast lands **facing the table**; half twists
+  land with the back to it. (Corrected 23-11-2026: an earlier version said "back to the table".)
 - **Errors**: late turn; turn completed on the table instead of in pre-flight; bent arms; low
   salto.
 

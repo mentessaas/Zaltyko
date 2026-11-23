@@ -1,0 +1,176 @@
+{
+ "elementKey": "mfx_press_to_japanese_handstand",
+ "scene": "floor",
+ "view": "front",
+ "holdS": 0.4,
+ "timeline": [
+  {
+   "contact": {
+    "joint": "han",
+    "at": [
+     131.42,
+     263
+    ],
+    "keys": [
+     {
+      "dt": 0,
+      "pose": {
+       "torso": 180,
+       "arm_n": [
+        237,
+        237
+       ],
+       "arm_f": [
+        123,
+        123
+       ],
+       "leg_n": [
+        232,
+        232
+       ],
+       "leg_f": [
+        128,
+        128
+       ],
+       "head": 0,
+       "facing": 1,
+       "front": true
+      }
+     },
+     {
+      "dt": 0.5,
+      "pose": {
+       "torso": 180,
+       "arm_n": [
+        237,
+        237
+       ],
+       "arm_f": [
+        123,
+        123
+       ],
+       "leg_n": [
+        232,
+        232
+       ],
+       "leg_f": [
+        128,
+        128
+       ],
+       "head": 0,
+       "facing": 1,
+       "front": true
+      }
+     },
+     {
+      "dt": 0.6,
+      "pose": {
+       "torso": 180,
+       "arm_n": [
+        237,
+        237
+       ],
+       "arm_f": [
+        123,
+        123
+       ],
+       "leg_n": [
+        268,
+        268
+       ],
+       "leg_f": [
+        92,
+        92
+       ],
+       "head": 0,
+       "facing": 1,
+       "front": true
+      }
+     },
+     {
+      "dt": 0.6,
+      "pose": {
+       "torso": 180,
+       "arm_n": [
+        237,
+        237
+       ],
+       "arm_f": [
+        123,
+        123
+       ],
+       "leg_n": [
+        325,
+        325
+       ],
+       "leg_f": [
+        35,
+        35
+       ],
+       "head": 0,
+       "facing": 1,
+       "front": true
+      }
+     },
+     {
+      "dt": 0.45,
+      "pose": {
+       "torso": 180,
+       "arm_n": [
+        237,
+        237
+       ],
+       "arm_f": [
+        123,
+        123
+       ],
+       "leg_n": [
+        360,
+        360
+       ],
+       "leg_f": [
+        0,
+        0
+       ],
+       "head": 0,
+       "facing": 1,
+       "front": true
+      }
+     },
+     {
+      "dt": 2.0,
+      "pose": {
+       "torso": 180,
+       "arm_n": [
+        237,
+        237
+       ],
+       "arm_f": [
+        123,
+        123
+       ],
+       "leg_n": [
+        360,
+        360
+       ],
+       "leg_f": [
+        0,
+        0
+       ],
+       "head": 0,
+       "facing": 1,
+       "front": true
+      }
+     }
+    ]
+   }
+  }
+ ],
+ "poster": {
+  "main": 125,
+  "ghosts": [
+   0,
+   33
+  ]
+ }
+}

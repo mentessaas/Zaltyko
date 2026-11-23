@@ -1,0 +1,97 @@
+{
+ "elementKey": "bb_mount_jump_stretched_to_planche",
+ "scene": "beam",
+ "view": "side",
+ "holdS": 0.6,
+ "timeline": [
+  {
+   "contact": {
+    "joint": "han",
+    "at": [
+     186,
+     221.0
+    ],
+    "keys": [
+     {
+      "dt": 0,
+      "pose": {
+       "torso": -68,
+       "arm_n": [
+        166,
+        166
+       ],
+       "arm_f": [
+        166,
+        166
+       ],
+       "leg_n": [
+        112,
+        112
+       ],
+       "leg_f": [
+        114,
+        114
+       ],
+       "head": -10,
+       "facing": -1
+      }
+     },
+     {
+      "dt": 0.45,
+      "pose": {
+       "torso": -90,
+       "arm_n": [
+        150,
+        150
+       ],
+       "arm_f": [
+        150,
+        150
+       ],
+       "leg_n": [
+        90,
+        90
+       ],
+       "leg_f": [
+        90,
+        90
+       ],
+       "head": -20,
+       "facing": -1
+      }
+     },
+     {
+      "dt": 2.0,
+      "pose": {
+       "torso": -90,
+       "arm_n": [
+        150,
+        150
+       ],
+       "arm_f": [
+        150,
+        150
+       ],
+       "leg_n": [
+        90,
+        90
+       ],
+       "leg_f": [
+        90,
+        90
+       ],
+       "head": -20,
+       "facing": -1
+      }
+     }
+    ]
+   }
+  }
+ ],
+ "poster": {
+  "main": 40,
+  "ghosts": [
+   0
+  ]
+ }
+}

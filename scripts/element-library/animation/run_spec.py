@@ -87,7 +87,7 @@ def frame_svg(sc, tl, i, trails=True, uid='a'):
     body += overlay(sc, p, pel, meta) + V.fig(uid, p, pel)
     if behind: body += sc.draw(uid)
     dy = headroom(tl)
-    return V.frame(uid, shifted(body, dy), sc.h + dy)
+    return V.frame(uid, shifted(body, dy), sc.h + dy, w=sc.w)
 
 def poster_svg(spec, sc, tl, uid):
     """Static pictogram: main frame solid, chosen ghost frames translucent."""
@@ -101,7 +101,7 @@ def poster_svg(spec, sc, tl, uid):
     p, pel, meta = tl.frames[main]
     body += overlay(sc, p, pel, meta) + V.fig(uid, p, pel)
     dy = headroom(tl)
-    return V.frame(uid, shifted(body, dy), sc.h + dy)
+    return V.frame(uid, shifted(body, dy), sc.h + dy, w=sc.w)
 
 def render(spec, sc, tl, out):
     key = spec['elementKey']; d = os.path.join(out, key + '_frames'); os.makedirs(d, exist_ok=True)

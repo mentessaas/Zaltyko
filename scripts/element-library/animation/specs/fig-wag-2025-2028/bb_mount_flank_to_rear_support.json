@@ -1,0 +1,156 @@
+{
+ "elementKey": "bb_mount_flank_to_rear_support",
+ "scene": "beam",
+ "view": "side",
+ "holdS": 0.6,
+ "timeline": [
+  {
+   "contact": {
+    "joint": "han",
+    "at": [
+     196,
+     221.0
+    ],
+    "keys": [
+     {
+      "dt": 0,
+      "pose": {
+       "torso": 240,
+       "arm_n": [
+        180,
+        180
+       ],
+       "arm_f": [
+        180,
+        180
+       ],
+       "leg_n": [
+        500,
+        500
+       ],
+       "leg_f": [
+        502,
+        502
+       ],
+       "head": -10,
+       "facing": -1,
+       "yaw": 0,
+       "yawPivot": "han"
+      }
+     },
+     {
+      "dt": 0.35,
+      "pose": {
+       "torso": 195,
+       "arm_n": [
+        180,
+        180
+       ],
+       "arm_f": [
+        180,
+        180
+       ],
+       "leg_n": [
+        530,
+        530
+       ],
+       "leg_f": [
+        528,
+        528
+       ],
+       "head": -10,
+       "facing": -1,
+       "yaw": 70,
+       "yawPivot": "han"
+      }
+     },
+     {
+      "dt": 0.3,
+      "pose": {
+       "torso": 270,
+       "arm_n": [
+        200,
+        200
+       ],
+       "arm_f": [
+        200,
+        200
+       ],
+       "leg_n": [
+        610,
+        610
+       ],
+       "leg_f": [
+        608,
+        608
+       ],
+       "head": -5,
+       "facing": -1,
+       "yaw": 35.0,
+       "yawPivot": "han"
+      }
+     },
+     {
+      "dt": 0.35,
+      "pose": {
+       "torso": 365,
+       "arm_n": [
+        175,
+        175
+       ],
+       "arm_f": [
+        176,
+        176
+       ],
+       "leg_n": [
+        630,
+        630
+       ],
+       "leg_f": [
+        632,
+        632
+       ],
+       "head": 0,
+       "facing": -1,
+       "yaw": 0,
+       "yawPivot": "han"
+      }
+     },
+     {
+      "dt": 1.0,
+      "pose": {
+       "torso": 365,
+       "arm_n": [
+        175,
+        175
+       ],
+       "arm_f": [
+        176,
+        176
+       ],
+       "leg_n": [
+        630,
+        630
+       ],
+       "leg_f": [
+        632,
+        632
+       ],
+       "head": 0,
+       "facing": -1,
+       "yaw": 0,
+       "yawPivot": "han"
+      }
+     }
+    ]
+   }
+  }
+ ],
+ "poster": {
+  "main": 12,
+  "ghosts": [
+   0,
+   30
+  ]
+ }
+}

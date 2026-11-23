@@ -254,14 +254,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@74"
+     "at": "floor@74.0"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@74",
+    "at": "floor@74.0",
     "keys": [
      {
       "dt": 0,
@@ -347,7 +347,7 @@
   {
    "contact": {
     "joint": "tof",
-    "at": "floor@120",
+    "at": "floor@120.0",
     "keys": [
      {
       "dt": 0,
@@ -880,7 +880,7 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@180"
+     "at": "floor@180.0"
     },
     "twist": 360,
     "twistWindow": [
@@ -892,7 +892,7 @@
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@180",
+    "at": "floor@180.0",
     "keys": [
      {
       "dt": 0,
