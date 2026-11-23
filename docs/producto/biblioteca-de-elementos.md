@@ -6,7 +6,7 @@ Fecha: 19 de noviembre de 2026. Origen: ADR-0029 (`docs/architecture/adr/0029-bi
 
 1. Las candidatas SQL `20261119120000_element_library_candidate.sql` y `20261119120500_element_library_notes_candidate.sql`, y al menos una semilla de tanda, en `docs/deployment/candidates/`. Cada una **requiere autorización de Elvis** por entorno (staging y producción).
 2. La bandera de servidor `ZALTYKO_ELEMENT_LIBRARY_ENABLED=true`, junto con `ZALTYKO_SKILL_LEVELS_ENABLED=true` (las dos, por defecto `false` en `.env.example`).
-3. Elementos **revisados por Elvis** en una edición publicada. La tanda 1 (51 saltos) está revisada desde el 19-11-2026; las academias la ven cuando se aplica su semilla revisada.
+3. Elementos **revisados** (por Elvis o, por delegación suya desde el 23-11-2026, por Claude; ADR-0029 §1.7) en una edición publicada. La tanda 1 (51 saltos) está revisada desde el 19-11-2026; las academias la ven cuando se aplica su semilla revisada.
 
 Si falta la bandera o las tablas: la página da 404, las API responden 503 con el motivo `element_library_unavailable` y el botón «Añadir desde la biblioteca» no aparece. Niveles, guiones y la exportación de la academia siguen funcionando igual, con o sin las tablas nuevas.
 
@@ -57,7 +57,7 @@ Los datos que ya existen no se tocan: las columnas de enlace nacen vacías, sin 
 
 - **Todos los planes, Free incluido** (decisión 10 de Elvis): no hay comprobación de plan. Con el plan en solo lectura se consulta todo, pero no se guardan notas.
 - Todo se comprueba en el servidor dentro de la transacción de cada operación: bandera y tablas, miembro activo del equipo técnico, sede de su alcance y activa, y plan fuera de solo lectura en escrituras. El catálogo es global y de solo lectura (RLS `ENABLE` + `FORCE` y `REVOKE` a `anon` y `authenticated`): solo lo escriben las semillas y la acción «Retirar».
-- **Qué ven las academias:** solo elementos revisados por Elvis, de una edición publicada y sin retirar. Los borradores solo los ve el superadministrador.
+- **Qué ven las academias:** solo elementos revisados, de una edición publicada y sin retirar. Los borradores solo los ve el superadministrador.
 
 ## De dónde salen los datos
 
@@ -81,7 +81,7 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 - Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/1.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,4; ningún elemento se volvió a redactar. Muestra manual: 6 elementos, sin resultado registrado.
 - Semilla: `docs/deployment/candidates/20261119121000_element_catalog_seed_fig-wag-2025-2028_1.sql`, regenerada con la revisión. En staging está aplicada la versión anterior, en borrador; la revisada, pendiente. Sin aplicar en producción.
 
-**Cuando Elvis la revisa,** se marca cada elemento como revisado con su fecha en el archivo de datos, se completa el registro de la tanda y se vuelve a generar la semilla. Una semilla nunca devuelve un elemento revisado a borrador, nunca deshace una retirada y aborta si un elemento revisado cambia sin una fecha de revisión posterior.
+**Cuando se revisa** (Elvis o, por delegación suya, una sesión de Claude distinta de la que redacta, con el Código oficial delante), se marca cada elemento como revisado con su fecha en el archivo de datos, se completa el registro de la tanda y se vuelve a generar la semilla. Una semilla nunca devuelve un elemento revisado a borrador, nunca deshace una retirada y aborta si un elemento revisado cambia sin una fecha de revisión posterior.
 
 ### Sexta tanda
 
