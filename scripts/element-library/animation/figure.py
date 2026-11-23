@@ -19,6 +19,9 @@ class Pose:
         self.leg_n, self.leg_f = leg_n, leg_f or leg_n
         self.head, self.front = head, front
 
+    def upper_torso(self):
+        return self.torso - getattr(self, 'arch', 0) * getattr(self, 'facing', 1)
+
     def joints(self, pelvis=(0, 0)):
         j = self._joints_flat(pelvis)
         yaw = getattr(self, 'yaw', 0)
@@ -34,11 +37,15 @@ class Pose:
 
     def _joints_flat(self, pelvis=(0, 0)):
         t = self.torso
-        neck = add(pelvis, v(t, L['torso']))
-        j = {'pelvis': pelvis, 'neck': neck}
-        j['head'] = add(neck, v(t + self.head, L['neck'] + L['head']))
+        # spine: the trunk bends at mid-back. arch > 0 = back bend (upper trunk tips away from the
+        # chest), arch < 0 = rounded back. torso is the lower-trunk (pelvis) angle.
+        ut = self.upper_torso()
+        mid = add(pelvis, v(t, L['torso'] / 2))
+        neck = add(mid, v(ut, L['torso'] / 2))
+        j = {'pelvis': pelvis, 'mid': mid, 'neck': neck}
+        j['head'] = add(neck, v(ut + self.head, L['neck'] + L['head']))
         side = (lambda a, d: v(a + 90, d)) if self.front else (lambda a, d: (0, 0))
-        for tag, sh_off, arm in (('n', side(t, 10), self.arm_n), ('f', side(t, -10), self.arm_f)):
+        for tag, sh_off, arm in (('n', side(ut, 10), self.arm_n), ('f', side(ut, -10), self.arm_f)):
             s = add(neck, sh_off)
             e = add(s, v(arm[0], L['ua'])); h = add(e, v(arm[1], L['fa']))
             j['sh' + tag], j['el' + tag], j['ha' + tag] = s, e, h

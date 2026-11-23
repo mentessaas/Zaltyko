@@ -387,8 +387,10 @@ General key order: **approach → contact (block) → flight shapes → landing 
 ### B4. Sissone
 
 - **Take-off**: from **two** feet. **Landing**: on **one** foot (the front leg) [O24].
-- The legs separate to 180° on a diagonal about 45° to the floor: front leg high in front, rear leg
-  low behind, travelling forward [O24].
+- The legs separate to 180° on a diagonal about 45° to the floor: the REAR leg is the high one
+  (up behind), the front leg is low in front, and the trunk leans forward over the front leg. The
+  landing is on that front leg [O24]. (Corrected 23-11-2026 after the batch 7 review: an earlier
+  version of this guide had the front leg high.)
 - Arms in 2nd or 3rd position.
 - Timing similar to the split leap, with a slightly lower flight [E].
 

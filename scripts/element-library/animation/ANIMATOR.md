@@ -19,6 +19,12 @@ in `work/` to generate families of specs (e.g. "back salto with N twists") inste
   "head": tilt, "facing": 1|-1, "front": false}`. `torso` = direction pelvis→neck. Limb pairs are the
   absolute directions of upper and lower segment. `_n` = near side (drawn in front), `_f` = far side.
   `facing` = +1 when the chest points to +x for an upright body (−1 = toward −x).
+- Spine: optional `"arch": degrees`. The trunk bends at mid-back; `torso` is then the direction of the
+  LOWER trunk (pelvis→mid-back) and the upper trunk turns by `arch` away from the chest. `arch > 0` =
+  back bend (ring and sheep leaps, walkovers, back handsprings, Preziosa, bridges, arch in a hollow
+  swing), `arch < 0` = rounded back (tight tucks, pike compression). Range −35..60; it may change at
+  most 20° per frame. `head` is relative to the upper trunk. Shoulder angles are measured from the
+  upper trunk, hip angles from the lower trunk.
 - Natural bends (validator enforces, with facing): knees bend backwards (0..165°), elbows bend
   forwards (0..160°), hip flexion up to 185° (pike), hip extension to 100° (splits), shoulder
   flexion to 200° (arms overhead and a bit behind), extension to 75°.

@@ -13,7 +13,8 @@ import volumen as V
 def pose_of(d):
     p = Pose(torso=d['torso'], arm_n=tuple(d['arm_n']), arm_f=tuple(d.get('arm_f', d['arm_n'])),
              leg_n=tuple(d['leg_n']), leg_f=tuple(d.get('leg_f', d['leg_n'])), head=d.get('head', 0), front=d.get('front', False))
-    p.facing = d.get('facing', 1); p.yaw = d.get('yaw', 0); p.yaw_pivot = d.get('yawPivot', 'han'); return p
+    p.facing = d.get('facing', 1); p.yaw = d.get('yaw', 0); p.yaw_pivot = d.get('yawPivot', 'han')
+    p.arch = d.get('arch', 0); return p
 
 def shape_of(d):
     p = pose_of(d); return Shape.of(p, p.facing)

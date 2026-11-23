@@ -24,30 +24,30 @@ def ease(u): return u * u * (3 - 2 * u)
 # ---------- representation ----------
 class Shape:
     """Pose relative to the torso: rel angles for upper/lower of each limb, plus head tilt."""
-    def __init__(self, arm_n, arm_f, leg_n, leg_f, head=0.0, facing=1, yaw=0.0, yaw_pivot='han', front=False):
-        self.arm_n, self.arm_f, self.leg_n, self.leg_f = arm_n, arm_f, leg_n, leg_f
+    def __init__(self, arm_n, arm_f, leg_n, leg_f, head=0.0, facing=1, yaw=0.0, yaw_pivot='han', front=False, arch=0.0):
+        self.arm_n, self.arm_f, self.leg_n, self.leg_f, self.arch = arm_n, arm_f, leg_n, leg_f, arch
         self.head, self.facing, self.yaw, self.yaw_pivot, self.front = head, facing, yaw, yaw_pivot, front
     @staticmethod
     def of(p, facing=1):
         r = lambda pair: (pair[0] - p.torso, pair[1] - p.torso)
-        return Shape(r(p.arm_n), r(p.arm_f), r(p.leg_n), r(p.leg_f), p.head, facing, getattr(p, 'yaw', 0), getattr(p, 'yaw_pivot', 'han'), getattr(p, 'front', False))
+        return Shape(r(p.arm_n), r(p.arm_f), r(p.leg_n), r(p.leg_f), p.head, facing, getattr(p, 'yaw', 0), getattr(p, 'yaw_pivot', 'han'), getattr(p, 'front', False), getattr(p, 'arch', 0))
     def pose(self, torso):
         a = lambda pair: (pair[0] + torso, pair[1] + torso)
         p = Pose(torso=torso, arm_n=a(self.arm_n), arm_f=a(self.arm_f), leg_n=a(self.leg_n), leg_f=a(self.leg_f), head=self.head)
-        p.facing = self.facing; p.yaw = self.yaw; p.yaw_pivot = self.yaw_pivot; p.front = self.front
+        p.facing = self.facing; p.yaw = self.yaw; p.yaw_pivot = self.yaw_pivot; p.front = self.front; p.arch = self.arch
         return p
 
 def lerp_shape(a, b, u):
     l = lambda x, y: x + (y - x) * u   # follow the direction written in the spec (validator catches impossible paths)
     pr = lambda p, q: (l(p[0], q[0]), l(p[1], q[1]))
     return Shape(pr(a.arm_n, b.arm_n), pr(a.arm_f, b.arm_f), pr(a.leg_n, b.leg_n), pr(a.leg_f, b.leg_f), l(a.head, b.head),
-                 a.facing if u < 0.5 else b.facing, l(a.yaw, b.yaw), a.yaw_pivot, a.front if u < 0.5 else b.front)
+                 a.facing if u < 0.5 else b.facing, l(a.yaw, b.yaw), a.yaw_pivot, a.front if u < 0.5 else b.front, l(a.arch, b.arch))
 
 # ---------- mechanics ----------
 def com(p, pelvis=(0, 0)):
     j = p.joints(pelvis)
     mid = lambda a, b: ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
-    parts = [(mid(j['pelvis'], j['neck']), MASS['torso'])]
+    parts = [(mid(j['pelvis'], j['mid']), MASS['torso'] / 2), (mid(j['mid'], j['neck']), MASS['torso'] / 2)]
     for t in 'nf':
         parts += [(mid(j['sh' + t], j['el' + t]), MASS['ua']), (mid(j['el' + t], j['ha' + t]), MASS['fa']),
                   (mid(j['hip' + t], j['kn' + t]), MASS['th']), (mid(j['kn' + t], j['an' + t]), MASS['sh'])]
@@ -132,18 +132,20 @@ def flight(tl, duration, shapes, rotation, land_joint, land_point, land_torso, s
 def _wrap(a): return (a + 180) % 360 - 180
 
 LIMITS = {  # degrees, measured with facing so that + is the natural direction
-    'knee': (-5, 165), 'elbow': (-8, 160), 'hip': (-100, 185), 'shoulder': (-75, 200)}
+    'knee': (-5, 165), 'elbow': (-8, 160), 'hip': (-100, 185), 'shoulder': (-75, 200),
+    'arch': (-35, 60)}   # spine: thoracic + lumbar extension of a trained gymnast ~60, flexion ~35
 
 def joint_angles(p):
     f = getattr(p, 'facing', 1); out = {}
     for t in 'nf':
         arm, leg = getattr(p, 'arm_' + t), getattr(p, 'leg_' + t)
-        sh = (p.torso + 180 - arm[0]) * f % 360
+        sh = (p.upper_torso() + 180 - arm[0]) * f % 360
         out['shoulder_' + t] = sh - 360 if sh >= 270 else sh
         out['elbow_' + t] = _wrap(arm[0] - arm[1]) * f
         hp = (p.torso + 180 - leg[0]) * f % 360
         out['hip_' + t] = hp - 360 if hp >= 240 else hp
         out['knee_' + t] = _wrap(leg[1] - leg[0]) * f
+    out['arch'] = getattr(p, 'arch', 0)
     return out
 
 def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=()):
@@ -184,6 +186,8 @@ def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=()):
             in_air = bool(meta.get('flight')) and bool(prev_meta.get('flight'))
             limit = {'torso': 55 if in_air else max_step, 'leg_n': 35, 'leg_f': 35, 'arm_n': 40, 'arm_f': 40}
             dt_trunk = p.torso - prev.torso
+            if abs(getattr(p, 'arch', 0) - getattr(prev, 'arch', 0)) > 20:
+                problems.append(f'frame {i}: arch jumps {abs(p.arch - prev.arch):.0f}°')
             for attr in ['torso'] + SEG:
                 a, b = getattr(prev, attr), getattr(p, attr)
                 a = a if isinstance(a, tuple) else (a,); b = b if isinstance(b, tuple) else (b,)

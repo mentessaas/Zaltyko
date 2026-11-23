@@ -60,6 +60,13 @@ HAND = ([(0, 2.7), (.5, 2.9), (1, 1.7)], [(0, 2.7), (.5, 2.8), (1, 1.7)])
 TORSO_SIDE = ([(0, 8.5), (.35, 7.2), (.72, 10.4), (1, 7.2)], [(0, 9.0), (.35, 7.0), (.72, 9.2), (1, 7.0)])
 TORSO_FRONT = ([(0, 9.0), (.4, 8.0), (.78, 13.5), (1, 11.5)], [(0, 9.0), (.4, 8.0), (.78, 13.5), (1, 11.5)])
 
+def _half(profile, a, b):
+    """Width profiles of the stretch a..b of a segment, rescaled to 0..1 (for a bent trunk)."""
+    def cut(prof):
+        pts = [(0.0, _prof(a, prof))] + [((t - a) / (b - a), w) for t, w in prof if a < t < b] + [(1.0, _prof(b, prof))]
+        return pts
+    return cut(profile[0]), cut(profile[1])
+
 def body_paths(pose, pelvis):
     """List of (layer, d) where layer is 'far' or 'near'. Same fill => seamless union."""
     j = pose.joints(pelvis); t = pose.torso
@@ -79,6 +86,10 @@ def body_paths(pose, pelvis):
     if pose.front:
         out.append(('near', muscle(pel, top, *TORSO_FRONT)))
         out.append(('near', muscle(j['shf'], j['shn'], [(0, 6.2), (.5, 5.0), (1, 6.2)], [(0, 6.6), (.5, 5.6), (1, 6.6)])))
+    elif abs(getattr(pose, 'arch', 0)) > 2:
+        m = j['mid']
+        out.append(('near', muscle(pel, m, *_half(TORSO_SIDE, 0, .5))))
+        out.append(('near', muscle(m, top, *_half(TORSO_SIDE, .5, 1))))
     else:
         out.append(('near', muscle(pel, top, *TORSO_SIDE)))
     hc = j['head']
@@ -120,8 +131,10 @@ def outline(pose, pelvis, stroke, bg, w=2.2, op=1.0):
 def lerp_pose(a, b, t):
     lp = lambda x, y: x + (y - x) * t
     pair = lambda p, q: (lp(p[0], q[0]), lp(p[1], q[1]))
-    return Pose(torso=lp(a.torso, b.torso), arm_n=pair(a.arm_n, b.arm_n), arm_f=pair(a.arm_f, b.arm_f),
+    p = Pose(torso=lp(a.torso, b.torso), arm_n=pair(a.arm_n, b.arm_n), arm_f=pair(a.arm_f, b.arm_f),
                 leg_n=pair(a.leg_n, b.leg_n), leg_f=pair(a.leg_f, b.leg_f), head=lp(a.head, b.head), front=a.front)
+    p.arch = lp(getattr(a, 'arch', 0), getattr(b, 'arch', 0)); p.facing = getattr(a, 'facing', 1)
+    return p
 
 def sequence(keys, n):
     """keys: [(pose, pelvis)], returns n evenly spaced interpolated (pose, pelvis)."""
