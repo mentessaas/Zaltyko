@@ -8,7 +8,7 @@
    "contact": {
     "joint": "pelvis",
     "at": [
-     361.19,
+     356.02,
      196.947
     ],
     "keys": [
@@ -119,14 +119,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@316.8"
+     "at": "floor@311.63"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@316.8",
+    "at": "floor@311.63",
     "keys": [
      {
       "dt": 0,
@@ -182,7 +182,7 @@
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@316.8",
+    "at": "floor@311.63",
     "keys": [
      {
       "dt": 0,
@@ -238,7 +238,7 @@
   {
    "contact": {
     "joint": "haf",
-    "at": "floor@225.74",
+    "at": "floor@220.57",
     "keys": [
      {
       "dt": 0,
@@ -294,7 +294,7 @@
   {
    "contact": {
     "joint": "han",
-    "at": "floor@213.74",
+    "at": "floor@208.57",
     "keys": [
      {
       "dt": 0,
@@ -326,13 +326,14 @@
        "torso": -180,
        "head": 0,
        "facing": 1,
+       "arch": 12,
        "arm_n": [
-        185,
-        185
+        173,
+        173
        ],
        "arm_f": [
-        199,
-        199
+        187,
+        187
        ],
        "leg_n": [
         45,
@@ -350,21 +351,22 @@
        "torso": -212,
        "head": 0,
        "facing": 1,
+       "arch": -8,
        "arm_n": [
-        153,
-        153
+        161,
+        161
        ],
        "arm_f": [
-        153,
-        153
+        161,
+        161
        ],
        "leg_n": [
-        -46,
-        -46
+        -42,
+        -42
        ],
        "leg_f": [
-        -46,
-        -46
+        -42,
+        -42
        ]
       }
      }
@@ -373,7 +375,7 @@
   },
   {
    "flight": {
-    "riseM": 0.123,
+    "riseM": 0.12,
     "rotation": -122,
     "shapes": [
      {
@@ -427,14 +429,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@116.21"
+     "at": "floor@116.2"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@116.21",
+    "at": "floor@116.2",
     "keys": [
      {
       "dt": 0,
@@ -615,7 +617,7 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@88.44"
+     "at": "floor@88.43"
     },
     "twist": 900,
     "twistWindow": [
@@ -627,7 +629,7 @@
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@88.44",
+    "at": "floor@88.43",
     "keys": [
      {
       "dt": 0,
@@ -730,10 +732,10 @@
   }
  ],
  "poster": {
-  "main": 49,
+  "main": 50,
   "ghosts": [
-   36,
-   63
+   37,
+   64
   ]
  }
 }

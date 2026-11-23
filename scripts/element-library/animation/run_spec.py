@@ -45,6 +45,7 @@ def build(spec):
                     u = (i - start + 1) / n
                     done = max(0.0, min(1.0, (u - w0) / (w1 - w0))) * abs(twist)
                     tl.frames[i][2]['twist'] = 0 < done < abs(twist)
+                    if 0 < done < abs(twist): tl.frames[i][2]['twistTotal'] = abs(twist)
                     if round(done / 180) % 2 == 1:
                         p = tl.frames[i][0]; p.facing = -getattr(p, 'facing', 1)
             info['twist'] = twist; flights.append(info)
@@ -53,6 +54,12 @@ def build(spec):
 def validate_spec(spec, sc, tl):
     front = spec.get('view') == 'front'
     return validate(tl, floor_y=sc.floor_y, bars=sc.bars, front=front, solids=getattr(sc, 'solids', ()))
+
+def turns_label(deg):
+    """720 -> '2', 540 -> '1½', 180 -> '½', 270 -> '¾'."""
+    q = round(deg / 90); whole, rest = divmod(q, 4)
+    frac = {0: '', 1: '¼', 2: '½', 3: '¾'}[rest]
+    return (str(whole) if whole else '') + frac or '0'
 
 def overlay(sc, p, pel, meta):
     o = ''
@@ -65,6 +72,11 @@ def overlay(sc, p, pel, meta):
     if meta.get('twist'):
         j = p.joints(pel); c = ((j['pelvis'][0] + j['neck'][0]) / 2, (j['pelvis'][1] + j['neck'][1]) / 2)
         o += f'<ellipse cx="{c[0]:.1f}" cy="{c[1]:.1f}" rx="26" ry="8" transform="rotate({p.torso:.1f} {c[0]:.1f} {c[1]:.1f})" fill="none" stroke="{V.BLUE}" stroke-width="3" opacity=".8"/>'
+        if meta.get('twistTotal'):
+            # the ring alone does not say how much the gymnast twists: label the total (½, 1, 1½, ...)
+            lx, ly = c[0] + 40 * math.cos(math.radians(p.torso)), c[1] + 40 * math.sin(math.radians(p.torso))
+            o += (f'<g transform="translate({lx:.1f},{ly:.1f})"><rect x="-17" y="-11" width="34" height="22" rx="11" fill="{V.BLUE}" opacity=".9"/>'
+                  f'<text y="5" text-anchor="middle" font-family="Inter,Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#fff">{turns_label(meta["twistTotal"])}</text></g>')
     return o
 
 def floor_band(sc, tl):

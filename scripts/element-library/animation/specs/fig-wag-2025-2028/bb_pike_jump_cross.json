@@ -26,8 +26,8 @@
         180
        ],
        "leg_f": [
-        180,
-        180
+        186.83,
+        186.85
        ],
        "head": 0,
        "facing": 1,
@@ -52,8 +52,8 @@
         196
        ],
        "leg_f": [
-        168,
-        196
+        179.34,
+        199.4
        ],
        "head": 0,
        "facing": 1,
@@ -78,8 +78,8 @@
         214
        ],
        "leg_f": [
-        150,
-        214
+        160.37,
+        219.99
        ],
        "head": 0,
        "facing": 1,
@@ -104,8 +104,8 @@
         198
        ],
        "leg_f": [
-        166,
-        198
+        176.86,
+        201.93
        ],
        "head": 0,
        "facing": 1,
@@ -130,8 +130,8 @@
         182
        ],
        "leg_f": [
-        182,
-        182
+        188.8,
+        188.82
        ],
        "head": 0,
        "facing": 1,
@@ -164,13 +164,14 @@
         180.1992529154519
        ],
        "leg_f": [
-        180.1992529154519,
-        180.1992529154519
+        180.87671282798834,
+        180.87870535714285
        ],
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -196,7 +197,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -222,7 +224,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -248,7 +251,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -274,7 +278,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -300,7 +305,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -326,7 +332,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -352,7 +359,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -378,7 +386,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -404,7 +413,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -430,7 +440,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -456,7 +467,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -482,7 +494,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -502,8 +515,8 @@
         178
        ],
        "leg_f": [
-        176,
-        178
+        181,
+        183
        ],
        "head": 0,
        "facing": 1,
@@ -526,7 +539,7 @@
      {
       "dt": 0,
       "pose": {
-       "torso": 4.996003610813204e-16,
+       "torso": 2.7755575615628914e-17,
        "arm_n": [
         40.0,
         30.0
@@ -540,8 +553,8 @@
         178.0
        ],
        "leg_f": [
-        176.0,
-        178.0
+        181.0,
+        183.0
        ],
        "head": 0,
        "facing": 1,
@@ -566,8 +579,8 @@
         214
        ],
        "leg_f": [
-        150,
-        214
+        160.37,
+        219.99
        ],
        "head": 0,
        "facing": 1,
@@ -592,8 +605,8 @@
         180
        ],
        "leg_f": [
-        180,
-        180
+        186.83,
+        186.85
        ],
        "head": 0,
        "facing": 1,

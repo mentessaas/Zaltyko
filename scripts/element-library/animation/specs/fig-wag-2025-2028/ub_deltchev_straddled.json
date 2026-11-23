@@ -359,7 +359,7 @@
     },
     "apexAbove": {
      "at": "hb",
-     "m": 1.0
+     "m": 1.2
     },
     "twist": 180,
     "twistWindow": [
@@ -450,10 +450,10 @@
   }
  ],
  "poster": {
-  "main": 66,
+  "main": 68,
   "ghosts": [
-   30,
-   90
+   31,
+   93
   ]
  }
 }
