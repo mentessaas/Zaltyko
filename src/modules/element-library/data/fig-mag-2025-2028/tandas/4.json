@@ -65,7 +65,7 @@
       "Extracción de hechos: un subagente lee el PDF oficial y guarda solo número, grupo, valor, epónimo, página y un desglose técnico con valores cerrados, sin frases del Código.",
       "Redacción en sala limpia: otro subagente, que no ve el Código, redacta nombre, nombre corto y descripción en español a partir solo de esos hechos.",
       "Comprobación entre idiomas: un tercer subagente compara cada descripción con el texto inglés del Código; lo que supera el umbral se vuelve a redactar en sala limpia.",
-      "Revisión de Elvis: exactitud técnica de toda la tanda y comparación manual con el Código de la muestra indicada."
+      "Revisión delegada en Claude (decisión de Elvis, 23-11-2026): una sesión distinta de la que redacta comparó toda la tanda con el Código oficial (texto y dibujos); las correcciones volvieron como hechos a la sala limpia y se comprobaron de nuevo."
     ]
   },
   "factsExtractedOn": "2026-11-22",
@@ -76,27 +76,31 @@
     "threshold": 0.5,
     "maxScore": 0.45,
     "redrafted": [
-      "mph_flair_or_circle_handstand_lower_to_flair_or_circle",
-      "mph_flair_hop_travel_bwd_handstand_lower",
-      "mph_busnari_handstand_travel_3_3_turn_360_to_flair",
-      "mph_kehr_270_one_pommel_side_to_cross",
       "mph_bertoncelj_to_busnari",
+      "mph_busnari_handstand_travel_3_3_turn_360_to_flair",
+      "mph_czechkehre_on_pommels_or_one_pommel",
+      "mph_czechkehre_outside_pommels",
+      "mph_double_rear_kehr",
+      "mph_driggs_travel_fwd_cross_support_over_both_pommels",
+      "mph_flair_hop_travel_bwd_handstand_lower",
+      "mph_flair_or_circle_handstand_lower_to_flair_or_circle",
+      "mph_flair_travel_3_3_full_spindle_within_2_circles",
+      "mph_kehr_270_one_pommel_side_to_cross",
+      "mph_magyar_travel_fwd_cross_support_other_end",
+      "mph_moguilny_kehre_fwd_reverse_stockli_kehre_fwd",
       "mph_reverse_stockli_180_or_270",
       "mph_reverse_stockli_270_two_pommels_to_cross_one_pommel",
       "mph_russian_on_leather_180_or_270",
+      "mph_russian_one_pommel_or_between_1080_or_more",
       "mph_russian_one_pommel_or_between_180_or_270",
       "mph_russian_one_pommel_or_between_360_or_540",
       "mph_russian_one_pommel_or_between_720_or_900",
-      "mph_russian_one_pommel_or_between_1080_or_more",
-      "mph_travel_quarter_spindle_to_side_support_two_pommels",
-      "mph_travel_fwd_3_3_half_spindle_one_pommel_over_other",
-      "mph_travel_3_3_over_both_pommels_half_spindle",
-      "mph_magyar_travel_fwd_cross_support_other_end",
-      "mph_driggs_travel_fwd_cross_support_over_both_pommels",
       "mph_sivado_travel_bwd_cross_support_other_end",
-      "mph_moguilny_kehre_fwd_reverse_stockli_kehre_fwd"
+      "mph_travel_3_3_over_both_pommels_half_spindle",
+      "mph_travel_fwd_3_3_half_spindle_one_pommel_over_other",
+      "mph_travel_quarter_spindle_to_side_support_two_pommels"
     ],
-    "checkedOn": "2026-11-22",
+    "checkedOn": "2026-11-23",
     "checkedBy": "Claude"
   },
   "manualSample": {
@@ -108,11 +112,11 @@
       "mph_travel_fwd_3_3_half_spindle_one_pommel_over_other",
       "mph_travel_bwd_cross_support_over_both_pommels"
     ],
-    "checkedBy": null,
-    "checkedOn": null,
-    "result": null
+    "checkedBy": "Claude",
+    "checkedOn": "2026-11-23",
+    "result": "6 de 6 correctas, sin riesgo de copia. Revisión completa de la tanda contra el Código: 5 observaciones corregidas, 5 descripciones rehechas en sala limpia y comprobadas de nuevo."
   },
-  "reviewedBy": null,
-  "reviewedOn": null,
+  "reviewedBy": "Claude",
+  "reviewedOn": "2026-11-23",
   "aviso": "Datos: número, grupo y valor tomados del Código de Puntuación de la FIG como hechos. Nombres y descripciones redactados por Zaltyko; no son texto oficial ni traducción. © Zaltyko. No copiar el texto del Código."
 }

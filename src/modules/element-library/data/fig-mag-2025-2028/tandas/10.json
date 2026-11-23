@@ -70,7 +70,7 @@
       "Extracción de hechos: un subagente lee el PDF oficial y guarda solo número, grupo, valor, epónimo, página y un desglose técnico con valores cerrados, sin frases del Código.",
       "Redacción en sala limpia: otro subagente, que no ve el Código, redacta nombre, nombre corto y descripción en español a partir solo de esos hechos.",
       "Comprobación entre idiomas: un tercer subagente compara cada descripción con el texto inglés del Código; lo que supera el umbral se vuelve a redactar en sala limpia.",
-      "Revisión de Elvis: exactitud técnica de toda la tanda y comparación manual con el Código de la muestra indicada."
+      "Revisión delegada en Claude (decisión de Elvis, 23-11-2026): una sesión distinta de la que redacta comparó toda la tanda con el Código oficial (texto y dibujos); las correcciones volvieron como hechos a la sala limpia y se comprobaron de nuevo."
     ]
   },
   "factsExtractedOn": "2026-11-22",
@@ -81,17 +81,22 @@
     "threshold": 0.5,
     "maxScore": 0.45,
     "redrafted": [
+      "mpb_sp_carballo_2_salto_fwd_from_handstand",
       "mpb_sp_diamidov_swing_fwd_full_turn_one_arm",
       "mpb_sp_diamidov_with_extra_turn",
-      "mpb_sp_morisue_double_salto_tuck_upper_arm",
-      "mpb_sp_huang_liping_double_salto_pike_upper_arm",
-      "mpb_sp_swing_bwd_three_quarter_turn_hop_handstand",
-      "mpb_sp_handstand_one_rail_half_or_three_quarter_turn",
-      "mpb_sp_patron_2_swing_bwd_quarter_turn_hop_one_rail",
       "mpb_sp_hall_five_quarter_salto_fwd_straddled_half_turn",
-      "mpb_sp_carballo_2_salto_fwd_from_handstand"
+      "mpb_sp_handstand_half_turn",
+      "mpb_sp_handstand_one_rail_half_or_three_quarter_turn",
+      "mpb_sp_huang_liping_double_salto_pike_upper_arm",
+      "mpb_sp_l_sit_hold",
+      "mpb_sp_morisue_double_salto_tuck_upper_arm",
+      "mpb_sp_patron_2_swing_bwd_quarter_turn_hop_one_rail",
+      "mpb_sp_press_to_handstand",
+      "mpb_sp_salto_bwd_to_handstand",
+      "mpb_sp_stutz_fwd_to_handstand_one_rail",
+      "mpb_sp_swing_bwd_three_quarter_turn_hop_handstand"
     ],
-    "checkedOn": "2026-11-22",
+    "checkedOn": "2026-11-23",
     "checkedBy": "Claude"
   },
   "manualSample": {
@@ -103,11 +108,11 @@
       "mpb_sp_patron_2_swing_bwd_quarter_turn_hop_one_rail",
       "mpb_sp_five_quarter_salto_fwd_straddled_to_hang"
     ],
-    "checkedBy": null,
-    "checkedOn": null,
-    "result": null
+    "checkedBy": "Claude",
+    "checkedOn": "2026-11-23",
+    "result": "6 de 6 sin parecido literal con el Código. 5 de 6 correctas (II.27, II.35, II.75, II.87, II.101). La II.4 hay que corregirla: quitar los «probablemente» de los epónimos y aplicar la decisión sobre II.3/II.4. Revisión completa de la tanda contra el Código: 8 observaciones corregidas, 6 descripciones rehechas en sala limpia y comprobadas de nuevo."
   },
-  "reviewedBy": null,
-  "reviewedOn": null,
+  "reviewedBy": "Claude",
+  "reviewedOn": "2026-11-23",
   "aviso": "Datos: número, grupo y valor tomados del Código de Puntuación de la FIG como hechos. Nombres y descripciones redactados por Zaltyko; no son texto oficial ni traducción. © Zaltyko. No copiar el texto del Código."
 }

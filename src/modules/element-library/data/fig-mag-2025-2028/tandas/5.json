@@ -51,7 +51,7 @@
       "Extracción de hechos: un subagente lee el PDF oficial y guarda solo número, grupo, valor, epónimo, página y un desglose técnico con valores cerrados, sin frases del Código.",
       "Redacción en sala limpia: otro subagente, que no ve el Código, redacta nombre, nombre corto y descripción en español a partir solo de esos hechos.",
       "Comprobación entre idiomas: un tercer subagente compara cada descripción con el texto inglés del Código; lo que supera el umbral se vuelve a redactar en sala limpia.",
-      "Revisión de Elvis: exactitud técnica de toda la tanda y comparación manual con el Código de la muestra indicada."
+      "Revisión delegada en Claude (decisión de Elvis, 23-11-2026): una sesión distinta de la que redacta comparó toda la tanda con el Código oficial (texto y dibujos); las correcciones volvieron como hechos a la sala limpia y se comprobaron de nuevo."
     ]
   },
   "factsExtractedOn": "2026-11-22",
@@ -63,23 +63,26 @@
     "maxScore": 0.45,
     "redrafted": [
       "mph_belenki_kehre_bwd_kehre_fwd_kehre_bwd",
+      "mph_romero_reverse_stockli_end_to_far_pommel",
+      "mph_russian_travel_3_3_from_1_2_turn_630",
       "mph_russian_wendeswing_fwd_one_pommel_to_other_end",
       "mph_tong_fei_russian_wendeswing_fwd_end_to_end",
-      "mph_romero_reverse_stockli_end_to_far_pommel",
-      "mrg_roll_fwd_to_swing_bwd_in_hang",
+      "mrg_back_kip_bent_arms_to_support",
+      "mrg_back_kip_or_roll_bwd_bent_arms_to_handstand",
+      "mrg_back_kip_to_support",
       "mrg_chechi_uprise_fwd_counter_salto_fwd",
       "mrg_felge_upward_from_hang_to_support",
-      "mrg_slow_inlocate_from_hang",
-      "mrg_yamawaki_double_salto_fwd_tucked_to_hang",
+      "mrg_inlocate",
       "mrg_jonasson_double_salto_fwd_piked_or_stretched_to_hang",
-      "mrg_back_kip_bent_arms_to_support",
-      "mrg_back_kip_to_support",
-      "mrg_back_kip_or_roll_bwd_bent_arms_to_handstand",
+      "mrg_kip_to_support",
+      "mrg_roll_fwd_to_swing_bwd_in_hang",
+      "mrg_slow_inlocate_from_hang",
+      "mrg_swing_bwd_from_support_to_handstand",
       "mrg_swing_fwd_or_giant_bwd_to_handstand",
       "mrg_uprise_bwd_or_giant_fwd_to_handstand",
-      "mrg_swing_bwd_from_support_to_handstand"
+      "mrg_yamawaki_double_salto_fwd_tucked_to_hang"
     ],
-    "checkedOn": "2026-11-22",
+    "checkedOn": "2026-11-23",
     "checkedBy": "Claude"
   },
   "manualSample": {
@@ -90,11 +93,11 @@
       "mrg_honma_piked_to_support",
       "mrg_back_kip_or_roll_bwd_bent_arms_to_handstand"
     ],
-    "checkedBy": null,
-    "checkedOn": null,
-    "result": null
+    "checkedBy": "Claude",
+    "checkedOn": "2026-11-23",
+    "result": "5 de 5 correctas, sin riesgo de copia. Revisión completa de la tanda contra el Código: 7 observaciones corregidas, 8 descripciones rehechas en sala limpia y comprobadas de nuevo."
   },
-  "reviewedBy": null,
-  "reviewedOn": null,
+  "reviewedBy": "Claude",
+  "reviewedOn": "2026-11-23",
   "aviso": "Datos: número, grupo y valor tomados del Código de Puntuación de la FIG como hechos. Nombres y descripciones redactados por Zaltyko; no son texto oficial ni traducción. © Zaltyko. No copiar el texto del Código."
 }

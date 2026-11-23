@@ -86,89 +86,89 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 ### Primera tanda de la masculina
 
 - Edición `fig-mag-2025-2028` (Código de Puntuación de Gimnasia Artística Masculina 2025-2028, PDF oficial de la FIG del 16-11-2026). Las tandas se numeran por edición: esta es la tanda 1 de la masculina.
-- Suelo, grupo I (elementos sin acrobacia: fuerza, pinos, planchas, spagat, balanzas, mariposas, molinos y molinos rusos): **45 elementos, en borrador**, redactados el 21-11-2026 con el vocabulario del programa técnico GAM 2026 de la RFEG.
+- Suelo, grupo I (elementos sin acrobacia: fuerza, pinos, planchas, spagat, balanzas, mariposas, molinos y molinos rusos): **45 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 21-11-2026 con el vocabulario del programa técnico GAM 2026 de la RFEG.
 - `sourcePage` es la página del PDF, no el número impreso al pie, que en las tablas va una por detrás.
-- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/1.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 13 elementos se volvieron a redactar. Muestra manual: 5 elementos.
-- Semilla: `docs/deployment/candidates/20261121120000_element_catalog_seed_fig-mag-2025-2028_1.sql`, sin aplicar en ningún entorno.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/1.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 13 elementos se volvieron a redactar. Muestra manual: 5 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261121120000_element_catalog_seed_fig-mag-2025-2028_1.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
 
 ### Segunda tanda de la masculina
 
-- Suelo, grupos II (acrobacia adelante), III (acrobacia atrás) y IV (mortal simple con pirueta): **51 elementos, en borrador**, redactados el 21-11-2026. Con ella el suelo masculino queda completo (96 elementos).
-- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/2.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,4; 6 elementos se volvieron a redactar. Muestra manual: 6 elementos.
-- Semilla: `docs/deployment/candidates/20261121130000_element_catalog_seed_fig-mag-2025-2028_2.sql`, sin aplicar en ningún entorno.
+- Suelo, grupos II (acrobacia adelante), III (acrobacia atrás) y IV (mortal simple con pirueta): **51 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 21-11-2026. Con ella el suelo masculino queda completo (96 elementos).
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/2.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,4; 6 elementos se volvieron a redactar. Muestra manual: 6 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261121130000_element_catalog_seed_fig-mag-2025-2028_2.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
 
 ### Tercera tanda de la masculina
 
-- Caballo con arcos, grupo I (balanceos de una pierna y tijeras), primeras casillas del grupo II (molinos y flairs, casillas 1 a 44) y grupo IV (salidas): **47 elementos, en borrador**, redactados el 22-11-2026. Es el primer aparato masculino después del suelo.
-- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/3.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 16 elementos se volvieron a redactar. Muestra manual: 6 elementos.
-- Semilla: `docs/deployment/candidates/20261122120000_element_catalog_seed_fig-mag-2025-2028_3.sql`, sin aplicar en ningún entorno.
+- Caballo con arcos, grupo I (balanceos de una pierna y tijeras), primeras casillas del grupo II (molinos y flairs, casillas 1 a 44) y grupo IV (salidas): **47 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Es el primer aparato masculino después del suelo.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/3.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 16 elementos se volvieron a redactar. Muestra manual: 6 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122120000_element_catalog_seed_fig-mag-2025-2028_3.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
 
 ### Cuarta tanda de la masculina
 
-- Caballo con arcos, resto del grupo II (molinos y flairs, casillas 51 a 113) y comienzo del grupo III (desplazamientos, casillas 1 a 46): **52 elementos, en borrador**, redactados el 22-11-2026. Con ella el grupo II queda completo.
-- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/4.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 19 elementos se volvieron a redactar. Muestra manual: 6 elementos.
-- Semilla: `docs/deployment/candidates/20261122130000_element_catalog_seed_fig-mag-2025-2028_4.sql`, sin aplicar en ningún entorno.
+- Caballo con arcos, resto del grupo II (molinos y flairs, casillas 51 a 113) y comienzo del grupo III (desplazamientos, casillas 1 a 46): **52 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Con ella el grupo II queda completo.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/4.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 19 elementos se volvieron a redactar. Muestra manual: 6 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122130000_element_catalog_seed_fig-mag-2025-2028_4.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
 
 ### Quinta tanda de la masculina
 
-- Caballo con arcos, resto del grupo III (desplazamientos, casillas 52 a 76), y anillas, grupo I (kippe, balanceos y vuelos al pino): **37 elementos, en borrador** (9 de caballo y 28 de anillas), redactados el 22-11-2026. Con ella el caballo con arcos queda completo (108 elementos) y empiezan las anillas.
-- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/5.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 16 elementos se volvieron a redactar. Muestra manual: 5 elementos.
-- Semilla: `docs/deployment/candidates/20261122140000_element_catalog_seed_fig-mag-2025-2028_5.sql`, sin aplicar en ningún entorno.
+- Caballo con arcos, resto del grupo III (desplazamientos, casillas 52 a 76), y anillas, grupo I (kippe, balanceos y vuelos al pino): **37 elementos, revisados el 23-11-2026** (revisión delegada en Claude) (9 de caballo y 28 de anillas), redactados el 22-11-2026. Con ella el caballo con arcos queda completo (108 elementos) y empiezan las anillas.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/5.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 16 elementos se volvieron a redactar. Muestra manual: 5 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122140000_element_catalog_seed_fig-mag-2025-2028_5.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
 
 ### Sexta tanda de la masculina
 
-- Anillas, grupo II (fuerza y posiciones mantenidas): **57 elementos, en borrador**, redactados el 22-11-2026. Con ella las anillas llevan 85 elementos.
-- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/6.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 29 elementos se volvieron a redactar. Muestra manual: 6 elementos.
-- Semilla: `docs/deployment/candidates/20261122150000_element_catalog_seed_fig-mag-2025-2028_6.sql`, sin aplicar en ningún entorno.
+- Anillas, grupo II (fuerza y posiciones mantenidas): **57 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Con ella las anillas llevan 85 elementos.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/6.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 29 elementos se volvieron a redactar. Muestra manual: 6 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122150000_element_catalog_seed_fig-mag-2025-2028_6.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
 
 ### Séptima tanda de la masculina
 
-- Anillas, grupos III (balanceo a posición de fuerza) y IV (salidas): **54 elementos, en borrador**, redactados el 22-11-2026. Con ella las anillas quedan completas (139 elementos).
-- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/7.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 21 elementos se volvieron a redactar. Muestra manual: 6 elementos.
+- Anillas, grupos III (balanceo a posición de fuerza) y IV (salidas): **54 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Con ella las anillas quedan completas (139 elementos).
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/7.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 21 elementos se volvieron a redactar. Muestra manual: 6 elementos, comprobada el 23-11-2026.
 - Las fichas describen el movimiento; las reglas generales de ejecución de las anillas (parada de 2 s, desviaciones, brazos, límites por grupo) no se repiten en cada una.
-- Semilla: `docs/deployment/candidates/20261122160000_element_catalog_seed_fig-mag-2025-2028_7.sql`, sin aplicar en ningún entorno.
+- Semilla: `docs/deployment/candidates/20261122160000_element_catalog_seed_fig-mag-2025-2028_7.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
 
 ### Octava tanda de la masculina
 
 - Salto, grupos I (paloma y mortal adelante con pirueta compleja), II (paloma y mortal con o sin pirueta simple, y dobles mortales adelante) y III (paloma lateral y Tsukahara, y dobles mortales atrás): **48 saltos, en borrador**, redactados el 22-11-2026. El valor va en puntos, como en el salto femenino.
 - Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/8.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,3; 6 saltos se retocaron. Muestra manual: 6 saltos.
-- Semilla: `docs/deployment/candidates/20261122170000_element_catalog_seed_fig-mag-2025-2028_8.sql`, sin aplicar en ningún entorno.
+- Semilla: `docs/deployment/candidates/20261122170000_element_catalog_seed_fig-mag-2025-2028_8.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
 
 ### Novena tanda de la masculina
 
 - Salto, grupos IV (entrada en rondada y mortal con pirueta compleja) y V (entrada en rondada con o sin pirueta simple, y dobles mortales): **35 saltos, en borrador**, redactados el 22-11-2026. Con ella el salto masculino queda completo (83 saltos).
 - Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/9.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,3; 3 saltos se retocaron. Muestra manual: 6 saltos.
-- Semilla: `docs/deployment/candidates/20261122180000_element_catalog_seed_fig-mag-2025-2028_9.sql`, sin aplicar en ningún entorno.
+- Semilla: `docs/deployment/candidates/20261122180000_element_catalog_seed_fig-mag-2025-2028_9.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
 
 ### Décima tanda de la masculina
 
-- Paralelas, grupo II (elementos en apoyo o pasando por el apoyo en las dos barras): **57 elementos, en borrador**, redactados el 22-11-2026. Es el primer grupo de paralelas.
-- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/10.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 9 elementos se volvieron a redactar. Muestra manual: 6 elementos.
-- Semilla: `docs/deployment/candidates/20261122190000_element_catalog_seed_fig-mag-2025-2028_10.sql`, sin aplicar en ningún entorno.
+- Paralelas, grupo II (elementos en apoyo o pasando por el apoyo en las dos barras): **57 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Es el primer grupo de paralelas.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/10.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 9 elementos se volvieron a redactar. Muestra manual: 6 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122190000_element_catalog_seed_fig-mag-2025-2028_10.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
 
 ### Undécima tanda de la masculina
 
-- Paralelas, grupos I (elementos desde apoyo braquial) y IV (salidas): **58 elementos, en borrador**, redactados el 22-11-2026. Con ella las paralelas llevan 115 elementos; falta el grupo III.
-- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/11.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 7 elementos se volvieron a redactar. Muestra manual: 6 elementos.
-- Semilla: `docs/deployment/candidates/20261122200000_element_catalog_seed_fig-mag-2025-2028_11.sql`, sin aplicar en ningún entorno.
+- Paralelas, grupos I (elementos desde apoyo braquial) y IV (salidas): **58 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Con ella las paralelas llevan 115 elementos; falta el grupo III.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/11.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 7 elementos se volvieron a redactar. Muestra manual: 6 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122200000_element_catalog_seed_fig-mag-2025-2028_11.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
 
 ### Duodécima tanda de la masculina
 
-- Paralelas, grupo III (balanceos largos en suspensión y balanceos por debajo): **65 elementos, en borrador**, redactados el 22-11-2026. Con ella las paralelas quedan completas (180 elementos).
-- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/12.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 14 elementos se volvieron a redactar. Muestra manual: 7 elementos.
-- Semilla: `docs/deployment/candidates/20261122210000_element_catalog_seed_fig-mag-2025-2028_12.sql`, sin aplicar en ningún entorno.
+- Paralelas, grupo III (balanceos largos en suspensión y balanceos por debajo): **65 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Con ella las paralelas quedan completas (180 elementos).
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/12.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 14 elementos se volvieron a redactar. Muestra manual: 7 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122210000_element_catalog_seed_fig-mag-2025-2028_12.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
 
 ### Decimotercera tanda de la masculina
 
-- Barra fija, grupos I (balanceos largos en suspensión y giros) y III (elementos en barra y Adler): **59 elementos, en borrador**, redactados el 22-11-2026. Es el primer bloque de barra fija; faltan los vuelos y las salidas.
-- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/13.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 37 elementos se volvieron a redactar. Muestra manual: 6 elementos.
-- Semilla: `docs/deployment/candidates/20261122220000_element_catalog_seed_fig-mag-2025-2028_13.sql`, sin aplicar en ningún entorno.
+- Barra fija, grupos I (balanceos largos en suspensión y giros) y III (elementos en barra y Adler): **59 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Es el primer bloque de barra fija; faltan los vuelos y las salidas.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/13.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 37 elementos se volvieron a redactar. Muestra manual: 6 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122220000_element_catalog_seed_fig-mag-2025-2028_13.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
 
 ### Decimocuarta tanda de la masculina
 
-- Barra fija, grupos II (elementos de vuelo) y IV (salidas): **72 elementos, en borrador**, redactados el 22-11-2026. Con ella la barra fija queda completa (131 elementos) y **la biblioteca masculina queda completa: 737 elementos en los seis aparatos**, todos en borrador hasta la revisión de Elvis.
-- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/14.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 28 elementos se volvieron a redactar. Muestra manual: 8 elementos.
-- Semilla: `docs/deployment/candidates/20261122230000_element_catalog_seed_fig-mag-2025-2028_14.sql`, sin aplicar en ningún entorno.
+- Barra fija, grupos II (elementos de vuelo) y IV (salidas): **72 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Con ella la barra fija queda completa (131 elementos) y **la biblioteca masculina queda completa: 737 elementos en los seis aparatos**, revisados por delegación de Elvis.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/14.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 28 elementos se volvieron a redactar. Muestra manual: 8 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122230000_element_catalog_seed_fig-mag-2025-2028_14.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
 
 ## Retiradas y avisos sobre contenido
 
