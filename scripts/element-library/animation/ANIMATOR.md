@@ -62,7 +62,7 @@ in `work/` to generate families of specs (e.g. "back salto with N twists") inste
   a vertical axis through the pivot: horizontal offsets shrink with cos(yaw) and the body is drawn
   behind the apparatus while sin(yaw) < 0. A circle = yaw advancing 360° (e.g. 0→360 in ≈0.95 s) with the
   body near horizontal and the shoulders leaning opposite to the feet; key every 45°. See
-  `work/test_circle.json` for a minimal example.
+  `tecnica/example-pommel-circle.json` for a minimal example.
 
 ## Technique first (mandatory)
 Read the family sections of `tecnica/swing.md`, `tecnica/acro-dance-vault.md` and
