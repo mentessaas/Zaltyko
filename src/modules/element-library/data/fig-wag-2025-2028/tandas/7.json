@@ -71,7 +71,7 @@
       "Extracción de hechos: un subagente lee el PDF oficial y guarda solo número, grupo, valor, epónimo, página y un desglose técnico con valores cerrados, sin frases del Código.",
       "Redacción en sala limpia: otro subagente, que no ve el Código, redacta nombre, nombre corto y descripción en español a partir solo de esos hechos.",
       "Comprobación entre idiomas: un tercer subagente compara cada descripción con el texto inglés del Código; lo que supera el umbral se vuelve a redactar en sala limpia.",
-      "Revisión de Elvis: exactitud técnica de toda la tanda y comparación manual con el Código de la muestra indicada."
+      "Revisión delegada en Claude (decisión de Elvis, 23-11-2026): una sesión distinta de la que redacta comparó toda la tanda con el Código oficial (texto y dibujos); las correcciones volvieron como hechos a la sala limpia y se comprobaron de nuevo."
     ]
   },
   "factsExtractedOn": "2026-11-20",
@@ -82,35 +82,39 @@
     "threshold": 0.5,
     "maxScore": 0.45,
     "redrafted": [
-      "bb_wolf_jump_cross",
+      "bb_fouette_hop_half_turn_arabesque",
+      "bb_hop_half_turn_leg_fwd",
+      "bb_illusion_turn_360",
+      "bb_johnson_extra_half_turn",
       "bb_leap_quarter_turn_straddle_pike",
       "bb_sissone_ring",
-      "bb_hop_half_turn_leg_fwd",
-      "bb_tuck_jump_cross_half_turn",
-      "bb_wolf_jump_cross_half_turn",
-      "bb_split_leap_fwd_half_turn",
       "bb_split_jump_cross_half_turn",
-      "bb_switch_leap",
-      "bb_tuck_jump_cross_full_turn",
-      "bb_switch_leap_half_turn",
       "bb_split_jump_ring",
+      "bb_split_leap_fwd_half_turn",
       "bb_stretched_jump_cross_one_and_half_turn",
+      "bb_switch_leap",
+      "bb_switch_leap_half_turn",
+      "bb_tuck_jump_cross_full_turn",
+      "bb_tuck_jump_cross_half_turn",
       "bb_tuck_jump_cross_one_and_half_turn",
-      "bb_wolf_jump_cross_full_turn",
-      "bb_johnson_extra_half_turn",
-      "bb_wolf_jump_cross_one_and_half_turn",
-      "bb_turn_one_foot_540",
+      "bb_turn_free_leg_held_bwd_both_hands_360",
       "bb_turn_heel_fwd_horizontal_360",
-      "bb_turn_one_foot_720",
       "bb_turn_heel_fwd_horizontal_540",
-      "bb_illusion_turn_360",
-      "bb_turn_tuck_stand_one_leg_720",
-      "bb_turn_one_foot_1080",
       "bb_turn_heel_fwd_horizontal_720",
       "bb_turn_held_split_720",
-      "bb_turn_tuck_stand_one_leg_1080"
+      "bb_turn_one_foot_1080",
+      "bb_turn_one_foot_540",
+      "bb_turn_one_foot_720",
+      "bb_turn_tuck_stand_one_leg_1080",
+      "bb_turn_tuck_stand_one_leg_360",
+      "bb_turn_tuck_stand_one_leg_540",
+      "bb_turn_tuck_stand_one_leg_720",
+      "bb_wolf_jump_cross",
+      "bb_wolf_jump_cross_full_turn",
+      "bb_wolf_jump_cross_half_turn",
+      "bb_wolf_jump_cross_one_and_half_turn"
     ],
-    "checkedOn": "2026-11-20",
+    "checkedOn": "2026-11-23",
     "checkedBy": "Claude"
   },
   "manualSample": {
@@ -122,11 +126,11 @@
       "bb_turn_free_leg_held_bwd_both_hands_360",
       "bb_turn_held_split_720"
     ],
-    "checkedBy": null,
-    "checkedOn": null,
-    "result": null
+    "checkedBy": "Claude",
+    "checkedOn": "2026-11-23",
+    "result": "6 de 6 correctas en grupo, valor y epónimo; 3.403 (Preziosa) añade «pierna de apoyo estirada», que no es requisito (menor). Sin riesgo de copia. Revisión completa de la tanda contra el Código: 11 observaciones corregidas, 11 descripciones rehechas en sala limpia y comprobadas de nuevo."
   },
-  "reviewedBy": null,
-  "reviewedOn": null,
+  "reviewedBy": "Claude",
+  "reviewedOn": "2026-11-23",
   "aviso": "Datos: número, grupo y valor tomados del Código de Puntuación de la FIG como hechos. Nombres y descripciones redactados por Zaltyko; no son texto oficial ni traducción. © Zaltyko. No copiar el texto del Código."
 }

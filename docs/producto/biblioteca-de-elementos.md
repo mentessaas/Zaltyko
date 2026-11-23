@@ -112,27 +112,27 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 
 ### Sexta tanda
 
-- Edición `fig-wag-2025-2028`, barra de equilibrio, grupo 1 (entradas): **51 elementos, en borrador**. Es la primera tanda de barra; añade `beam.json` y no depende de las tandas de asimétricas.
+- Edición `fig-wag-2025-2028`, barra de equilibrio, grupo 1 (entradas): **51 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Es la primera tanda de barra; añade `beam.json` y no depende de las tandas de asimétricas.
 - Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/6.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; se volvieron a redactar 16 elementos (8 por parecido y 8 por errores técnicos, uno de ellos en los hechos). Muestra manual: 6 elementos, pendiente de Elvis.
 - Semilla: `docs/deployment/candidates/20261120033000_element_catalog_seed_fig-wag-2025-2028_6.sql`, sin aplicar.
 
 ### Séptima tanda
 
-- Edición `fig-wag-2025-2028`, barra de equilibrio, grupos 2 (saltos, 37) y 3 (giros, 21): **58 elementos, en borrador**. Va encima de la sexta tanda, porque comparte `beam.json`.
+- Edición `fig-wag-2025-2028`, barra de equilibrio, grupos 2 (saltos, 37) y 3 (giros, 21): **58 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Va encima de la sexta tanda, porque comparte `beam.json`.
 - Los saltos a un pie caen en el mismo pie o en los dos, según la definición general del Código; donde la casilla no dice cómo cae, la ficha no lo dice.
 - Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/7.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; se volvieron a redactar 27 elementos (12 por parecido y 15 por errores técnicos, la mayoría en los hechos). Muestra manual: 6 elementos, pendiente de Elvis.
 - Semilla: `docs/deployment/candidates/20261120043000_element_catalog_seed_fig-wag-2025-2028_7.sql`, sin aplicar.
 
 ### Octava tanda
 
-- Edición `fig-wag-2025-2028`, barra de equilibrio, grupos 4 (posiciones y acrobacia sin vuelo, 22) y 6 (salidas, 31): **53 elementos, en borrador**. Va encima de la séptima tanda, porque comparte `beam.json`. El grupo 5 (acrobacia con vuelo) queda para la tanda siguiente.
+- Edición `fig-wag-2025-2028`, barra de equilibrio, grupos 4 (posiciones y acrobacia sin vuelo, 22) y 6 (salidas, 31): **53 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Va encima de la séptima tanda, porque comparte `beam.json`. El grupo 5 (acrobacia con vuelo) queda para la tanda siguiente.
 - Incluye la salida Biles (6.805), de valor H.
 - Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/8.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,5; se volvieron a redactar 23 elementos (15 por parecido y 8 por errores técnicos o por mencionar el dibujo del Código, que la ficha no tiene). Muestra manual: 6 elementos, pendiente de Elvis.
 - Semilla: `docs/deployment/candidates/20261120053000_element_catalog_seed_fig-wag-2025-2028_8.sql`, sin aplicar.
 
 ### Novena tanda
 
-- Edición `fig-wag-2025-2028`, barra de equilibrio, grupo 5 (acrobacia con vuelo): **36 elementos, en borrador**. Con ella queda completa la barra. Va encima de la octava tanda, porque comparte `beam.json`.
+- Edición `fig-wag-2025-2028`, barra de equilibrio, grupo 5 (acrobacia con vuelo): **36 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Con ella queda completa la barra. Va encima de la octava tanda, porque comparte `beam.json`.
 - Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/9.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; se volvieron a redactar 18 elementos (13 por parecido, 3 por errores técnicos y 2 más para que su nombre corto no coincida con otros de barra). Muestra manual: 4 elementos, pendiente de Elvis.
 - Semilla: `docs/deployment/candidates/20261120063000_element_catalog_seed_fig-wag-2025-2028_9.sql`, sin aplicar.
 

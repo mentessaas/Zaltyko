@@ -64,7 +64,7 @@
       "Extracción de hechos: un subagente lee el PDF oficial y guarda solo número, grupo, valor, epónimo, página y un desglose técnico con valores cerrados, sin frases del Código.",
       "Redacción en sala limpia: otro subagente, que no ve el Código, redacta nombre, nombre corto y descripción en español a partir solo de esos hechos.",
       "Comprobación entre idiomas: un tercer subagente compara cada descripción con el texto inglés del Código; lo que supera el umbral se vuelve a redactar en sala limpia.",
-      "Revisión de Elvis: exactitud técnica de toda la tanda y comparación manual con el Código de la muestra indicada."
+      "Revisión delegada en Claude (decisión de Elvis, 23-11-2026): una sesión distinta de la que redacta comparó toda la tanda con el Código oficial (texto y dibujos); las correcciones volvieron como hechos a la sala limpia y se comprobaron de nuevo."
     ]
   },
   "factsExtractedOn": "2026-11-20",
@@ -75,24 +75,26 @@
     "threshold": 0.5,
     "maxScore": 0.45,
     "redrafted": [
-      "bb_mount_thief_vault_to_rear_support",
-      "bb_mount_jump_side_split_sit",
-      "bb_mount_planche_bent_arms",
-      "bb_mount_jump_to_handstand",
-      "bb_mount_jump_half_turn_straddle_support",
-      "bb_mount_handstand_hold_lower",
-      "bb_mount_jump_piked_to_planche",
-      "bb_mount_press_side_handstand_hop_quarter",
-      "bb_mount_roundoff_straddle_jump_hip_circle",
-      "bb_mount_jump_stretched_to_planche",
       "bb_mount_handstand_arch_span",
+      "bb_mount_handstand_hold_lower",
+      "bb_mount_head_kip_from_end",
+      "bb_mount_jump_half_turn_straddle_support",
+      "bb_mount_jump_piked_to_planche",
+      "bb_mount_jump_side_split_sit",
+      "bb_mount_jump_stretched_to_planche",
+      "bb_mount_jump_to_handstand",
       "bb_mount_one_arm_handstand",
-      "bb_mount_quarter_turn_one_arm_side_handstand",
       "bb_mount_one_arm_jump_to_handstand",
+      "bb_mount_planche_bent_arms",
+      "bb_mount_press_side_handstand_hop_quarter",
+      "bb_mount_quarter_turn_one_arm_side_handstand",
+      "bb_mount_roundoff_flicflac_to_stand",
       "bb_mount_roundoff_half_twist_side_handstand",
-      "bb_mount_roundoff_flicflac_to_stand"
+      "bb_mount_roundoff_salto_bwd_step_out",
+      "bb_mount_roundoff_straddle_jump_hip_circle",
+      "bb_mount_thief_vault_to_rear_support"
     ],
-    "checkedOn": "2026-11-20",
+    "checkedOn": "2026-11-23",
     "checkedBy": "Claude"
   },
   "manualSample": {
@@ -104,11 +106,11 @@
       "bb_mount_roundoff_flicflac_full_twist_hip_circle",
       "bb_mount_roundoff_salto_bwd_tucked_full_twist"
     ],
-    "checkedBy": null,
-    "checkedOn": null,
-    "result": null
+    "checkedBy": "Claude",
+    "checkedOn": "2026-11-23",
+    "result": "6 de 6 correctas en grupo, valor, número y epónimo; 1.311 omite los 2 s de plancha/escuadra en las formas desde la vertical (menor). Sin riesgo de copia. Revisión completa de la tanda contra el Código: 5 observaciones corregidas, 5 descripciones rehechas en sala limpia y comprobadas de nuevo."
   },
-  "reviewedBy": null,
-  "reviewedOn": null,
+  "reviewedBy": "Claude",
+  "reviewedOn": "2026-11-23",
   "aviso": "Datos: número, grupo y valor tomados del Código de Puntuación de la FIG como hechos. Nombres y descripciones redactados por Zaltyko; no son texto oficial ni traducción. © Zaltyko. No copiar el texto del Código."
 }

@@ -1225,7 +1225,7 @@ commit;
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120033000_element_catalog_seed_fig-wag-2025-2028_6.sql` (semilla de la tanda 6) | `cc7f14d2cee13eb14081a0278ce07776190010319714194791a2db2915143135` | No aplicada | No aplicada |
+| `20261120033000_element_catalog_seed_fig-wag-2025-2028_6.sql` (semilla de la tanda 6, revisada el 23-11-2026 por delegación de Elvis; en borrador era `cc7f14d2…`) | `df00ff97a269d4d5b5fab1b68c7bc4d971bf6c16a44737585a27c45215a013c1` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1287,7 +1287,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
   los elementos de la tanda 5.
 - **Registro:** `src/modules/element-library/data/fig-wag-2025-2028/tandas/5.json`.
 - **Qué carga.** 51 entradas de barra de equilibrio de la edición
-  `fig-wag-2025-2028`, **en borrador**. Las academias no las ven hasta que
+  `fig-wag-2025-2028`, **revisados el 23-11-2026** (revisión delegada en Claude). Las academias no las ven hasta que
   Elvis revise la tanda; al revisarla se vuelve a generar con el mismo nombre
   y su hash cambia.
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
@@ -1299,13 +1299,13 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120043000_element_catalog_seed_fig-wag-2025-2028_7.sql` (semilla de la tanda 7) | `d16a2a9ec45c5a6759c9bcd4db3add70b07ca56f23ce29298ef5f139af817b8e` | No aplicada | No aplicada |
+| `20261120043000_element_catalog_seed_fig-wag-2025-2028_7.sql` (semilla de la tanda 7, revisada el 23-11-2026 por delegación de Elvis; en borrador era `d16a2a9e…`) | `884f63a41938e7556411c75d102388a84635c19d4e2e33d8e8158c9affbcdc80` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 - **Qué carga.** 58 elementos de barra de equilibrio de la edición
-  `fig-wag-2025-2028` (saltos y giros), **en borrador**. Las academias no los
+  `fig-wag-2025-2028` (saltos y giros), **revisados el 23-11-2026** (revisión delegada en Claude). Las academias no los
   ven hasta que Elvis revise la tanda; al revisarla se vuelve a generar con el
   mismo nombre y su hash cambia.
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
@@ -1317,7 +1317,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120053000_element_catalog_seed_fig-wag-2025-2028_8.sql` (semilla de la tanda 8) | `597a06f402acd8f105a688ecd8fd8117ecb7a4f30d8609f05a146881c34e2ab2` | No aplicada | No aplicada |
+| `20261120053000_element_catalog_seed_fig-wag-2025-2028_8.sql` (semilla de la tanda 8, revisada el 23-11-2026 por delegación de Elvis; en borrador era `597a06f4…`) | `590608ecc9ce3e66cdd73bdd9d8eb1723d91755ab37c64ca35a1a927d0f12c4b` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1335,13 +1335,13 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120063000_element_catalog_seed_fig-wag-2025-2028_9.sql` (semilla de la tanda 9) | `2bbf1b7501752c6de1b563fbc887737b7f6d8496e7c39e66062627a19bfccf77` | No aplicada | No aplicada |
+| `20261120063000_element_catalog_seed_fig-wag-2025-2028_9.sql` (semilla de la tanda 9, revisada el 23-11-2026 por delegación de Elvis; en borrador era `2bbf1b75…`) | `ba2c4aad24066c1ab6979e2d9c5a3cb92544feb2b72c6cf3e42dd33645a028bc` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 - **Qué carga.** 36 elementos de barra de equilibrio de la edición
-  `fig-wag-2025-2028` (acrobacia con vuelo), **en borrador**. Las academias no
+  `fig-wag-2025-2028` (acrobacia con vuelo), **revisados el 23-11-2026** (revisión delegada en Claude). Las academias no
   los ven hasta que Elvis revise la tanda; al revisarla se vuelve a generar con
   el mismo nombre y su hash cambia.
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
