@@ -1,13 +1,13 @@
 {
  "elementKey": "fx_double_salto_fwd_tucked_half_twist_or_piked",
- "scene": "floor",
+ "scene": "floor_pass",
  "view": "side",
  "holdS": 0.6,
  "timeline": [
   {
    "contact": {
     "joint": "tof",
-    "at": "floor@78.04",
+    "at": "floor@145.08",
     "keys": [
      {
       "dt": 0,
@@ -116,14 +116,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@184.06"
+     "at": "floor@325.05"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@184.06",
+    "at": "floor@325.05",
     "keys": [
      {
       "dt": 0,
@@ -328,14 +328,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@207.88"
+     "at": "floor@520.06"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@207.88",
+    "at": "floor@520.06",
     "keys": [
      {
       "dt": 0,

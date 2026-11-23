@@ -1,13 +1,13 @@
 {
  "elementKey": "fx_handspring_fwd_full_twist_mostepanova",
- "scene": "floor",
+ "scene": "floor_pass",
  "view": "side",
  "holdS": 0.6,
  "timeline": [
   {
    "contact": {
     "joint": "tof",
-    "at": "floor@1.01",
+    "at": "floor@103.26",
     "keys": [
      {
       "dt": 0,
@@ -62,7 +62,7 @@
   },
   {
    "flight": {
-    "riseM": 0.198,
+    "riseM": 0.181,
     "rotation": -6,
     "shapes": [
      {
@@ -104,8 +104,8 @@
         19.0
        ],
        "leg_n": [
-        160.0,
-        174.0
+        152.0,
+        192.0
        ],
        "leg_f": [
         216.0,
@@ -116,14 +116,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@111.23"
+     "at": "floor@272.09"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@111.23",
+    "at": "floor@272.09",
     "keys": [
      {
       "dt": 0,
@@ -138,8 +138,8 @@
         13.0
        ],
        "leg_n": [
-        154.0,
-        168.0
+        146.0,
+        186.0
        ],
        "leg_f": [
         210.0,
@@ -204,7 +204,7 @@
    "contact": {
     "joint": "han",
     "at": [
-     202.29,
+     363.15,
      267.87
     ],
     "keys": [
@@ -363,7 +363,7 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@297.29"
+     "at": "floor@568.04"
     },
     "twist": 360,
     "twistWindow": [
@@ -375,7 +375,7 @@
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@297.29",
+    "at": "floor@568.04",
     "keys": [
      {
       "dt": 0,

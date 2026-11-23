@@ -1,13 +1,13 @@
 {
  "elementKey": "fx_aerial_walkover_fwd",
- "scene": "floor",
+ "scene": "floor_pass",
  "view": "side",
  "holdS": 0.6,
  "timeline": [
   {
    "contact": {
     "joint": "tof",
-    "at": "floor@42.62",
+    "at": "floor@143.13",
     "keys": [
      {
       "dt": 0,
@@ -62,7 +62,7 @@
   },
   {
    "flight": {
-    "riseM": 0.198,
+    "riseM": 0.181,
     "rotation": -6,
     "shapes": [
      {
@@ -104,8 +104,8 @@
         19.0
        ],
        "leg_n": [
-        160.0,
-        174.0
+        152.0,
+        192.0
        ],
        "leg_f": [
         216.0,
@@ -116,14 +116,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@152.84"
+     "at": "floor@311.96"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@152.84",
+    "at": "floor@311.96",
     "keys": [
      {
       "dt": 0,
@@ -138,8 +138,8 @@
         13.0
        ],
        "leg_n": [
-        154.0,
-        168.0
+        146.0,
+        186.0
        ],
        "leg_f": [
         210.0,
@@ -305,14 +305,14 @@
     ],
     "land": {
      "joint": "tof",
-     "at": "floor@230.84"
+     "at": "floor@492.34"
     }
    }
   },
   {
    "contact": {
     "joint": "tof",
-    "at": "floor@230.84",
+    "at": "floor@492.34",
     "keys": [
      {
       "dt": 0,
