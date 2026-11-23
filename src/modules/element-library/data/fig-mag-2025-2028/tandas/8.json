@@ -61,7 +61,7 @@
       "Extracción de hechos: un subagente lee el PDF oficial y guarda solo número, grupo, valor, epónimo, página y un desglose técnico con valores cerrados, sin frases del Código.",
       "Redacción en sala limpia: otro subagente, que no ve el Código, redacta nombre, nombre corto y descripción en español a partir solo de esos hechos.",
       "Comprobación entre idiomas: un tercer subagente compara cada descripción con el texto inglés del Código; lo que supera el umbral se vuelve a redactar en sala limpia.",
-      "Revisión de Elvis: exactitud técnica de toda la tanda y comparación manual con el Código de la muestra indicada."
+      "Revisión delegada en Claude (decisión de Elvis, 23-11-2026): una sesión distinta de la que redacta comparó toda la tanda con el Código oficial (texto y dibujos); las correcciones volvieron como hechos a la sala limpia y se comprobaron de nuevo."
     ]
   },
   "factsExtractedOn": "2026-11-22",
@@ -72,14 +72,14 @@
     "threshold": 0.5,
     "maxScore": 0.3,
     "redrafted": [
-      "mvt_handspring_sideways_twist_90",
+      "mvt_double_tsukahara_twist_360",
       "mvt_handspring_sideways_twist_270",
       "mvt_handspring_sideways_twist_450",
-      "mvt_tsukahara_double_salto_bwd_tucked",
+      "mvt_handspring_sideways_twist_90",
       "mvt_tsukahara_double_salto_bwd_piked",
-      "mvt_double_tsukahara_twist_360"
+      "mvt_tsukahara_double_salto_bwd_tucked"
     ],
-    "checkedOn": "2026-11-22",
+    "checkedOn": "2026-11-23",
     "checkedBy": "Claude"
   },
   "manualSample": {
@@ -91,11 +91,11 @@
       "mvt_tsukahara_tucked",
       "mvt_double_tsukahara_twist_360"
     ],
-    "checkedBy": null,
-    "checkedOn": null,
-    "result": null
+    "checkedBy": "Claude",
+    "checkedOn": "2026-11-23",
+    "result": "6 de 6 correctas (Kroll, Kasamatsu, Tsygankov, Zimmerman, Tsukahara, Ri Se Gwang) en puntos, grupo, epónimo y dibujo; sin copia. En Ri Se Gwang se puede añadir «agrupados». Revisión completa de la tanda contra el Código: 2 observaciones corregidas, 1 descripción rehecha en sala limpia y comprobadas de nuevo."
   },
-  "reviewedBy": null,
-  "reviewedOn": null,
+  "reviewedBy": "Claude",
+  "reviewedOn": "2026-11-23",
   "aviso": "Datos: número, grupo y valor tomados del Código de Puntuación de la FIG como hechos. Nombres y descripciones redactados por Zaltyko; no son texto oficial ni traducción. © Zaltyko. No copiar el texto del Código."
 }

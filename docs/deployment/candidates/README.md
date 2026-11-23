@@ -1235,7 +1235,7 @@ commit;
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261121120000_element_catalog_seed_fig-mag-2025-2028_1.sql` (semilla de la tanda 1 de la masculina) | `a0cc9b45a439a01ec563c609072774dce30f25e633a69289b96ae8cda28d51e9` | No aplicada | No aplicada |
+| `20261121120000_element_catalog_seed_fig-mag-2025-2028_1.sql` (semilla de la tanda 1 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `a0cc9b45…`) | `1b3a380279a10d1a63be789f9788fd733a07c0bd0d3c912b19ebd0befff596b0` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1384,7 +1384,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
   los elementos de la tanda 11.
 - **Registro:** `src/modules/element-library/data/fig-wag-2025-2028/tandas/11.json`.
 - **Qué carga.** La edición `fig-mag-2025-2028` (artística masculina, estado
-  `published`) y 45 elementos de suelo del grupo I, **en borrador**. Las
+  `published`) y 45 elementos de suelo del grupo I, **revisados el 23-11-2026** (revisión delegada en Claude). Las
   academias no los ven hasta que Elvis revise la tanda; al revisarla se vuelve
   a generar con el mismo nombre y su hash cambia.
 - **Requiere antes** `20261119120000_element_library_candidate.sql`, que ya
@@ -1397,7 +1397,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261121130000_element_catalog_seed_fig-mag-2025-2028_2.sql` (semilla de la tanda 2 de la masculina) | `5c63a1b9257f4226bcd5fe36921f58d81af5adb25a20e8a47374400961a27603` | No aplicada | No aplicada |
+| `20261121130000_element_catalog_seed_fig-mag-2025-2028_2.sql` (semilla de la tanda 2 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `5c63a1b9…`) | `346c1ff330c2f8b9793ecba3d3d5d28f9456af43da94f9a8bd5f130cb6e008b3` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1414,13 +1414,13 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122120000_element_catalog_seed_fig-mag-2025-2028_3.sql` (semilla de la tanda 3 de la masculina) | `3c4639b0e8a543bfdbd69145351c682f45e67b07406ba208858edc818eaab753` | No aplicada | No aplicada |
+| `20261122120000_element_catalog_seed_fig-mag-2025-2028_3.sql` (semilla de la tanda 3 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `3c4639b0…`) | `ce12420b15caf76744c088f3f47b748244b6a224e76011993a7f38e40fef8bd0` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 - **Qué carga.** 47 elementos de caballo con arcos de la edición
-  `fig-mag-2025-2028` (tijeras, primeros molinos y salidas), **en borrador**.
+  `fig-mag-2025-2028` (tijeras, primeros molinos y salidas), **revisados el 23-11-2026** (revisión delegada en Claude).
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
   independiente de las semillas de suelo masculino, con la misma semántica, y
   solo escribe los elementos de esta tanda.
@@ -1430,14 +1430,14 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122130000_element_catalog_seed_fig-mag-2025-2028_4.sql` (semilla de la tanda 4 de la masculina) | `ea82dfbb56010c25fe9822f65211c7d50dc195a7d52bd750d5c8e7763c3c8d91` | No aplicada | No aplicada |
+| `20261122130000_element_catalog_seed_fig-mag-2025-2028_4.sql` (semilla de la tanda 4 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `ea82dfbb…`) | `029629c9a3b2c5bf55397d105d54f2019955795a3e3c9813dea3e091e9cdcbca` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 - **Qué carga.** 52 elementos de caballo con arcos de la edición
   `fig-mag-2025-2028` (resto de molinos y flairs, primeros desplazamientos),
-  **en borrador**.
+  **revisados el 23-11-2026** (revisión delegada en Claude).
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
   independiente de las demás semillas masculinas, con la misma semántica, y
   solo escribe los elementos de esta tanda.
@@ -1447,7 +1447,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122140000_element_catalog_seed_fig-mag-2025-2028_5.sql` (semilla de la tanda 5 de la masculina) | `8f83ebe4ccf320aa45167d8ab097b288c31deb564c5713aa87e46132f85b7dce` | No aplicada | No aplicada |
+| `20261122140000_element_catalog_seed_fig-mag-2025-2028_5.sql` (semilla de la tanda 5 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `8f83ebe4…`) | `2d9ffde7cb46fb00a9ce3583b168e4f72d5a66732cdde2f4242e92fc910b9c67` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1464,13 +1464,13 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122150000_element_catalog_seed_fig-mag-2025-2028_6.sql` (semilla de la tanda 6 de la masculina) | `c721d86d1605cf5fbbc3f23eb23e16f91665ba653b96485cdf1ad12f937fcf50` | No aplicada | No aplicada |
+| `20261122150000_element_catalog_seed_fig-mag-2025-2028_6.sql` (semilla de la tanda 6 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `c721d86d…`) | `322cc77cc248eb68cd799137c1a98f745067f876fbfa1f216eeb9a622d8a78aa` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 - **Qué carga.** 57 elementos de anillas de la edición `fig-mag-2025-2028`
-  (fuerza y posiciones mantenidas), **en borrador**.
+  (fuerza y posiciones mantenidas), **revisados el 23-11-2026** (revisión delegada en Claude).
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
   independiente de las demás semillas masculinas, con la misma semántica, y
   solo escribe los elementos de esta tanda.
@@ -1480,13 +1480,13 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122160000_element_catalog_seed_fig-mag-2025-2028_7.sql` (semilla de la tanda 7 de la masculina) | `06ec921116455b1e3dbb8c621284003bed6f340ea8d27538d68f242c4e56d247` | No aplicada | No aplicada |
+| `20261122160000_element_catalog_seed_fig-mag-2025-2028_7.sql` (semilla de la tanda 7 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `06ec9211…`) | `025c09aab622d63bc6a3e352a0a46ef2ee0159489e451afbb4a5af1a84b16911` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 - **Qué carga.** 54 elementos de anillas de la edición `fig-mag-2025-2028`
-  (balanceo a posición de fuerza y salidas), **en borrador**: con ella las
+  (balanceo a posición de fuerza y salidas), **revisados el 23-11-2026** (revisión delegada en Claude): con ella las
   anillas quedan completas.
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
   independiente de las demás semillas masculinas, con la misma semántica, y
@@ -1497,13 +1497,13 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122170000_element_catalog_seed_fig-mag-2025-2028_8.sql` (semilla de la tanda 8 de la masculina) | `4010a05c08b56b673b70d6d5792b1e981273c052e5ea0b8a88bc0910be4558f4` | No aplicada | No aplicada |
+| `20261122170000_element_catalog_seed_fig-mag-2025-2028_8.sql` (semilla de la tanda 8 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `4010a05c…`) | `fe498f65c588e40a43ed54a57442ee1dea7ea6223f2282b14edad940fed9bf9b` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 - **Qué carga.** 48 saltos de la edición `fig-mag-2025-2028` (grupos I a III,
-  valor en puntos), **en borrador**.
+  valor en puntos), **revisados el 23-11-2026** (revisión delegada en Claude).
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
   independiente de las demás semillas masculinas, con la misma semántica, y
   solo escribe los elementos de esta tanda.
@@ -1513,13 +1513,13 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122180000_element_catalog_seed_fig-mag-2025-2028_9.sql` (semilla de la tanda 9 de la masculina) | `a152807bc4bf34884082e45a5a41fe01a5c07f4cd03f4787d0b31f2e160baa1a` | No aplicada | No aplicada |
+| `20261122180000_element_catalog_seed_fig-mag-2025-2028_9.sql` (semilla de la tanda 9 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `a152807b…`) | `5b44514918577342991005b993cd6d65f8ea8bbfd10b2cd18ef1064677e0e30c` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 - **Qué carga.** 35 saltos de la edición `fig-mag-2025-2028` (grupos IV y V,
-  entrada en rondada), **en borrador**: con ella el salto masculino queda
+  entrada en rondada), **revisados el 23-11-2026** (revisión delegada en Claude): con ella el salto masculino queda
   completo.
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
   independiente de las demás semillas masculinas, con la misma semántica, y
@@ -1530,13 +1530,13 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122190000_element_catalog_seed_fig-mag-2025-2028_10.sql` (semilla de la tanda 10 de la masculina) | `cba052981cc629ca3dacc0a5aa4e340f5a8c7d5ea41d1318719b37af0a1ea263` | No aplicada | No aplicada |
+| `20261122190000_element_catalog_seed_fig-mag-2025-2028_10.sql` (semilla de la tanda 10 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `cba05298…`) | `dfdefb59070be3edb69586cbdd58db04e7033e3dfe7d3173117f7ad26430adbf` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 - **Qué carga.** 57 elementos de paralelas de la edición `fig-mag-2025-2028`
-  (en apoyo o pasando por el apoyo en las dos barras), **en borrador**.
+  (en apoyo o pasando por el apoyo en las dos barras), **revisados el 23-11-2026** (revisión delegada en Claude).
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
   independiente de las demás semillas masculinas, con la misma semántica, y
   solo escribe los elementos de esta tanda.
@@ -1546,13 +1546,13 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122200000_element_catalog_seed_fig-mag-2025-2028_11.sql` (semilla de la tanda 11 de la masculina) | `80f1cbb46db893d2ffdb823d422b544cd1e4b08f2beea2237c74f0867c831592` | No aplicada | No aplicada |
+| `20261122200000_element_catalog_seed_fig-mag-2025-2028_11.sql` (semilla de la tanda 11 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `80f1cbb4…`) | `1d71a6adaa8e4faf913213d3ed926ecf25fef98b9749bdca4d2b084497e60bb3` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 - **Qué carga.** 58 elementos de paralelas de la edición `fig-mag-2025-2028`
-  (desde apoyo braquial y salidas), **en borrador**.
+  (desde apoyo braquial y salidas), **revisados el 23-11-2026** (revisión delegada en Claude).
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
   independiente de las demás semillas masculinas, con la misma semántica, y
   solo escribe los elementos de esta tanda.
@@ -1562,13 +1562,13 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122210000_element_catalog_seed_fig-mag-2025-2028_12.sql` (semilla de la tanda 12 de la masculina) | `04fb07f20a0213b07599368f67466e520114b48b25e7482f09776a9282809ada` | No aplicada | No aplicada |
+| `20261122210000_element_catalog_seed_fig-mag-2025-2028_12.sql` (semilla de la tanda 12 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `04fb07f2…`) | `6fcd003ccc31a0c5a748cfe2354f690555aa0794a1b5bfc884e3b4d2625d3326` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 - **Qué carga.** 65 elementos de paralelas de la edición `fig-mag-2025-2028`
-  (balanceos largos en suspensión y balanceos por debajo), **en borrador**:
+  (balanceos largos en suspensión y balanceos por debajo), **revisados el 23-11-2026** (revisión delegada en Claude):
   con ella las paralelas quedan completas.
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
   independiente de las demás semillas masculinas, con la misma semántica, y
@@ -1579,7 +1579,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122220000_element_catalog_seed_fig-mag-2025-2028_13.sql` (semilla de la tanda 13 de la masculina) | `3e53d47c84ffd0d5ff7528a2bba3e51a3c68cf3fa6d64ea1f047da2f320b1756` | No aplicada | No aplicada |
+| `20261122220000_element_catalog_seed_fig-mag-2025-2028_13.sql` (semilla de la tanda 13 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `3e53d47c…`) | `5b9b854bb82af38280b58dced67cd51d3c01bd8225311a668985cbf647819213` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1596,13 +1596,13 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122230000_element_catalog_seed_fig-mag-2025-2028_14.sql` (semilla de la tanda 14 de la masculina) | `19b508fb7ef6e39cf5a4c8eb9ea8877856a79d55bda06b5f71dcc5caa2f3248e` | No aplicada | No aplicada |
+| `20261122230000_element_catalog_seed_fig-mag-2025-2028_14.sql` (semilla de la tanda 14 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `19b508fb…`) | `677654c73dabe033e3f389bab89fe19b1976bdf3b8e89904ffef206ff4631a2f` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 - **Qué carga.** 72 elementos de barra fija de la edición `fig-mag-2025-2028`
-  (elementos de vuelo y salidas), **en borrador**: con ella la barra fija y la
+  (elementos de vuelo y salidas), **revisados el 23-11-2026** (revisión delegada en Claude): con ella la barra fija y la
   biblioteca masculina quedan completas.
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
   independiente de las demás semillas masculinas, con la misma semántica, y

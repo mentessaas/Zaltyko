@@ -78,7 +78,7 @@
       "Extracción de hechos: un subagente lee el PDF oficial y guarda solo número, grupo, valor, epónimo, página y un desglose técnico con valores cerrados, sin frases del Código.",
       "Redacción en sala limpia: otro subagente, que no ve el Código, redacta nombre, nombre corto y descripción en español a partir solo de esos hechos.",
       "Comprobación entre idiomas: un tercer subagente compara cada descripción con el texto inglés del Código; lo que supera el umbral se vuelve a redactar en sala limpia.",
-      "Revisión de Elvis: exactitud técnica de toda la tanda y comparación manual con el Código de la muestra indicada."
+      "Revisión delegada en Claude (decisión de Elvis, 23-11-2026): una sesión distinta de la que redacta comparó toda la tanda con el Código oficial (texto y dibujos); las correcciones volvieron como hechos a la sala limpia y se comprobaron de nuevo."
     ]
   },
   "factsExtractedOn": "2026-11-22",
@@ -89,22 +89,29 @@
     "threshold": 0.5,
     "maxScore": 0.45,
     "redrafted": [
-      "mpb_hg_tippelt_moy_piked_straddle_cut_bwd_handstand",
-      "mpb_hg_moy_to_support_bent_legs",
-      "mpb_hg_kenmotsu_giant_swing_bwd_handstand",
-      "mpb_hg_sosa_giant_swing_bwd_half_turn_straddle_cut_upper_arm",
+      "mpb_hg_belle_full_turn",
       "mpb_hg_belle_giant_swing_bwd_double_salto_tuck_upper_arm",
       "mpb_hg_belle_pike_double_salto_upper_arm",
-      "mpb_hg_belle_full_turn",
-      "mpb_hg_solis_giant_swing_bwd_salto_half_turn_hang",
+      "mpb_hg_bhavsar_swing_fwd_straddle_cut_regrasp_horizontal",
+      "mpb_hg_chartrand_giant_swing_bwd_salto_half_turn_hang_bar_end",
+      "mpb_hg_felge_half_or_three_quarter_turn_handstand",
+      "mpb_hg_fokin_giant_swing_bwd_salto_half_turn_straight_upper_arm",
+      "mpb_hg_giant_swing_diamidov_quarter_or_half_turn_handstand",
       "mpb_hg_glide_kip",
       "mpb_hg_glide_kip_bwd_handstand",
-      "mpb_hg_fokin_giant_swing_bwd_salto_half_turn_straight_upper_arm",
       "mpb_hg_glide_kip_one_rail_straddle_l_sit_handstand",
+      "mpb_hg_glide_kip_piked_l_sit_handstand_hop_three_quarter_turn",
+      "mpb_hg_kenmotsu_giant_swing_bwd_handstand",
       "mpb_hg_li_donghua_glide_kip_v_sit_hop_half_turn_hang",
-      "mpb_hg_teng_hai_bin_felge_full_turn_handstand"
+      "mpb_hg_matsunaga_giant_swing_bwd_salto_half_turn_upper_arm",
+      "mpb_hg_moy_to_support_bent_legs",
+      "mpb_hg_solis_giant_swing_bwd_salto_half_turn_hang",
+      "mpb_hg_sosa_giant_swing_bwd_half_turn_straddle_cut_upper_arm",
+      "mpb_hg_teng_hai_bin_felge_full_turn_handstand",
+      "mpb_hg_tippelt_moy_piked_straddle_cut_bwd_handstand",
+      "mpb_hg_torres_giant_swing_bwd_salto_half_turn_support"
     ],
-    "checkedOn": "2026-11-22",
+    "checkedOn": "2026-11-23",
     "checkedBy": "Claude"
   },
   "manualSample": {
@@ -117,11 +124,11 @@
       "mpb_hg_gagnon_felge_roll_bwd_tuck_half_salto_upper_arm",
       "mpb_hg_malone_shoot_up_handstand_fall_back_quarter_turn_support"
     ],
-    "checkedBy": null,
-    "checkedOn": null,
-    "result": null
+    "checkedBy": "Claude",
+    "checkedOn": "2026-11-23",
+    "result": "7 de 7 en valor, número y epónimo. Exactas tal cual 5 (Belle, Okubo, Cucherat-Celen, Gagnon, Malone). Bhavsar: falta el final en suspensión y sigue de cerca el orden de la regla 3g. Kenmotsu: ata el nombre Wells a la inlocación con más seguridad de la que da el dibujo. Revisión completa de la tanda contra el Código: 15 observaciones corregidas, 12 descripciones rehechas en sala limpia y comprobadas de nuevo."
   },
-  "reviewedBy": null,
-  "reviewedOn": null,
+  "reviewedBy": "Claude",
+  "reviewedOn": "2026-11-23",
   "aviso": "Datos: número, grupo y valor tomados del Código de Puntuación de la FIG como hechos. Nombres y descripciones redactados por Zaltyko; no son texto oficial ni traducción. © Zaltyko. No copiar el texto del Código."
 }
