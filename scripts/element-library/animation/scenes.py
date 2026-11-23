@@ -6,8 +6,9 @@ W = 360
 def _floor(y, w=W): return f'<line x1="14" y1="{y}" x2="{w-14}" y2="{y}" stroke="{APP_L}" stroke-width="2" stroke-linecap="round"/>'
 
 class Scene:
-    def __init__(self, kind, h, floor_y, anchors, bars=(), draw=None, w=W):
+    def __init__(self, kind, h, floor_y, anchors, bars=(), draw=None, w=W, solids=()):
         self.kind, self.h, self.floor_y, self.anchors, self.bars, self._draw, self.w = kind, h, floor_y, anchors, bars, draw, w
+        self.solids = list(solids)   # (x0, y0, x1, y1) boxes the body may touch from outside but never enter
     def at(self, name):
         if '@' in name:
             base, x = name.split('@'); return (float(x), self.anchors[base][1])
@@ -23,7 +24,19 @@ def beam():
     def d(u):
         return (_floor(fy) + f'<rect x="96" y="{top+9}" width="6" height="{fy-top-9}" fill="{APP_L}"/><rect x="258" y="{top+9}" width="6" height="{fy-top-9}" fill="{APP_L}"/>'
                 f'<rect x="16" y="{top}" width="328" height="9" rx="3" fill="{metal(u)}"/>')
-    return Scene('beam', 340, top, {'beam': (0, top)}, draw=d)
+    # the real floor is below; the beam is a solid box (legs may hang beside it, nothing passes through it)
+    return Scene('beam', 340, fy, {'beam': (0, top), 'floor': (0, fy)}, draw=d, solids=[(16, top, 344, top + 9)])
+
+def beam_mount():
+    """Beam mounts: 7.5 m wide, springboard in front of the left end of a 5 m beam."""
+    fy, top, w = 330, 330 - round(1.25 * M), 640
+    x0, x1 = 170, 170 + round(5.0 * M)
+    def d(u):
+        return (_floor(fy, w) + f'<polygon points="62,{fy} 120,{fy} 120,{fy-14}" fill="{metal(u)}"/>'
+                f'<rect x="{x0+70}" y="{top+9}" width="6" height="{fy-top-9}" fill="{APP_L}"/><rect x="{x1-76}" y="{top+9}" width="6" height="{fy-top-9}" fill="{APP_L}"/>'
+                f'<rect x="{x0}" y="{top}" width="{x1-x0}" height="9" rx="3" fill="{metal(u)}"/>')
+    return Scene('beam_mount', 340, fy, {'beam': (0, top), 'floor': (0, fy), 'board': (100, fy - 10)}, draw=d, w=w,
+                 solids=[(x0, top, x1, top + 9)])
 
 def high_bar():
     fy = 340; bar = (180, fy - round(2.8 * M))
@@ -75,5 +88,5 @@ def vault():
                 f'<rect x="478" y="{fy-8}" width="150" height="8" rx="3" fill="{APP_L}"/>')
     return Scene('vault', 340, fy, {'board': (280, fy - 10), 'table': (0, top), 'floor': (0, fy), 'mat': (0, fy - 8)}, draw=d, w=w)
 
-SCENES = {'floor': floor, 'beam': beam, 'high_bar': high_bar, 'uneven_bars': uneven, 'rings': rings,
+SCENES = {'floor': floor, 'beam': beam, 'beam_mount': beam_mount, 'high_bar': high_bar, 'uneven_bars': uneven, 'rings': rings,
           'parallel_bars': pbars, 'pommel_horse': pommel, 'vault': vault}

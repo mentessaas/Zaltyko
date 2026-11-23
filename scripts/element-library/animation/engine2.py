@@ -146,11 +146,12 @@ def joint_angles(p):
         out['knee_' + t] = _wrap(leg[1] - leg[0]) * f
     return out
 
-def validate(tl, floor_y=None, bars=(), max_step=28, front=False):
+def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=()):
     problems = []
     prev = None; prev_meta = {}
     for i, (p, pel, meta) in enumerate(tl.frames):
-        if not front and not getattr(p, 'front', False):   # face-on frames: side-view joint limits do not apply
+        # face-on frames and frames in the middle of a twist (the 2D figure mirrors) skip side-view joint limits
+        if not front and not getattr(p, 'front', False) and not meta.get('twist'):
             for name, val in joint_angles(p).items():
                 lo, hi = LIMITS[name.split('_')[0]]
                 if not lo <= val <= hi:
@@ -159,6 +160,12 @@ def validate(tl, floor_y=None, bars=(), max_step=28, front=False):
         if floor_y is not None:
             low = max(y for k, (x, y) in j.items() if k != 'head')
             if low > floor_y + 2: problems.append(f'frame {i}: below the floor by {low - floor_y:.1f}px')
+        for (x0, y0, x1, y1) in solids:
+            # side view is depth-ambiguous: head, hands and legs may hang BESIDE a beam; only the trunk
+            # (pelvis, neck) can never be inside the apparatus
+            for k, (x, y) in ((k, j[k]) for k in ('pelvis', 'neck')):
+                if x0 + 1 < x < x1 - 1 and y0 + 1.5 < y < y1 - 0.5:
+                    problems.append(f'frame {i}: {k} inside the apparatus'); break
         for b in bars:
             gripping = meta.get('contact') and meta['contact'][0] == 'han' and math.dist(meta['contact'][1], b) < 1
             if gripping: continue

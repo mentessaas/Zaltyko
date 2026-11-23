@@ -53,7 +53,7 @@ def build(spec):
 
 def validate_spec(spec, sc, tl):
     front = spec.get('view') == 'front'
-    return validate(tl, floor_y=sc.floor_y, bars=sc.bars, front=front)
+    return validate(tl, floor_y=sc.floor_y, bars=sc.bars, front=front, solids=getattr(sc, 'solids', ()))
 
 def overlay(sc, p, pel, meta):
     o = ''

@@ -25,7 +25,9 @@ in `work/` to generate families of specs (e.g. "back salto with N twists") inste
 - Joint names for contacts: hands `han`/`haf`, wrists are the hand points; feet tips `ton`/`tof`,
   ankles `ann`/`anf`; `pelvis`, `neck`.
 - Scenes and anchors (85 px = 1 m; real heights): `floor` (anchor `floor@X`, floor y 268),
-  `beam` (`beam@X`, top 1.25 m), `high_bar` (`bar`, 2.8 m), `uneven_bars` (`lb` 1.70 m at x 118,
+  `beam` (`beam@X`, top 1.25 m; the real floor is below at `floor@X` and the beam is a solid box: the trunk may
+  never be inside it, legs/head/hands may hang beside it), `beam_mount` (wide 640 px: springboard `board` in front
+  of the left end of a 5 m beam from x 170 to 595, `beam@X`, `floor@X` — use it for every mount with a run or board), `high_bar` (`bar`, 2.8 m), `uneven_bars` (`lb` 1.70 m at x 118,
   `hb` 2.50 m at x 248), `rings` (`rings`, 2.75 m; rings and straps are drawn at the hands),
   `parallel_bars` (`rail@X`, 2.0 m), `pommel_horse` (`pommel_l`, `pommel_r`, `horse@X`),
   `vault` (wider canvas, 640 px ≈ 7.5 m: runway from x≈20 for the hurdle/round-off, `board` at x≈280, `table@X` top 1.25 m with the table between x 370 and 462, `floor@X`, `mat@X` between x 478 and 628).
@@ -56,6 +58,8 @@ in `work/` to generate families of specs (e.g. "back salto with N twists") inste
   shapes and landing pose with the new facing.
 - `poster`: frame indices for the static pictogram (main = the defining moment; 1–2 ghosts).
 - Holds (strength): show a short, plausible entry (0.5–1 s) and then hold the pose with `dt: 2.0`.
+- Twisting frames skip the side-view joint limits (the 2D figure mirrors during a twist), so tucked and
+  piked twists are allowed; keep the shape anatomically plausible anyway.
 - Front-view elements (cross on rings): `"view": "front"` and `"front": true` in the poses.
 - Rotation about a vertical axis (pommel horse circles/flairs, travels; pirouettes): add `"yaw"` (deg)
   and `"yawPivot"` (joint, default `han`) to poses. The body is drawn in its own plane and turned about
