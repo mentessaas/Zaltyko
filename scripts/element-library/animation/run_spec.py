@@ -84,13 +84,16 @@ def frame_svg(sc, tl, i, trails=True, uid='a'):
     p, pel, meta = tl.frames[min(i, len(tl.frames) - 1)]
     import math as _m
     behind = _m.sin(_m.radians(getattr(p, 'yaw', 0))) < -0.05
-    body = floor_band(sc, tl) + ('' if behind else sc.draw(uid))
+    band = floor_band(sc, tl)
+    # on the floor scene the band IS the floor (a plane seen from a raised camera): no floor line
+    scene_drawing = '' if (band and sc.kind == 'floor') else sc.draw(uid)
+    body = band + ('' if behind else scene_drawing)
     if trails and i < len(tl.frames):
         for lag, op in ((6, .06), (4, .09), (2, .13)):
             k = i - lag
             if k >= 0: q, qp, _ = tl.frames[k]; body += V.fig(uid, q, qp, False, op)
     body += overlay(sc, p, pel, meta) + V.fig(uid, p, pel)
-    if behind: body += sc.draw(uid)
+    if behind and scene_drawing: body += scene_drawing
     dy = headroom(tl)
     return V.frame(uid, shifted(body, dy), sc.h + dy, w=sc.w)
 

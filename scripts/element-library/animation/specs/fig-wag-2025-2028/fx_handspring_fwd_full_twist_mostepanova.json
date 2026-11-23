@@ -7,7 +7,7 @@
   {
    "contact": {
     "joint": "tof",
-    "at": "floor@12.0",
+    "at": "floor@1.01",
     "keys": [
      {
       "dt": 0,
@@ -116,14 +116,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@129.36"
+     "at": "floor@111.23"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@129.36",
+    "at": "floor@111.23",
     "keys": [
      {
       "dt": 0,
@@ -204,7 +204,7 @@
    "contact": {
     "joint": "han",
     "at": [
-     220.42,
+     202.29,
      267.87
     ],
     "keys": [
@@ -363,7 +363,7 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@315.42"
+     "at": "floor@297.29"
     },
     "twist": 360,
     "twistWindow": [
@@ -375,7 +375,7 @@
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@315.42",
+    "at": "floor@297.29",
     "keys": [
      {
       "dt": 0,
