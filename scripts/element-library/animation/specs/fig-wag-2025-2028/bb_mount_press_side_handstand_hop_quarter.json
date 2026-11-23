@@ -123,7 +123,7 @@
        ],
        "head": 10,
        "facing": 1,
-       "yaw": 90,
+       "yaw": 60,
        "yawPivot": "han"
       }
      },
@@ -149,7 +149,7 @@
        ],
        "head": 10,
        "facing": 1,
-       "yaw": 90,
+       "yaw": 60,
        "yawPivot": "han"
       }
      },
@@ -175,7 +175,7 @@
        ],
        "head": 12,
        "facing": 1,
-       "yaw": 90,
+       "yaw": 60,
        "yawPivot": "han"
       }
      },
@@ -201,12 +201,12 @@
        ],
        "head": 12,
        "facing": 1,
-       "yaw": 90,
+       "yaw": 60,
        "yawPivot": "han"
       }
      },
      {
-      "dt": 0.3,
+      "dt": 0.35,
       "pose": {
        "torso": 180,
        "arm_n": [
@@ -218,16 +218,16 @@
         -180
        ],
        "leg_n": [
-        -6,
-        60
+        -14,
+        58
        ],
        "leg_f": [
-        -4,
-        62
+        -12,
+        60
        ],
        "head": 12,
        "facing": 1,
-       "yaw": 90,
+       "yaw": 60,
        "yawPivot": "han"
       }
      },
@@ -253,7 +253,7 @@
        ],
        "head": 12,
        "facing": 1,
-       "yaw": 90,
+       "yaw": 60,
        "yawPivot": "han"
       }
      }
@@ -262,7 +262,7 @@
   },
   {
    "flight": {
-    "riseM": 0.07,
+    "riseM": 0.13,
     "rotation": 0,
     "shapes": [
      {
@@ -287,7 +287,7 @@
        ],
        "head": 12,
        "facing": 1,
-       "yaw": 45,
+       "yaw": 30,
        "yawPivot": "han"
       }
      },
