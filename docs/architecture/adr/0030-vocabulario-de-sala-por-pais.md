@@ -146,6 +146,13 @@ Tomadas el 21-11-2026, al aprobar este ADR:
    borrador y solo se ven cuando están revisados.
 3. Las palabras de México las revisa una entrenadora de una academia
    mexicana si la hay; si no, Elvis.
+4. **23-11-2026 («revísalo todo tú»):** Elvis delega la revisión en Claude.
+   Una sesión distinta comprobó cada entrada con material de la FMG y fuentes
+   mexicanas (programas universitarios, traducciones de la FMG). Quedan
+   revisadas las 47 entradas de confianza «alta»; las 18 de confianza «media»
+   siguen en borrador hasta que las confirme una entrenadora mexicana. Una
+   entrada puede limitarse a unos aparatos (`apparatus`), como «barra» →
+   «viga», que solo vale en barra de equilibrio.
 
 ## Notas de la primera versión
 
