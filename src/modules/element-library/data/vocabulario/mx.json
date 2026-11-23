@@ -19,7 +19,16 @@
       "note": "En México «árabe» a secas es la rueda sin manos.",
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
+    },
+    {
+      "key": "doble_arabe",
+      "es": ["doble mortal árabe", "doble árabe", "dobles árabes"],
+      "local": ["mortal japonesa doble"],
+      "note": "En México «árabe» a secas es la rueda sin manos.",
+      "confidence": "alta",
+      "source": "FMG (CTF), programa JO en español",
+      "reviewStatus": "reviewed"
     },
     {
       "key": "presa_mixta_cubital",
@@ -27,7 +36,16 @@
       "local": ["toma cubital mixta"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
+    },
+    {
+      "key": "presa",
+      "es": ["presa", "presas"],
+      "local": ["toma"],
+      "note": "Toma regular o dorsal, palmar, cubital y mixta. Falta confirmar que «palmar» es el mismo agarre en los dos países.",
+      "confidence": "alta",
+      "source": "FMG (CTF), Xcel y JO en español",
+      "reviewStatus": "reviewed"
     },
     {
       "key": "cambio_presa_saltado",
@@ -39,7 +57,7 @@
       "local": ["rebote de manos a cambio de toma"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "kippe_invertida",
@@ -55,6 +73,15 @@
       "local": ["resorte de cabeza"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
+      "reviewStatus": "reviewed"
+    },
+    {
+      "key": "posicion_kippe",
+      "es": ["posición de kippe"],
+      "local": ["posición de kip"],
+      "note": "Como «kip» en las rutinas obligatorias; aquí no se dice «alemana».",
+      "confidence": "media",
+      "source": "FMG (CTF), rutinas obligatorias en español",
       "reviewStatus": "draft"
     },
     {
@@ -64,7 +91,7 @@
       "note": "«Kip» en las rutinas obligatorias; «alemana» en Xcel y JO.",
       "confidence": "alta",
       "source": "FMG (CTF), rutinas obligatorias en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "apoyo_facial_fuera",
@@ -107,7 +134,7 @@
       "local": ["contramovimiento"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "vuelta_sentada",
@@ -115,7 +142,7 @@
       "local": ["círculo sentado"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "vuelta_carpada_libre",
@@ -131,12 +158,13 @@
       "local": ["plantillas"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "dislocacion",
       "es": ["dislocación", "dislocaciones"],
-      "local": ["dislocada"],
+      "local": ["a dislocar", "dislocar"],
+      "note": "En México «dislocada» es una toma; el movimiento se dice con el verbo: «a dislocar».",
       "confidence": "media",
       "source": "FMG (CTF), Código Xcel GAF en español",
       "reviewStatus": "draft"
@@ -147,7 +175,7 @@
       "local": ["sub balanceo"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "molino_atras",
@@ -155,7 +183,7 @@
       "local": ["gigante"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "molino_adelante",
@@ -164,7 +192,7 @@
       "note": "Igual en México: hacia adelante también es «molino».",
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "molino",
@@ -173,7 +201,7 @@
       "note": "Hacia adelante, en México se dice «molino».",
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "pasada_agrupada",
@@ -181,7 +209,7 @@
       "local": ["cuclillas a pasar"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "pasada_carpada",
@@ -189,7 +217,7 @@
       "local": ["pasaje de piernas carpado"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "apoyo_pecho",
@@ -197,7 +225,7 @@
       "local": ["parada de pecho"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "apoyo_nuca",
@@ -213,13 +241,13 @@
       "local": ["apoyo libre con piernas separadas"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "escuadra",
       "es": ["escuadra", "escuadras"],
-      "local": ["apoyo libre carpado", "sentada en V"],
-      "note": "Con las manos en el aparato, «apoyo libre carpado»; sentada, «sentada en V».",
+      "local": ["escuadra", "apoyo libre carpado", "sentada en V"],
+      "note": "En México también «escuadra»; con las manos en el aparato, «apoyo libre carpado»; sentada, «sentada en V».",
       "confidence": "media",
       "source": "FMG (CTF), Código Xcel GAF en español",
       "reviewStatus": "draft"
@@ -246,7 +274,7 @@
       "local": ["volapié", "inversión libre al frente"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "paloma_dos_piernas",
@@ -254,7 +282,7 @@
       "local": ["león"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "paloma",
@@ -262,7 +290,7 @@
       "local": ["resorte"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "sentada_split_traves",
@@ -286,7 +314,7 @@
       "local": ["salto hop"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "salto_gato",
@@ -294,7 +322,7 @@
       "local": ["salto leap gato"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "salto_oveja",
@@ -302,7 +330,7 @@
       "local": ["salto jump anillo cerrado"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "sentada_rodillas",
@@ -310,7 +338,7 @@
       "local": ["hincada-sentada"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "aguja",
@@ -318,12 +346,12 @@
       "local": ["arabesca en aguja"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "balanza",
       "es": ["balanza", "balanzas"],
-      "local": ["arabesca al frente", "palanca"],
+      "local": ["arabesca al frente"],
       "confidence": "media",
       "source": "FMG (CTF), Código Xcel GAF en español",
       "reviewStatus": "draft"
@@ -334,7 +362,7 @@
       "local": ["desplante"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "tic_tac",
@@ -342,7 +370,7 @@
       "local": ["tic-toc"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "voltereta_hombros",
@@ -350,16 +378,16 @@
       "local": ["rodada de hombros"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "voltereta",
       "es": ["voltereta", "volteretas"],
       "local": ["rodada"],
-      "note": "Por analogía con «rodada de hombros» y «salto de tigre» (rodada); sin fuente para cada elemento.",
-      "confidence": "media",
-      "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "note": "Fuentes mexicanas directas: «rodada al frente» y «rodada atrás».",
+      "confidence": "alta",
+      "source": "Programa de gimnasia UAA; tesis UNAM",
+      "reviewStatus": "reviewed"
     },
     {
       "key": "rueda_sin_manos",
@@ -367,7 +395,7 @@
       "local": ["árabe", "vuelta de carro libre"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "pierna_a_pierna",
@@ -383,7 +411,7 @@
       "local": ["salto de tigre"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "tempo",
@@ -391,7 +419,7 @@
       "local": ["power"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "rondada",
@@ -399,7 +427,7 @@
       "local": ["redondilla"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "rueda_lateral",
@@ -407,7 +435,7 @@
       "local": ["vuelta de carro", "rueda de carro"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "arco_adelante",
@@ -415,28 +443,29 @@
       "local": ["arco al frente"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "ciervo",
       "es": ["ciervo"],
       "local": ["gacela"],
-      "confidence": "media",
+      "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "lobo",
       "es": ["lobo"],
       "local": ["escopeta"],
-      "confidence": "media",
+      "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "carpa_abierta",
       "es": ["carpa abierta"],
-      "local": ["squat carpado"],
+      "local": ["squat carpado", "con piernas separadas"],
+      "note": "«Squat carpado» solo en saltos gimnásticos; en asimétricas y acrobacia, «con piernas separadas».",
       "confidence": "media",
       "source": "FMG (CTF), Código Xcel GAF en español",
       "reviewStatus": "draft"
@@ -447,7 +476,7 @@
       "local": ["switch"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "media_pirueta",
@@ -455,7 +484,7 @@
       "local": ["medio giro"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "doble_pirueta",
@@ -463,7 +492,7 @@
       "local": ["doble giro"],
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
     },
     {
       "key": "pirueta",
@@ -472,7 +501,56 @@
       "note": "En México «giro» vale para el giro en el aire y para el giro sobre un pie.",
       "confidence": "alta",
       "source": "FMG (CTF), Código Xcel GAF en español",
-      "reviewStatus": "draft"
+      "reviewStatus": "reviewed"
+    },
+    {
+      "key": "vertical",
+      "es": ["vertical", "verticales"],
+      "local": ["parada de manos"],
+      "note": "Cuando es el elemento («a la vertical», «en la vertical»). Como línea de referencia se dice igual.",
+      "confidence": "alta",
+      "source": "FMG (CTF), Xcel y JO en español",
+      "reviewStatus": "reviewed"
+    },
+    {
+      "key": "vertical_referencia",
+      "es": ["casi en vertical", "casi en la vertical", "cerca de la vertical"],
+      "local": [
+        "casi en vertical",
+        "casi en la vertical",
+        "cerca de la vertical"
+      ],
+      "note": "Línea de referencia, no el elemento: se dice igual y no se cambia por «parada de manos».",
+      "confidence": "alta",
+      "source": "FMG (CTF), Xcel y JO en español",
+      "reviewStatus": "reviewed"
+    },
+    {
+      "key": "trampolin",
+      "es": ["trampolín", "trampolines"],
+      "local": ["botador"],
+      "confidence": "alta",
+      "source": "FMG (CTF), Xcel y JO en español",
+      "reviewStatus": "reviewed"
+    },
+    {
+      "key": "barra_equilibrio",
+      "es": ["barra de equilibrio", "barras de equilibrio"],
+      "local": ["viga"],
+      "note": "Solo el aparato de equilibrio; en asimétricas «barra alta» y «barra baja» siguen siendo «barra».",
+      "confidence": "alta",
+      "source": "FMG (CTF), Xcel y JO en español",
+      "reviewStatus": "reviewed"
+    },
+    {
+      "key": "barra_viga",
+      "es": ["barra", "barras"],
+      "local": ["viga"],
+      "note": "Solo en las fichas de barra de equilibrio; en asimétricas sigue siendo «barra».",
+      "apparatus": ["beam"],
+      "confidence": "alta",
+      "source": "FMG (CTF), Xcel y JO en español",
+      "reviewStatus": "reviewed"
     }
   ]
 }

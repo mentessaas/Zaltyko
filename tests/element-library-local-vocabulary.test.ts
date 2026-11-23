@@ -189,6 +189,27 @@ describe("coincidencias en la ficha", () => {
     expect(keys(matches)).toEqual(["rondada"]);
   });
 
+  it("una entrada con aparatos solo casa en las fichas de esos aparatos", () => {
+    const scoped = {
+      country: "MX",
+      countryName: "México",
+      entries: [
+        {
+          key: "barra_viga",
+          es: ["barra"],
+          local: ["viga"],
+          apparatus: ["beam" as const],
+          confidence: "alta" as const,
+          source: "Prueba",
+          reviewStatus: "reviewed" as const,
+        },
+      ],
+    };
+    expect(keys(findLocalTerms(["Gira sobre la barra"], scoped, "beam"))).toEqual(["barra_viga"]);
+    expect(findLocalTerms(["Suelta la barra alta"], scoped, "uneven_bars")).toEqual([]);
+    expect(findLocalTerms(["Gira sobre la barra"], scoped)).toEqual([]);
+  });
+
   it("sin entradas revisadas no enseña nada", () => {
     expect(
       findLocalTerms(["Rondada"], {

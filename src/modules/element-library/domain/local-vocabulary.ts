@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { normalizeSearchText } from "@/modules/element-library/domain/element-library";
+import { CATALOG_APPARATUS, normalizeSearchText } from "@/modules/element-library/domain/element-library";
 
 /**
  * Vocabulario de sala por país (ADR-0030). Dominio puro: bandera, esquema de
@@ -55,6 +55,8 @@ const localTermSchema = z
     /** Cómo se dice en el país; la primera es la principal. */
     local: z.array(searchableText(1, LOCAL_TERM_LOCAL_MAX)).min(1).max(4),
     note: cleanText(1, LOCAL_TERM_NOTE_MAX).optional(),
+    /** Solo en las fichas de estos aparatos («barra» → «viga» solo en barra de equilibrio). */
+    apparatus: z.array(z.enum(CATALOG_APPARATUS)).min(1).optional(),
     confidence: z.enum(["alta", "media"]),
     source: cleanText(2, LOCAL_TERM_SOURCE_MAX),
     reviewStatus: z.enum(["draft", "reviewed"]),
@@ -161,14 +163,20 @@ function saysTheSame(entry: LocalTerm, normalizedForm: string): boolean {
  * entrada. Sin mayúsculas ni acentos, por palabra completa, la forma más larga
  * primero y sin solaparse: «paloma sin manos» gana a «paloma» y lo que ya casó
  * no vuelve a casar. Una forma que se dice igual en el país ocupa su sitio pero
- * no sale («molino adelante» tapa a «molino»).
+ * no sale («molino adelante» tapa a «molino»). Las entradas con `apparatus`
+ * solo casan en fichas de esos aparatos.
  */
 export function findLocalTerms(
   texts: readonly (string | null | undefined)[],
-  vocabulary: LocalVocabulary
+  vocabulary: LocalVocabulary,
+  apparatus?: string
 ): LocalTermMatch[] {
-  if (vocabulary.entries.length === 0) return [];
-  const forms = formsLongestFirst(vocabulary.entries);
+  // Una entrada con aparatos solo vale en las fichas de esos aparatos.
+  const entries = vocabulary.entries.filter(
+    (entry) => !entry.apparatus || (apparatus !== undefined && (entry.apparatus as readonly string[]).includes(apparatus))
+  );
+  if (entries.length === 0) return [];
+  const forms = formsLongestFirst(entries);
   const found: { position: number; entry: LocalTerm; show: boolean }[] = [];
   let offset = 0;
   for (const text of texts) {

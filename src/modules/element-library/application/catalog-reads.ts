@@ -260,7 +260,7 @@ export async function getCatalogElement(
     const description = isElementLibraryDescriptionsFlagOn() ? row.description : null;
     // Solo sobre lo que la ficha enseña: sin descripción, no se busca en ella.
     const vocabulary = await loadAcademyVocabulary(tx, query.organizationId);
-    const localTerms = vocabulary ? findLocalTerms([row.name, row.short_name, description], vocabulary) : [];
+    const localTerms = vocabulary ? findLocalTerms([row.name, row.short_name, description], vocabulary, row.apparatus) : [];
     return {
       id: row.id,
       elementKey: row.element_key,
