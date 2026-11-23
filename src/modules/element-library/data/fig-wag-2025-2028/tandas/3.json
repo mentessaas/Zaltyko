@@ -64,7 +64,7 @@
       "Extracción de hechos: un subagente lee el PDF oficial y guarda solo número, grupo, valor, epónimo, página y un desglose técnico con valores cerrados, sin frases del Código.",
       "Redacción en sala limpia: otro subagente, que no ve el Código, redacta nombre, nombre corto y descripción en español a partir solo de esos hechos.",
       "Comprobación entre idiomas: un tercer subagente compara cada descripción con el texto inglés del Código; lo que supera el umbral se vuelve a redactar en sala limpia.",
-      "Revisión de Elvis: exactitud técnica de toda la tanda y comparación manual con el Código de la muestra indicada."
+      "Revisión delegada en Claude (decisión de Elvis, 23-11-2026): una sesión distinta de la que redacta comparó toda la tanda con el Código oficial (texto y dibujos); las correcciones volvieron como hechos a la sala limpia y se comprobaron de nuevo."
     ]
   },
   "factsExtractedOn": "2026-11-20",
@@ -75,30 +75,34 @@
     "threshold": 0.5,
     "maxScore": 0.5,
     "redrafted": [
-      "ub_cast_salto_roll_fwd_lb_to_hb",
-      "ub_inner_front_support_clear_hip_circle_flight_hb",
-      "ub_round_off_flight_bwd_full_turn_hang_hb",
-      "ub_jump_clear_hip_circle_handstand_hb",
-      "ub_round_off_flic_flac_full_turn_lb",
       "ub_cast_handstand_straddled_or_bent",
-      "ub_clear_underswing_lb_counter_flight_hang_hb",
-      "ub_outer_front_support_clear_hip_circle_hecht_hb",
-      "ub_outer_front_support_clear_hip_circle_hecht_half_turn_hb",
-      "ub_salto_fwd_hang_hb",
-      "ub_round_off_flight_bwd_straddle_support_lb",
-      "ub_jump_handstand_hips_bent_lb",
-      "ub_jump_handstand_hips_bent_full_turn_lb",
-      "ub_salto_fwd_tucked_over_lb_hang_hb",
-      "ub_round_off_arabian_tucked_over_lb_hang_hb",
-      "ub_round_off_arabian_piked_over_lb_hang_hb",
-      "ub_hip_circle_bwd_hecht_half_turn_hang",
-      "ub_clear_hip_circle_hb_counter_straddle_hang_hb",
-      "ub_hecht_jump_full_turn_over_lb_hang_hb",
-      "ub_round_off_salto_bwd_tucked_hang_lb",
+      "ub_cast_release_full_turn_hang_hb",
+      "ub_cast_salto_fwd_straddled_hang_hb",
+      "ub_cast_salto_roll_fwd_lb_to_hb",
       "ub_clear_hip_circle_fwd_full_turn_handstand",
-      "ub_clear_hip_circle_hb_counter_pike_hang_hb"
+      "ub_clear_hip_circle_hb_counter_pike_hang_hb",
+      "ub_clear_hip_circle_hb_counter_reverse_hecht_layout",
+      "ub_clear_hip_circle_hb_counter_straddle_hang_hb",
+      "ub_clear_underswing_lb_counter_flight_hang_hb",
+      "ub_hecht_jump_full_turn_over_lb_hang_hb",
+      "ub_hip_circle_bwd_hecht_half_turn_hang",
+      "ub_inner_front_support_clear_hip_circle_flight_hb",
+      "ub_jump_clear_hip_circle_handstand_hb",
+      "ub_jump_handstand_hips_bent_full_turn_lb",
+      "ub_jump_handstand_hips_bent_lb",
+      "ub_outer_front_support_clear_hip_circle_hecht_half_turn_hb",
+      "ub_outer_front_support_clear_hip_circle_hecht_hb",
+      "ub_round_off_arabian_piked_over_lb_hang_hb",
+      "ub_round_off_arabian_tucked_over_lb_hang_hb",
+      "ub_round_off_flic_flac_full_turn_lb",
+      "ub_round_off_flight_bwd_full_turn_hang_hb",
+      "ub_round_off_flight_bwd_straddle_support_lb",
+      "ub_round_off_salto_bwd_tucked_hang_lb",
+      "ub_salto_fwd_hang_hb",
+      "ub_salto_fwd_over_lb_l_hang_lb",
+      "ub_salto_fwd_tucked_over_lb_hang_hb"
     ],
-    "checkedOn": "2026-11-20",
+    "checkedOn": "2026-11-23",
     "checkedBy": "Claude"
   },
   "manualSample": {
@@ -110,11 +114,11 @@
       "ub_clear_hip_circle_hb_counter_reverse_hecht_layout",
       "ub_round_off_salto_bwd_tucked_hang_lb"
     ],
-    "checkedBy": null,
-    "checkedOn": null,
-    "result": null
+    "checkedBy": "Claude",
+    "checkedOn": "2026-11-23",
+    "result": "6 de 6 correctas en hechos frente a texto y dibujo (1.409, 2.302, 2.306, 2.503, 2.606, 2.706); 2.503, 2.606 y 2.706 siguen el orden del Código casi cláusula a cláusula (riesgo leve) y 2.606/2.706 usan «contravuelo» pese a lo decidido. Revisión completa de la tanda contra el Código: 14 observaciones corregidas, 15 descripciones rehechas en sala limpia y comprobadas de nuevo."
   },
-  "reviewedBy": null,
-  "reviewedOn": null,
+  "reviewedBy": "Claude",
+  "reviewedOn": "2026-11-23",
   "aviso": "Datos: número, grupo y valor tomados del Código de Puntuación de la FIG como hechos. Nombres y descripciones redactados por Zaltyko; no son texto oficial ni traducción. © Zaltyko. No copiar el texto del Código."
 }
