@@ -425,9 +425,9 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "mat@302"
+     "at": "mat@306"
     },
-    "riseM": 0.5,
+    "riseM": 0.6,
     "twist": 720,
     "twistWindow": [
      0.2,
@@ -438,7 +438,7 @@
   {
    "contact": {
     "joint": "ton",
-    "at": "mat@302",
+    "at": "mat@306",
     "keys": [
      {
       "dt": 0,
@@ -517,10 +517,10 @@
   }
  ],
  "poster": {
-  "main": 42,
+  "main": 43,
   "ghosts": [
    27,
-   60
+   62
   ]
  }
 }
