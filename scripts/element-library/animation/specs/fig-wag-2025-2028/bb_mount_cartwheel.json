@@ -9,7 +9,7 @@
     "joint": "pelvis",
     "at": [
      310.88,
-     195.35
+     172.35
     ],
     "keys": [
      {
@@ -65,7 +65,7 @@
   },
   {
    "flight": {
-    "riseM": 0.906,
+    "riseM": 0.636,
     "rotation": -60,
     "shapes": [
      {

@@ -25,8 +25,11 @@ class Pose:
         if yaw:
             # rotation about a vertical axis through the pivot joint: horizontal offsets shrink by cos(yaw)
             import math as _m
-            px = j[getattr(self, 'yaw_pivot', 'han')][0]; c = _m.cos(_m.radians(yaw))
-            j = {k: (px + (x - px) * c, y) for k, (x, y) in j.items()}
+            # camera raised ~25 deg: points turned toward the viewer drop on screen, points turned
+            # away rise, so a leg circle reads as an ellipse instead of collapsing into a line
+            px = j[getattr(self, 'yaw_pivot', 'han')][0]; c, sn = _m.cos(_m.radians(yaw)), _m.sin(_m.radians(yaw))
+            el = _m.sin(_m.radians(getattr(self, 'camera_elevation', 25)))
+            j = {k: (px + (x - px) * c, y + (x - px) * sn * el) for k, (x, y) in j.items()}
         return j
 
     def _joints_flat(self, pelvis=(0, 0)):

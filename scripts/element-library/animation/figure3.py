@@ -74,16 +74,19 @@ def body_paths(pose, pelvis):
     def close(p, q): return abs(p[0]-q[0]) < 6 and abs(p[1]-q[1]) < 6
     if not (close(pose.arm_n, pose.arm_f) and close(pose.leg_n, pose.leg_f)) or pose.front:
         limb_set('f', 'far')
-    top = add(pelvis, v(t, L['torso']))
+    # use the projected joints (they include any vertical-axis turn) for trunk, neck and head
+    top, pel = j['neck'], j['pelvis']
     if pose.front:
-        out.append(('near', muscle(pelvis, top, *TORSO_FRONT)))
+        out.append(('near', muscle(pel, top, *TORSO_FRONT)))
         out.append(('near', muscle(j['shf'], j['shn'], [(0, 6.2), (.5, 5.0), (1, 6.2)], [(0, 6.6), (.5, 5.6), (1, 6.6)])))
     else:
-        out.append(('near', muscle(pelvis, top, *TORSO_SIDE)))
-    neck_end = add(j['neck'], v(t + pose.head, L['neck'] + 3))
-    out.append(('near', muscle(j['neck'], neck_end, [(0, 3.4), (1, 3.0)], [(0, 3.4), (1, 3.0)])))
-    hc = add(j['neck'], v(t + pose.head, L['neck'] + L['head'] + 1))
-    out.append(('head', (hc, t + pose.head)))
+        out.append(('near', muscle(pel, top, *TORSO_SIDE)))
+    hc = j['head']
+    hd = (hc[0] - top[0], hc[1] - top[1]); hl = math.hypot(*hd) or 1
+    neck_end = (top[0] + hd[0] / hl * (L['neck'] + 3), top[1] + hd[1] / hl * (L['neck'] + 3))
+    out.append(('near', muscle(top, neck_end, [(0, 3.4), (1, 3.0)], [(0, 3.4), (1, 3.0)])))
+    head_ang = math.degrees(math.atan2(hd[0], -hd[1]))
+    out.append(('head', (hc, head_ang)))
     limb_set('n', 'near')
     return out
 

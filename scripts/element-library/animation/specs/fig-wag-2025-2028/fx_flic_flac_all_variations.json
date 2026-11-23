@@ -7,7 +7,7 @@
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@247.92",
+    "at": "floor@344.8",
     "keys": [
      {
       "dt": 0,
@@ -82,7 +82,7 @@
       }
      },
      {
-      "dt": 0.14,
+      "dt": 0.26,
       "pose": {
        "torso": -6,
        "head": 0,
@@ -212,14 +212,14 @@
     ],
     "land": {
      "joint": "han",
-     "at": "floor@173.92"
+     "at": "floor@161.32"
     }
    }
   },
   {
    "contact": {
     "joint": "han",
-    "at": "floor@173.92",
+    "at": "floor@161.32",
     "keys": [
      {
       "dt": 0,
@@ -352,14 +352,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@125.92"
+     "at": "floor@69.2"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@125.92",
+    "at": "floor@69.2",
     "keys": [
      {
       "dt": 0,
@@ -462,10 +462,10 @@
   }
  ],
  "poster": {
-  "main": 43,
+  "main": 47,
   "ghosts": [
-   18,
-   49
+   22,
+   53
   ]
  }
 }
