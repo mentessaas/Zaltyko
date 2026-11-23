@@ -46,15 +46,20 @@ def high_bar():
     return Scene('high_bar', 350, fy, {'bar': bar}, bars=[bar], draw=d)
 
 def uneven():
-    """7.5 m wide: run and springboard in front of the low bar, bars 1.5 m apart, room outside the high bar."""
-    fy, w = 340, 640
-    lb = (300, fy - round(1.70 * M)); hb = (430, fy - round(2.50 * M)); board = (172, fy - 10)
+    """9 m wide: run-up and springboard in front of the low bar, bars 1.5 m apart, a second board
+    (`board_hb`) outside the high bar for mounts taken from that side, room for swings outside."""
+    fy, w = 340, 760
+    lb = (390, fy - round(1.70 * M)); hb = (520, fy - round(2.50 * M))
+    board = (262, fy - 10); board_hb = (650, fy - 10)
     def d(u):
-        o = _floor(fy, w) + f'<polygon points="{board[0]-28},{fy} {board[0]+30},{fy} {board[0]+30},{fy-14}" fill="{metal(u)}"/>'
-        for b in (lb, hb):
-            o += f'<rect x="{b[0]-2}" y="{b[1]}" width="4" height="{fy-b[1]}" fill="{APP_L}"/><circle cx="{b[0]}" cy="{b[1]}" r="4.5" fill="{metal(u)}"/>'
+        o = _floor(fy, w)
+        o += f'<polygon points="{board[0]-28},{fy} {board[0]+30},{fy} {board[0]+30},{fy-14}" fill="{metal(u)}"/>'
+        o += f'<polygon points="{board_hb[0]+28},{fy} {board_hb[0]-30},{fy} {board_hb[0]-30},{fy-14}" fill="{metal(u)}"/>'
+        for bb in (lb, hb):
+            o += f'<rect x="{bb[0]-2}" y="{bb[1]}" width="4" height="{fy-bb[1]}" fill="{APP_L}"/><circle cx="{bb[0]}" cy="{bb[1]}" r="4.5" fill="{metal(u)}"/>'
         return o
-    return Scene('uneven_bars', 350, fy, {'lb': lb, 'hb': hb, 'board': board, 'floor': (0, fy)}, bars=[lb, hb], draw=d, w=w)
+    return Scene('uneven_bars', 350, fy, {'lb': lb, 'hb': hb, 'board': board, 'board_hb': board_hb, 'floor': (0, fy)},
+                 bars=[lb, hb], draw=d, w=w)
 
 def rings():
     fy = 352; ring = (180, fy - round(2.75 * M))

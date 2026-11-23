@@ -27,8 +27,9 @@ in `work/` to generate families of specs (e.g. "back salto with N twists") inste
 - Scenes and anchors (85 px = 1 m; real heights): `floor` (anchor `floor@X`, floor y 268),
   `beam` (`beam@X`, top 1.25 m; the real floor is below at `floor@X` and the beam is a solid box: the trunk may
   never be inside it, legs/head/hands may hang beside it), `beam_mount` (wide 640 px: springboard `board` in front
-  of the left end of a 5 m beam from x 170 to 595, `beam@X`, `floor@X` — use it for every mount with a run or board), `high_bar` (`bar`, 2.8 m), `uneven_bars` (wide 640 px: springboard `board` at x≈172,
-  `lb` 1.70 m at x 300, `hb` 2.50 m at x 430, `floor@X`; room for the run/round-off and for swings outside the bars), `rings` (`rings`, 2.75 m; rings and straps are drawn at the hands),
+  of the left end of a 5 m beam from x 170 to 595, `beam@X`, `floor@X` — use it for every mount with a run or board), `high_bar` (`bar`, 2.8 m), `uneven_bars` (wide 760 px: springboard `board` at x≈262 in front of the low bar,
+  `lb` 1.70 m at x 390, `hb` 2.50 m at x 520, a second board `board_hb` at x≈650 outside the high bar for mounts
+  from that side, `floor@X`; room for the run/round-off and for swings outside the bars), `rings` (`rings`, 2.75 m; rings and straps are drawn at the hands),
   `parallel_bars` (`rail@X`, 2.0 m), `pommel_horse` (`pommel_l`, `pommel_r`, `horse@X`),
   `vault` (wider canvas, 640 px ≈ 7.5 m: runway from x≈20 for the hurdle/round-off, `board` at x≈280, `table@X` top 1.25 m with the table between x 370 and 462, `floor@X`, `mat@X` between x 478 and 628).
   Use x between ~30 and ~330. The canvas grows upward automatically.
