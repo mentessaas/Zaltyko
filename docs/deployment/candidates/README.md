@@ -1215,13 +1215,13 @@ commit;
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261119123000_element_catalog_seed_fig-wag-2025-2028_2.sql` (semilla de la tanda 2) | `a9005a6a1a0e543fbc6d54aed23ead02bf247d37e02dc48984e42d3cbaf81dac` | No aplicada | No aplicada |
+| `20261119123000_element_catalog_seed_fig-wag-2025-2028_2.sql` (semilla de la tanda 2, revisada el 23-11-2026 por delegación de Elvis; en borrador era `a9005a6a…`) | `d9bf27580755f6ebf44221a40a9e1d8461075caa463ef592b71d90ba7c356530` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 - **Qué carga.** 32 saltos de la edición `fig-wag-2025-2028` (Yurchenko y
-  rondada con medio giro y mortal adelante), **en borrador**: con ella el salto
+  rondada con medio giro y mortal adelante), **revisados el 23-11-2026** (revisión delegada en Claude): con ella el salto
   queda completo. Las academias no los ven hasta que Elvis revise la tanda; al
   revisarla se vuelve a generar con el mismo nombre y su hash cambia.
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
