@@ -20,6 +20,16 @@ class Pose:
         self.head, self.front = head, front
 
     def joints(self, pelvis=(0, 0)):
+        j = self._joints_flat(pelvis)
+        yaw = getattr(self, 'yaw', 0)
+        if yaw:
+            # rotation about a vertical axis through the pivot joint: horizontal offsets shrink by cos(yaw)
+            import math as _m
+            px = j[getattr(self, 'yaw_pivot', 'han')][0]; c = _m.cos(_m.radians(yaw))
+            j = {k: (px + (x - px) * c, y) for k, (x, y) in j.items()}
+        return j
+
+    def _joints_flat(self, pelvis=(0, 0)):
         t = self.torso
         neck = add(pelvis, v(t, L['torso']))
         j = {'pelvis': pelvis, 'neck': neck}

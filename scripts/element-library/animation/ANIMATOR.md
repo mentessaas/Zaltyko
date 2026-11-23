@@ -57,6 +57,12 @@ in `work/` to generate families of specs (e.g. "back salto with N twists") inste
 - `poster`: frame indices for the static pictogram (main = the defining moment; 1–2 ghosts).
 - Holds (strength): show a short, plausible entry (0.5–1 s) and then hold the pose with `dt: 2.0`.
 - Front-view elements (cross on rings): `"view": "front"` and `"front": true` in the poses.
+- Rotation about a vertical axis (pommel horse circles/flairs, travels; pirouettes): add `"yaw"` (deg)
+  and `"yawPivot"` (joint, default `han`) to poses. The body is drawn in its own plane and turned about
+  a vertical axis through the pivot: horizontal offsets shrink with cos(yaw) and the body is drawn
+  behind the apparatus while sin(yaw) < 0. A circle = yaw advancing 360° (e.g. 0→360 in ≈0.95 s) with the
+  body near horizontal and the shoulders leaning opposite to the feet; key every 45°. See
+  `work/test_circle.json` for a minimal example.
 
 ## Technique first (mandatory)
 Read the family sections of `tecnica/swing.md`, `tecnica/acro-dance-vault.md` and

@@ -24,24 +24,24 @@ def ease(u): return u * u * (3 - 2 * u)
 # ---------- representation ----------
 class Shape:
     """Pose relative to the torso: rel angles for upper/lower of each limb, plus head tilt."""
-    def __init__(self, arm_n, arm_f, leg_n, leg_f, head=0.0, facing=1):
+    def __init__(self, arm_n, arm_f, leg_n, leg_f, head=0.0, facing=1, yaw=0.0, yaw_pivot='han'):
         self.arm_n, self.arm_f, self.leg_n, self.leg_f = arm_n, arm_f, leg_n, leg_f
-        self.head, self.facing = head, facing
+        self.head, self.facing, self.yaw, self.yaw_pivot = head, facing, yaw, yaw_pivot
     @staticmethod
     def of(p, facing=1):
         r = lambda pair: (pair[0] - p.torso, pair[1] - p.torso)
-        return Shape(r(p.arm_n), r(p.arm_f), r(p.leg_n), r(p.leg_f), p.head, facing)
+        return Shape(r(p.arm_n), r(p.arm_f), r(p.leg_n), r(p.leg_f), p.head, facing, getattr(p, 'yaw', 0), getattr(p, 'yaw_pivot', 'han'))
     def pose(self, torso):
         a = lambda pair: (pair[0] + torso, pair[1] + torso)
         p = Pose(torso=torso, arm_n=a(self.arm_n), arm_f=a(self.arm_f), leg_n=a(self.leg_n), leg_f=a(self.leg_f), head=self.head)
-        p.facing = self.facing
+        p.facing = self.facing; p.yaw = self.yaw; p.yaw_pivot = self.yaw_pivot
         return p
 
 def lerp_shape(a, b, u):
     l = lambda x, y: x + (y - x) * u   # follow the direction written in the spec (validator catches impossible paths)
     pr = lambda p, q: (l(p[0], q[0]), l(p[1], q[1]))
     return Shape(pr(a.arm_n, b.arm_n), pr(a.arm_f, b.arm_f), pr(a.leg_n, b.leg_n), pr(a.leg_f, b.leg_f), l(a.head, b.head),
-                 a.facing if u < 0.5 else b.facing)
+                 a.facing if u < 0.5 else b.facing, l(a.yaw, b.yaw), a.yaw_pivot)
 
 # ---------- mechanics ----------
 def com(p, pelvis=(0, 0)):
