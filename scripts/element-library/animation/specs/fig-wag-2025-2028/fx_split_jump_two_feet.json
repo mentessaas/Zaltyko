@@ -144,7 +144,7 @@
   },
   {
    "flight": {
-    "riseM": 0.34,
+    "riseM": 0.32,
     "rotation": -4,
     "shapes": [
      {
@@ -533,7 +533,7 @@
        ],
        "head": 0,
        "facing": 1,
-       "yaw": 0.0,
+       "yaw": 0,
        "yawPivot": "pelvis"
       }
      }
@@ -571,12 +571,12 @@
        ],
        "head": 0,
        "facing": 1,
-       "yaw": 0.0,
+       "yaw": 0,
        "yawPivot": "pelvis"
       }
      },
      {
-      "dt": 0.14,
+      "dt": 0.16,
       "pose": {
        "torso": 5,
        "arm_n": [
@@ -602,7 +602,7 @@
       }
      },
      {
-      "dt": 0.34,
+      "dt": 0.36,
       "pose": {
        "torso": 2,
        "arm_n": [
@@ -618,8 +618,8 @@
         184
        ],
        "leg_f": [
-        236,
-        238
+        213.34,
+        213.35
        ],
        "head": 0,
        "facing": 1,

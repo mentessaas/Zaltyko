@@ -7,7 +7,7 @@
   {
    "contact": {
     "joint": "tof",
-    "at": "floor@40",
+    "at": "floor@64.41",
     "keys": [
      {
       "dt": 0,
@@ -116,14 +116,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@173.14"
+     "at": "floor@177.83"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@173.14",
+    "at": "floor@177.83",
     "keys": [
      {
       "dt": 0,
@@ -178,7 +178,7 @@
   },
   {
    "flight": {
-    "riseM": 1.0,
+    "riseM": 0.95,
     "rotation": 365.0,
     "shapes": [
      {
@@ -304,14 +304,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@228.14"
+     "at": "floor@232.83"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@228.14",
+    "at": "floor@232.83",
     "keys": [
      {
       "dt": 0,
@@ -414,7 +414,10 @@
   }
  ],
  "poster": {
-  "main": 0,
-  "ghosts": []
+  "main": 31,
+  "ghosts": [
+   17,
+   44
+  ]
  }
 }

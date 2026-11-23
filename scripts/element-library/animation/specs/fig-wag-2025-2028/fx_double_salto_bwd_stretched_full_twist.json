@@ -7,7 +7,7 @@
   {
    "contact": {
     "joint": "tof",
-    "at": "floor@355.13",
+    "at": "floor@441.08",
     "keys": [
      {
       "dt": 0,
@@ -116,14 +116,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@300.13"
+     "at": "floor@323.73"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@300.13",
+    "at": "floor@323.73",
     "keys": [
      {
       "dt": 0,
@@ -179,7 +179,7 @@
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@300.13",
+    "at": "floor@323.73",
     "keys": [
      {
       "dt": 0,
@@ -235,7 +235,7 @@
   {
    "contact": {
     "joint": "haf",
-    "at": "floor@209.07",
+    "at": "floor@232.66",
     "keys": [
      {
       "dt": 0,
@@ -291,7 +291,7 @@
   {
    "contact": {
     "joint": "han",
-    "at": "floor@197.07",
+    "at": "floor@220.66",
     "keys": [
      {
       "dt": 0,
@@ -424,14 +424,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@147.07"
+     "at": "floor@117.01"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@147.07",
+    "at": "floor@117.01",
     "keys": [
      {
       "dt": 0,
@@ -486,7 +486,7 @@
   },
   {
    "flight": {
-    "riseM": 1.35,
+    "riseM": 0.8,
     "rotation": -715.0,
     "shapes": [
      {
@@ -514,7 +514,7 @@
       }
      },
      {
-      "u": 0.24,
+      "u": 0.28,
       "pose": {
        "torso": -357.0,
        "head": 0,
@@ -568,12 +568,12 @@
        "head": 0,
        "facing": 1,
        "arm_n": [
-        123.0,
-        119.0
+        93.0,
+        89.0
        ],
        "arm_f": [
-        123.0,
-        119.0
+        93.0,
+        89.0
        ],
        "leg_n": [
         -187.0,
@@ -612,11 +612,11 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@87.07"
+     "at": "floor@85.24"
     },
     "twist": 360,
     "twistWindow": [
-     0.1,
+     0.14,
      0.8
     ]
    }
@@ -624,7 +624,7 @@
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@87.07",
+    "at": "floor@85.24",
     "keys": [
      {
       "dt": 0,
@@ -727,10 +727,10 @@
   }
  ],
  "poster": {
-  "main": 58,
+  "main": 55,
   "ghosts": [
    43,
-   75
+   67
   ]
  }
 }

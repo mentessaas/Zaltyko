@@ -31,7 +31,7 @@
        ],
        "head": 0,
        "facing": 1,
-       "yaw": 40,
+       "yaw": 70,
        "yawPivot": "pelvis"
       }
      },
@@ -57,7 +57,7 @@
        ],
        "head": 0,
        "facing": 1,
-       "yaw": 40,
+       "yaw": 70,
        "yawPivot": "pelvis"
       }
      },
@@ -83,7 +83,7 @@
        ],
        "head": 0,
        "facing": 1,
-       "yaw": 40,
+       "yaw": 70,
        "yawPivot": "pelvis"
       }
      },
@@ -109,7 +109,7 @@
        ],
        "head": 0,
        "facing": 1,
-       "yaw": 40,
+       "yaw": 70,
        "yawPivot": "pelvis"
       }
      },
@@ -135,7 +135,7 @@
        ],
        "head": 0,
        "facing": 1,
-       "yaw": 40,
+       "yaw": 70,
        "yawPivot": "pelvis"
       }
      }
@@ -169,7 +169,7 @@
        ],
        "head": 0.0,
        "facing": 1,
-       "yaw": 52.0,
+       "yaw": 82.0,
        "yawPivot": "pelvis"
       }
      },
@@ -195,7 +195,7 @@
        ],
        "head": 0.0,
        "facing": 1,
-       "yaw": 100.0,
+       "yaw": 130.0,
        "yawPivot": "pelvis"
       }
      },
@@ -221,7 +221,7 @@
        ],
        "head": 0.0,
        "facing": -1,
-       "yaw": 148.0,
+       "yaw": 178.0,
        "yawPivot": "pelvis"
       }
      },
@@ -247,7 +247,7 @@
        ],
        "head": 0.0,
        "facing": -1,
-       "yaw": 196.0,
+       "yaw": 226.0,
        "yawPivot": "pelvis"
       }
      },
@@ -273,7 +273,7 @@
        ],
        "head": 0.0,
        "facing": -1,
-       "yaw": 130.0,
+       "yaw": 160.0,
        "yawPivot": "pelvis"
       }
      },
@@ -299,7 +299,7 @@
        ],
        "head": 0.0,
        "facing": -1,
-       "yaw": 130.0,
+       "yaw": 160.0,
        "yawPivot": "pelvis"
       }
      },
@@ -325,7 +325,7 @@
        ],
        "head": 0.0,
        "facing": -1,
-       "yaw": 130.0,
+       "yaw": 160.0,
        "yawPivot": "pelvis"
       }
      },
@@ -351,7 +351,7 @@
        ],
        "head": 0.0,
        "facing": -1,
-       "yaw": 130.0,
+       "yaw": 160.0,
        "yawPivot": "pelvis"
       }
      },
@@ -377,7 +377,7 @@
        ],
        "head": 0.0,
        "facing": -1,
-       "yaw": 130.0,
+       "yaw": 160.0,
        "yawPivot": "pelvis"
       }
      },
@@ -403,7 +403,7 @@
        ],
        "head": 0.0,
        "facing": -1,
-       "yaw": 130.0,
+       "yaw": 160.0,
        "yawPivot": "pelvis"
       }
      },
@@ -429,7 +429,7 @@
        ],
        "head": 0.0,
        "facing": -1,
-       "yaw": 130.0,
+       "yaw": 160.0,
        "yawPivot": "pelvis"
       }
      },
@@ -455,7 +455,7 @@
        ],
        "head": 0.0,
        "facing": -1,
-       "yaw": 130.0,
+       "yaw": 160.0,
        "yawPivot": "pelvis"
       }
      },
@@ -481,7 +481,7 @@
        ],
        "head": 0.0,
        "facing": -1,
-       "yaw": 130.0,
+       "yaw": 160.0,
        "yawPivot": "pelvis"
       }
      },
@@ -507,7 +507,7 @@
        ],
        "head": 0.0,
        "facing": -1,
-       "yaw": 130.0,
+       "yaw": 160.0,
        "yawPivot": "pelvis"
       }
      },
@@ -533,7 +533,7 @@
        ],
        "head": 0,
        "facing": -1,
-       "yaw": 220.0,
+       "yaw": 250.0,
        "yawPivot": "pelvis"
       }
      }
@@ -557,14 +557,14 @@
      {
       "dt": 0,
       "pose": {
-       "torso": -2.0816681711721685e-16,
+       "torso": -2.498001805406602e-16,
        "arm_n": [
         12.0,
         6.0
        ],
        "arm_f": [
-        4.0,
-        -2.0816681711721685e-16
+        3.9999999999999996,
+        -2.498001805406602e-16
        ],
        "leg_n": [
         176.0,
@@ -576,7 +576,7 @@
        ],
        "head": 0,
        "facing": 1,
-       "yaw": 220.0,
+       "yaw": 250.0,
        "yawPivot": "pelvis"
       }
      },
@@ -602,7 +602,7 @@
        ],
        "head": 0,
        "facing": 1,
-       "yaw": 220,
+       "yaw": 250,
        "yawPivot": "pelvis"
       }
      },
@@ -628,7 +628,7 @@
        ],
        "head": 0,
        "facing": 1,
-       "yaw": 220,
+       "yaw": 250,
        "yawPivot": "pelvis"
       }
      }

@@ -7,7 +7,7 @@
   {
    "contact": {
     "joint": "tof",
-    "at": "floor@374.57",
+    "at": "floor@335.57",
     "keys": [
      {
       "dt": 0,
@@ -116,14 +116,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@319.57"
+     "at": "floor@290.57"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@319.57",
+    "at": "floor@290.57",
     "keys": [
      {
       "dt": 0,
@@ -179,7 +179,7 @@
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@319.57",
+    "at": "floor@290.57",
     "keys": [
      {
       "dt": 0,
@@ -235,7 +235,7 @@
   {
    "contact": {
     "joint": "haf",
-    "at": "floor@228.51",
+    "at": "floor@199.51",
     "keys": [
      {
       "dt": 0,
@@ -291,7 +291,7 @@
   {
    "contact": {
     "joint": "han",
-    "at": "floor@216.51",
+    "at": "floor@187.51",
     "keys": [
      {
       "dt": 0,
@@ -374,7 +374,7 @@
     "rotation": -122,
     "shapes": [
      {
-      "u": 0.5,
+      "u": 0.45,
       "pose": {
        "torso": -212.0,
        "head": 0,
@@ -388,12 +388,12 @@
         153.0
        ],
        "leg_n": [
-        -44.0,
-        -40.0
+        -72.0,
+        -66.0
        ],
        "leg_f": [
-        -44.0,
-        -40.0
+        -72.0,
+        -66.0
        ]
       }
      },
@@ -424,14 +424,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@166.51"
+     "at": "floor@142.51"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@166.51",
+    "at": "floor@142.51",
     "keys": [
      {
       "dt": 0,
@@ -1212,7 +1212,7 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@81.51"
+     "at": "floor@72.51"
     },
     "twist": 1260,
     "twistWindow": [
@@ -1224,7 +1224,7 @@
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@81.51",
+    "at": "floor@72.51",
     "keys": [
      {
       "dt": 0,
