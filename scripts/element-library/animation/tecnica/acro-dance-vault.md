@@ -394,6 +394,16 @@ General key order: **approach → contact (block) → flight shapes → landing 
 - Arms in 2nd or 3rd position.
 - Timing similar to the split leap, with a slightly lower flight [E].
 
+### B4b. Tour jeté (fouetté hop with leg change)
+
+- The Code classes it as a **hop**: take-off from one foot, landing on the **same** foot or on both
+  feet (WAG CoP, dance definitions: "Hops"). Not on the kicking leg.
+- Take-off foot pushes, the free leg kicks forward and up, the body turns 180° around the vertical
+  axis, and the legs scissor so the cross split shows at the peak with the kicked leg now behind.
+  The take-off leg comes forward and down to land, the other leg stays high behind (arabesque).
+- Variants with extra turn (Produnova, Gogean, Ferrari) keep the same landing rule (one or both
+  feet; Produnova may also end in split sit).
+
 ### B5. Stag and ring positions (leaps and jumps)
 
 - **Stag**: the front leg is bent with the thigh horizontal or higher and the shin hanging, toe
