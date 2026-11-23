@@ -106,6 +106,15 @@
      procedimiento y versión, fechas, quién redactó («Claude»), resultado de
      la comprobación, muestra manual y quién revisó. Sin datos personales.
 
+   **Enmienda (23-11-2026, decisión de Elvis: «revísalo todo tú»).** La
+   revisión técnica y la muestra manual del 10 % las puede hacer Claude por
+   delegación de Elvis, con estas condiciones: las hace una sesión distinta de
+   la que redacta, con el Código oficial de la FIG delante (texto y dibujos);
+   las correcciones vuelven al redactor como hechos, nunca como texto del
+   Código, y pasan otra vez la comprobación de similitud; el registro de la
+   tanda dice `reviewedBy: "Claude"`. Elvis puede revisar después cualquier
+   tanda y su revisión sustituye a la delegada.
+
    Nada sale de Upgrade Gymnastics, de GymPro Atlas ni de las semillas
    antiguas.
 8. **Atribución.** Pie fijo en la biblioteca y en cada ficha (§7.3 del
