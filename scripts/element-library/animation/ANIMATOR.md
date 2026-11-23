@@ -30,7 +30,9 @@ in `work/` to generate families of specs (e.g. "back salto with N twists") inste
   flexion to 200° (arms overhead and a bit behind), extension to 75°.
 - Joint names for contacts: hands `han`/`haf`, wrists are the hand points; feet tips `ton`/`tof`,
   ankles `ann`/`anf`; `pelvis`, `neck`.
-- Scenes and anchors (85 px = 1 m; real heights): `floor` (anchor `floor@X`, floor y 268),
+- Scenes and anchors (85 px = 1 m; real heights): `floor` (anchor `floor@X`, floor y 268, 360 px ≈ 4.2 m: for
+  elements done on the spot), `floor_pass` (same floor, 720 px ≈ 8.5 m: use it for every tumbling pass with a run,
+  hurdle, round-off or flic-flac entry so the travel and speeds are real),
   `beam` (`beam@X`, top 1.25 m; the real floor is below at `floor@X` and the beam is a solid box: the trunk may
   never be inside it, legs/head/hands may hang beside it), `beam_mount` (wide 800 px: 3 m of run-up, springboard `board` at x≈262 in front
   of the left end of a 5 m beam from x 330 to 755, `beam@X`, `floor@X` — use it for every mount with a run or board), `high_bar` (`bar`, 2.8 m), `uneven_bars` (wide 760 px: springboard `board` at x≈262 in front of the low bar,

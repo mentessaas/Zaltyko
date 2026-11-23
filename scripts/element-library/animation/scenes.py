@@ -19,6 +19,11 @@ def floor():
     fy = 268
     return Scene('floor', 300, fy, {'floor': (0, fy)}, draw=lambda u: _floor(fy))
 
+def floor_pass():
+    """Tumbling pass: 8.5 m wide so run, hurdle, round-off/flic-flac and the salto fit at real speed."""
+    fy, w = 268, 720
+    return Scene('floor', 300, fy, {'floor': (0, fy)}, draw=lambda u: _floor(fy, w), w=w)
+
 def beam():
     fy, top = 330, 330 - round(1.25 * M)
     def d(u):
@@ -96,5 +101,5 @@ def vault():
                 f'<rect x="478" y="{fy-8}" width="150" height="8" rx="3" fill="{APP_L}"/>')
     return Scene('vault', 340, fy, {'board': (280, fy - 10), 'table': (0, top), 'floor': (0, fy), 'mat': (0, fy - 8)}, draw=d, w=w)
 
-SCENES = {'floor': floor, 'beam': beam, 'beam_mount': beam_mount, 'high_bar': high_bar, 'uneven_bars': uneven, 'rings': rings,
+SCENES = {'floor': floor, 'floor_pass': floor_pass, 'beam': beam, 'beam_mount': beam_mount, 'high_bar': high_bar, 'uneven_bars': uneven, 'rings': rings,
           'parallel_bars': pbars, 'pommel_horse': pommel, 'vault': vault}
