@@ -46,13 +46,15 @@ def high_bar():
     return Scene('high_bar', 350, fy, {'bar': bar}, bars=[bar], draw=d)
 
 def uneven():
-    fy = 340; lb = (118, fy - round(1.70 * M)); hb = (248, fy - round(2.50 * M))
+    """7.5 m wide: run and springboard in front of the low bar, bars 1.5 m apart, room outside the high bar."""
+    fy, w = 340, 640
+    lb = (300, fy - round(1.70 * M)); hb = (430, fy - round(2.50 * M)); board = (172, fy - 10)
     def d(u):
-        o = _floor(fy)
+        o = _floor(fy, w) + f'<polygon points="{board[0]-28},{fy} {board[0]+30},{fy} {board[0]+30},{fy-14}" fill="{metal(u)}"/>'
         for b in (lb, hb):
             o += f'<rect x="{b[0]-2}" y="{b[1]}" width="4" height="{fy-b[1]}" fill="{APP_L}"/><circle cx="{b[0]}" cy="{b[1]}" r="4.5" fill="{metal(u)}"/>'
         return o
-    return Scene('uneven_bars', 350, fy, {'lb': lb, 'hb': hb}, bars=[lb, hb], draw=d)
+    return Scene('uneven_bars', 350, fy, {'lb': lb, 'hb': hb, 'board': board, 'floor': (0, fy)}, bars=[lb, hb], draw=d, w=w)
 
 def rings():
     fy = 352; ring = (180, fy - round(2.75 * M))
