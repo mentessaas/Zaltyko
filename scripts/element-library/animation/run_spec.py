@@ -16,7 +16,7 @@ def pose_of(d):
     p.facing = d.get('facing', 1); p.yaw = d.get('yaw', 0); p.yaw_pivot = d.get('yawPivot', 'han'); return p
 
 def shape_of(d):
-    p = pose_of(d); s = Shape.of(p, p.facing); s.front = p.front; return s
+    p = pose_of(d); return Shape.of(p, p.facing)
 
 def build(spec):
     sc = SCENES[spec['scene']](); tl = Timeline(); flights = []
