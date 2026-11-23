@@ -150,7 +150,7 @@ def validate(tl, floor_y=None, bars=(), max_step=28, front=False):
     problems = []
     prev = None; prev_meta = {}
     for i, (p, pel, meta) in enumerate(tl.frames):
-        if not front:
+        if not front and not getattr(p, 'front', False):   # face-on frames: side-view joint limits do not apply
             for name, val in joint_angles(p).items():
                 lo, hi = LIMITS[name.split('_')[0]]
                 if not lo <= val <= hi:
