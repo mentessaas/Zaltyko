@@ -170,7 +170,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 2.470588235294117,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -196,7 +197,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 18.941176470588236,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -222,7 +224,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 35.41176470588235,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -249,7 +252,8 @@
        "facing": 1,
        "yaw": -38.11764705882353,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -276,7 +280,8 @@
        "facing": 1,
        "yaw": -21.647058823529406,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -303,7 +308,8 @@
        "facing": 1,
        "yaw": -12.941176470588232,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -330,7 +336,8 @@
        "facing": 1,
        "yaw": -5.098039215686271,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -357,7 +364,8 @@
        "facing": 1,
        "yaw": 2.7450980392156907,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -384,7 +392,8 @@
        "facing": -1,
        "yaw": 10.588235294117652,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -411,7 +420,8 @@
        "facing": -1,
        "yaw": 18.431372549019613,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -438,7 +448,8 @@
        "facing": -1,
        "yaw": 30.29411764705884,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -465,7 +476,8 @@
        "facing": -1,
        "yaw": 43.161764705882376,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -492,7 +504,8 @@
        "facing": -1,
        "yaw": 56.029411764705856,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -519,7 +532,8 @@
        "facing": -1,
        "yaw": 68.89705882352939,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -545,7 +559,8 @@
        "head": 0.0,
        "facing": -1,
        "yaw": 171.76470588235293,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -571,7 +586,8 @@
        "head": 0.0,
        "facing": -1,
        "yaw": 180.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -620,7 +636,7 @@
      {
       "dt": 0,
       "pose": {
-       "torso": 1.1102230246251565e-16,
+       "torso": -1.249000902703301e-16,
        "arm_n": [
         140.0,
         128.0

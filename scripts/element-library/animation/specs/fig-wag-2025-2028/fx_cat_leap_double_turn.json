@@ -118,7 +118,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -144,7 +145,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -170,7 +172,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -196,7 +199,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -222,7 +226,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -510,7 +515,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 7.474048442906572,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -536,7 +542,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 57.30103806228374,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -562,7 +569,8 @@
        "head": 0.0,
        "facing": -1,
        "yaw": 107.1280276816609,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -588,7 +596,8 @@
        "head": 0.0,
        "facing": -1,
        "yaw": 156.95501730103808,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -614,7 +623,8 @@
        "head": 0.0,
        "facing": -1,
        "yaw": 206.78200692041523,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -640,7 +650,8 @@
        "head": 0.0,
        "facing": -1,
        "yaw": 256.60899653979243,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -666,7 +677,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 306.43598615916954,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -692,7 +704,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 356.2629757785467,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -718,7 +731,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 406.08996539792383,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -744,7 +758,8 @@
        "head": 0.0,
        "facing": -1,
        "yaw": 455.91695501730106,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -770,7 +785,8 @@
        "head": 0.0,
        "facing": -1,
        "yaw": 505.7439446366782,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -796,7 +812,8 @@
        "head": 0.0,
        "facing": -1,
        "yaw": 555.5709342560554,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -822,7 +839,8 @@
        "head": 0.0,
        "facing": -1,
        "yaw": 605.3979238754324,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -848,7 +866,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 655.2249134948097,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -874,7 +893,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 705.0519031141868,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -900,7 +920,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 720.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {

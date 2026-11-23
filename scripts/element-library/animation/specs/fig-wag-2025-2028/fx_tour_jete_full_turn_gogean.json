@@ -118,7 +118,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -144,7 +145,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -170,7 +172,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -196,7 +199,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -222,7 +226,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -510,7 +515,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 0.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -536,7 +542,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 3.5526315789473606,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -562,7 +569,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 39.07894736842104,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -588,7 +596,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": -15.394736842105289,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -614,7 +623,8 @@
        "head": 0.0,
        "facing": -1,
        "yaw": 20.13157894736841,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -640,7 +650,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": -34.34210526315792,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -666,7 +677,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 1.184210526315752,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -692,7 +704,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 36.71052631578945,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -718,7 +731,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 72.2368421052631,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -744,7 +758,8 @@
        "head": 0.0,
        "facing": -1,
        "yaw": 107.76315789473682,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -770,7 +785,8 @@
        "head": 0.0,
        "facing": -1,
        "yaw": 143.28947368421052,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -796,7 +812,8 @@
        "head": 0.0,
        "facing": -1,
        "yaw": 178.81578947368416,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -822,7 +839,8 @@
        "head": 0.0,
        "facing": -1,
        "yaw": 214.34210526315792,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -848,7 +866,8 @@
        "head": 0.0,
        "facing": -1,
        "yaw": 249.86842105263156,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -874,7 +893,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 285.39473684210526,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -900,7 +920,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 320.9210526315789,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -926,7 +947,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 356.4473684210526,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -952,7 +974,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 360.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {

@@ -118,7 +118,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": -30.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -144,7 +145,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": -30.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -170,7 +172,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": -30.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -196,7 +199,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": -30.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -222,7 +226,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": -30.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -248,7 +253,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": -30.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -536,7 +542,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": -21.529411764705884,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -562,7 +569,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 4.941176470588239,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -588,7 +596,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 31.411764705882362,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -614,7 +623,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 57.882352941176464,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -641,7 +651,8 @@
        "facing": 1,
        "yaw": -30.0,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -668,7 +679,8 @@
        "facing": 1,
        "yaw": -30.0,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -695,7 +707,8 @@
        "facing": 1,
        "yaw": -30.0,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -722,7 +735,8 @@
        "facing": 1,
        "yaw": -30.0,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -749,7 +763,8 @@
        "facing": 1,
        "yaw": -30.0,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -776,7 +791,8 @@
        "facing": 1,
        "yaw": -30.0,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -803,7 +819,8 @@
        "facing": 1,
        "yaw": -30.0,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -830,7 +847,8 @@
        "facing": 1,
        "yaw": -30.0,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -857,7 +875,8 @@
        "facing": 1,
        "yaw": -30.0,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -884,7 +903,8 @@
        "facing": 1,
        "yaw": -30.0,
        "yawPivot": "pelvis",
-       "front": true
+       "front": true,
+       "arch": 0.0
       }
      },
      {
@@ -910,7 +930,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 60.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -936,7 +957,8 @@
        "head": 0.0,
        "facing": 1,
        "yaw": 60.0,
-       "yawPivot": "pelvis"
+       "yawPivot": "pelvis",
+       "arch": 0.0
       }
      },
      {
@@ -985,7 +1007,7 @@
      {
       "dt": 0,
       "pose": {
-       "torso": -3.885780586188048e-16,
+       "torso": 2.7755575615628914e-17,
        "arm_n": [
         140.0,
         128.0
