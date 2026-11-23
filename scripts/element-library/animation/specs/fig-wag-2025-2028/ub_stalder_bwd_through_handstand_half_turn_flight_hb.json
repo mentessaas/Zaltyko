@@ -381,7 +381,7 @@
      "joint": "han",
      "at": "hb"
     },
-    "riseM": 0.15,
+    "riseM": 0.35,
     "twist": 180,
     "twistWindow": [
      0.2,
@@ -471,10 +471,10 @@
   }
  ],
  "poster": {
-  "main": 74,
+  "main": 76,
   "ghosts": [
-   41,
-   98
+   43,
+   102
   ]
  }
 }
