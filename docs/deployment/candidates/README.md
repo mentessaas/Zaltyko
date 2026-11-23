@@ -1230,7 +1230,7 @@ commit;
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120073000_element_catalog_seed_fig-wag-2025-2028_10.sql` (semilla de la tanda 10) | `803e3589571d69bb3001da4953b773b5ff70808b02f7fe4a43bc9717039542c2` | No aplicada | No aplicada |
+| `20261120073000_element_catalog_seed_fig-wag-2025-2028_10.sql` (semilla de la tanda 10, revisada el 23-11-2026 por delegación de Elvis; en borrador era `803e3589…`) | `64e8b63362f033297eb5f3b7d04aad4d222b035c39731f50c02137b3d4994a71` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1354,7 +1354,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
   los elementos de la tanda 9.
 - **Registro:** `src/modules/element-library/data/fig-wag-2025-2028/tandas/9.json`.
 - **Qué carga.** 42 saltos de suelo de la edición `fig-wag-2025-2028`,
-  **en borrador**. Las academias no los ven hasta que Elvis revise la tanda;
+  **revisados el 23-11-2026** (revisión delegada en Claude). Las academias no los ven hasta que Elvis revise la tanda;
   al revisarla se vuelve a generar con el mismo nombre y su hash cambia.
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es
   independiente de las demás semillas, con la misma semántica, y solo escribe
@@ -1365,13 +1365,13 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120083000_element_catalog_seed_fig-wag-2025-2028_11.sql` (semilla de la tanda 11) | `fedffc059e2d6035908072a36c4a15fe347340700f86a7250c83ce261fad0e51` | No aplicada | No aplicada |
+| `20261120083000_element_catalog_seed_fig-wag-2025-2028_11.sql` (semilla de la tanda 11, revisada el 23-11-2026 por delegación de Elvis; en borrador era `fedffc05…`) | `f52d52ddeefaf8556461fa58274e6f7e459e61d7d4b15e6f7372b281e4a7f4f5` | No aplicada | No aplicada |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 - **Qué carga.** 63 elementos de suelo de la edición `fig-wag-2025-2028`
-  (giros, apoyo de manos y mortales), **en borrador**. Las academias no los ven
+  (giros, apoyo de manos y mortales), **revisados el 23-11-2026** (revisión delegada en Claude). Las academias no los ven
   hasta que Elvis revise la tanda; al revisarla se vuelve a generar con el
   mismo nombre y su hash cambia.
 - **Requiere antes** `20261119120000_element_library_candidate.sql`. Es

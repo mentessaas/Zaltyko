@@ -138,14 +138,14 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 
 ### Décima tanda
 
-- Edición `fig-wag-2025-2028`, suelo, grupo 1 (saltos): **42 elementos, en borrador**. Es la primera tanda de suelo; añade `floor.json` y no depende de las tandas de asimétricas ni de barra.
+- Edición `fig-wag-2025-2028`, suelo, grupo 1 (saltos): **42 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Es la primera tanda de suelo; añade `floor.json` y no depende de las tandas de asimétricas ni de barra.
 - En los saltos con giro, la ficha no fija en qué momento del giro se ve la forma: con medio giro puede verse al principio o al final, y con giro completo o más también a mitad, según la regla general del Código. Los saltos a un pie caen en el mismo pie o en los dos.
 - Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/10.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; se volvieron a redactar 25 elementos (10 por parecido y 15 por datos que el Código no exige, como el momento del giro o el pie de caída). Muestra manual: 5 elementos, pendiente de Elvis.
 - Semilla: `docs/deployment/candidates/20261120073000_element_catalog_seed_fig-wag-2025-2028_10.sql`, sin aplicar.
 
 ### Undécima tanda
 
-- Edición `fig-wag-2025-2028`, suelo, grupos 2 (giros, 18), 3 (elementos con apoyo de manos, 11), 4 (mortales adelante, 16) y 5 (mortales atrás, 18): **63 elementos, en borrador**. Con ella quedan completos el suelo y el Código femenino (las tandas 1 a 11). Va encima de la décima tanda, porque comparte `floor.json`.
+- Edición `fig-wag-2025-2028`, suelo, grupos 2 (giros, 18), 3 (elementos con apoyo de manos, 11), 4 (mortales adelante, 16) y 5 (mortales atrás, 18): **63 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Con ella quedan completos el suelo y el Código femenino (las tandas 1 a 11). Va encima de la décima tanda, porque comparte `floor.json`.
 - Incluye valores hasta J (5.1002). Solo se dice «se cuenta una vez» en las casillas con asterisco; en el resto, las formas con distinta posición del cuerpo o pirueta son elementos distintos con el mismo valor.
 - Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/11.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; se volvieron a redactar 31 elementos (15 por parecido y 16 por errores técnicos, varios en los hechos: regla de contar una vez, epónimos Kim y Mukhina, datos solo del dibujo). Muestra manual: 7 elementos, pendiente de Elvis.
 - Semilla: `docs/deployment/candidates/20261120083000_element_catalog_seed_fig-wag-2025-2028_11.sql`, sin aplicar.
