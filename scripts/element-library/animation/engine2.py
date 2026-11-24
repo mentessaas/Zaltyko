@@ -78,16 +78,90 @@ class Timeline:
     @property
     def last(self): return self.frames[-1]
 
-def contact(tl, keys, joint, point, surface=None):
+_POSE_FIELDS = ('torso', 'arm_n', 'arm_f', 'leg_n', 'leg_f', 'head', 'arch')
+
+def _pose_values(p):
+    return [p.torso, *p.arm_n, *p.arm_f, *p.leg_n, *p.leg_f, p.head, getattr(p, 'arch', 0.0)]
+
+def _pose_from_values(values, template):
+    torso = values[0]
+    p = Pose(torso, tuple(values[1:3]), tuple(values[3:5]), tuple(values[5:7]), tuple(values[7:9]), values[9], template.front)
+    p.facing = getattr(template, 'facing', 1)
+    p.yaw = getattr(template, 'yaw', 0)
+    p.yaw_pivot = getattr(template, 'yaw_pivot', 'han')
+    p.arch = values[10]
+    return p
+
+def _launch_tangent(start, end, joint, point, target_velocity, duration, frames):
+    """Fit Hermite pose rates to the last sampled COM velocity before release."""
+    if target_velocity is None:
+        return None
+    q0, q1 = _pose_values(start), _pose_values(end); n = len(q1)
+    u = (frames - 1) / frames
+    h00 = 2*u**3 - 3*u**2 + 1; h01 = -2*u**3 + 3*u**2; h11 = u**3 - u**2
+    factor = h11 * duration
+    endpoint = com(end, pin(end, joint, point))
+    # Ballistic velocity over the first complete flight frame includes half a frame of gravity.
+    desired = (endpoint[0] - target_velocity[0] / FPS,
+               endpoint[1] - (target_velocity[1] + 0.5 * G / FPS) / FPS)
+    base = [h00*a + h01*b for a, b in zip(q0, q1)]
+    bounds = [798, 1140, 1140, 997.5, 997.5, 997.5, 997.5, 997.5, 997.5, 0, 570]
+    rates = [0.0] * n
+    for _ in range(120):
+        q = [b + factor*r for b, r in zip(base, rates)]
+        p = _pose_from_values(q, end); pelvis = pin(p, joint, point); c = com(p, pelvis)
+        error = (c[0] - desired[0], c[1] - desired[1])
+        if math.hypot(*error) < 0.05:
+            break
+        cols = []
+        for k in range(n):
+            eps = 0.01; lo, hi = q[:], q[:]; lo[k] -= eps; hi[k] += eps
+            plo = _pose_from_values(lo, end); phi = _pose_from_values(hi, end)
+            clo = com(plo, pin(plo, joint, point)); chi = com(phi, pin(phi, joint, point))
+            cols.append(((chi[0] - clo[0]) * factor / (2*eps), (chi[1] - clo[1]) * factor / (2*eps)))
+        lipschitz = sum(x*x + y*y for x, y in cols)
+        if lipschitz < 1e-12:
+            break
+        step = 0.8 / lipschitz
+        rates = [max(-bound, min(bound, rate - step*(col[0]*error[0] + col[1]*error[1])))
+                 for rate, bound, col in zip(rates, bounds, cols)]
+    return rates
+
+def contact_frame_counts(keys, end_velocity=None):
+    """30 fps frame allocation; borrow one frame locally only when total contact time is preserved."""
+    counts = [max(1, round(keys[i][0] * FPS)) for i in range(1, len(keys))]
+    if end_velocity is not None and counts and counts[-1] < 2 and len(counts) > 1 and counts[-2] > 1:
+        counts[-2] -= 1
+        counts[-1] = 2
+    return counts
+
+def contact(tl, keys, joint, point, surface=None, end_velocity=None, phase_id=None, elastic_accel=None, tangent_scale=1.0):
     """keys: [(duration_from_prev, torso_angle, Shape)]; first key duration ignored if timeline not empty."""
     t_tot = 0
+    frame_counts = contact_frame_counts(keys, end_velocity)
     for i in range(1, len(keys)):
         dur, (t0, s0), (t1, s1) = keys[i][0], keys[i - 1][1:], keys[i][1:]
-        n = max(1, round(dur * FPS))
+        terminal_rates = None
+        n = frame_counts[i - 1]
+        segment_duration = n / FPS
+        if i == len(keys) - 1 and end_velocity is not None and n >= 2:
+            segment_duration = n / FPS
+            start_pose = s0.pose(t0)
+            end_pose = s1.pose(t1)
+            terminal_rates = _launch_tangent(start_pose, end_pose, joint, point, end_velocity, segment_duration, n)
+            terminal_rates = [rate * tangent_scale for rate in terminal_rates] if terminal_rates else None
         for f in range(1 if (tl.frames or i > 1) else 0, n + 1):
-            u = ease(f / n)
-            sh = lerp_shape(s0, s1, u); p = sh.pose(t0 + (t1 - t0) * u)
-            tl.add(p, pin(p, joint, point), contact=(joint, point), surface=surface)
+            u = f / n
+            if terminal_rates is not None:
+                start = s0.pose(t0); end = s1.pose(t1); q0 = _pose_values(start); q1 = _pose_values(end)
+                h00 = 2*u**3 - 3*u**2 + 1; h01 = -2*u**3 + 3*u**2; h11 = u**3 - u**2
+                q = [h00*a + h01*b + h11*(segment_duration * rate) for a, b, rate in zip(q0, q1, terminal_rates)]
+                p = _pose_from_values(q, end)
+            else:
+                u = ease(u)
+                sh = lerp_shape(s0, s1, u); p = sh.pose(t0 + (t1 - t0) * u)
+            tl.add(p, pin(p, joint, point), contact=(joint, point), surface=surface,
+                   contact_phase=phase_id, elastic_accel=elastic_accel)
 
 def flight(tl, duration, shapes, rotation, land_joint, land_point, land_torso, surface=None, apex_y=None):
     """Ballistic flight from the last frame to a landing where `land_joint` touches `land_point`.
@@ -208,11 +282,27 @@ def momentum_warnings(tl, takeoff=1.5, spike=3.5):
     c = [com(p, pel) for p, pel, _ in tl.frames]
     fl = [bool(m.get('flight')) for _, _, m in tl.frames]
     v = [(0.0, 0.0)] + [((c[i][0] - c[i - 1][0]) * FPS / PX_PER_M, (c[i][1] - c[i - 1][1]) * FPS / PX_PER_M) for i in range(1, len(c))]
-    out = []
+    out = []; elastic = {}; covered = set()
+    for i, (_, _, meta) in enumerate(tl.frames):
+        phase = meta.get('contact_phase'); accel = meta.get('elastic_accel')
+        if phase is not None and accel is not None:
+            elastic.setdefault(phase, {'indices': [], 'accel': accel})['indices'].append(i)
+    for phase in elastic.values():
+        indices = phase['indices']; start, end = indices[0], indices[-1]
+        entry = start + 1 if start > 0 and fl[start - 1] else start
+        leave = end + 1 if end + 1 < len(c) and fl[end + 1] else end
+        duration = max(1 / FPS, (leave - entry) / FPS)
+        dv = math.dist(v[leave], v[entry])
+        covered.update(range(start, end + 2))
+        if dv > phase['accel'] * duration:
+            out.append(f'frame {leave}: elastic contact speed changes {dv:.1f} m/s in {duration:.2f} s (limit {phase["accel"]:.1f} m/s²)')
     for i in range(2, len(c)):
+        if i in covered:
+            continue
         dv = math.dist(v[i], v[i - 1])
         if fl[i] and not fl[i - 1] and dv > takeoff:
             out.append(f'frame {i}: take-off speed jumps {dv:.1f} m/s (support {v[i-1][0]:+.1f},{-v[i-1][1]:+.1f} -> flight {v[i][0]:+.1f},{-v[i][1]:+.1f}; x, up)')
-        elif not fl[i] and not fl[i - 1] and not fl[i - 2] and dv > spike:
-            out.append(f'frame {i}: support speed jumps {dv:.1f} m/s')
+        elif not fl[i] and not fl[i - 1] and not fl[i - 2]:
+            if dv > spike:
+                out.append(f'frame {i}: support speed jumps {dv:.1f} m/s')
     return out

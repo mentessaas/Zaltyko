@@ -6,7 +6,7 @@ Outputs per spec in DIR (default ./out): <key>.mp4 (preview), <key>.svg (static 
 """
 import json, math, os, subprocess, sys
 from figure import Pose
-from engine2 import Shape, Timeline, contact, flight, validate, com, FPS, PX_PER_M, joint_angles, momentum_warnings
+from engine2 import Shape, Timeline, contact, contact_frame_counts, flight, validate, com, pin, FPS, PX_PER_M, joint_angles, momentum_warnings
 from scenes import SCENES
 import volumen as V
 
@@ -19,16 +19,89 @@ def pose_of(d):
 def shape_of(d):
     p = pose_of(d); return Shape.of(p, p.facing)
 
+def planned_flight_velocity(p0, pel0, phase, sc):
+    """Return the exact ballistic launch velocity implied by this flight's landing/apex."""
+    f = phase['flight']; land = f['land']
+    point = sc.at(land['at']) if isinstance(land['at'], str) else tuple(land['at'])
+    end_pose = f['shapes'][-1]['pose']
+    end_shape = shape_of(end_pose)
+    end_pose = end_shape.pose(p0.torso + f['rotation'])
+    pel1 = pin(end_pose, land['joint'], point)
+    c0 = (pel0[0] + com(p0)[0], pel0[1] + com(p0)[1])
+    c1 = (pel1[0] + com(end_pose)[0], pel1[1] + com(end_pose)[1])
+    apex = c0[1] - f['riseM'] * PX_PER_M if 'riseM' in f else None
+    if 'apexAbove' in f:
+        apex = sc.at(f['apexAbove']['at'])[1] - f['apexAbove']['m'] * PX_PER_M
+    if apex is None:
+        duration = f.get('durationS')
+    else:
+        h0, h1 = c0[1] - apex, c1[1] - apex
+        assert h0 >= 0 and h1 >= 0, 'apex must be above both ends'
+        duration = math.sqrt(2 * h0 / (9.81 * PX_PER_M)) + math.sqrt(2 * h1 / (9.81 * PX_PER_M))
+    vx = (c1[0] - c0[0]) / duration
+    vy = (c1[1] - c0[1] - 0.5 * 9.81 * PX_PER_M * duration * duration) / duration
+    return vx, vy
+
 def build(spec):
     sc = SCENES[spec['scene']](); tl = Timeline(); flights = []
-    for ph in spec['timeline']:
+    for phase_index, ph in enumerate(spec['timeline']):
         if 'contact' in ph:
             c = ph['contact']; pt = sc.at(c['at']) if isinstance(c['at'], str) else tuple(c['at'])
             keys = [(k.get('dt', 0), k['pose']['torso'], shape_of(k['pose'])) for k in c['keys']]
             if tl.frames and keys[0][0] == 0 and len(keys) > 1 and c.get('continue', True):
                 pass
             start = len(tl.frames)
-            contact(tl, keys, c['joint'], pt, surface=sc.floor_y)   # front view is set per pose ("front": true)
+            next_phase = spec['timeline'][phase_index + 1] if phase_index + 1 < len(spec['timeline']) else None
+            launch_velocity = None
+            if next_phase and 'flight' in next_phase and len(keys) > 1:
+                last_pose = keys[-1][2].pose(keys[-1][1])
+                last_pelvis = pin(last_pose, c['joint'], pt)
+                launch_velocity = planned_flight_velocity(last_pose, last_pelvis, next_phase, sc)
+            contact_at = c['at']
+            contact_duration = sum(contact_frame_counts(keys, launch_velocity)) / FPS
+            elastic_accel = None
+            if isinstance(contact_at, str) and contact_at.startswith('board'):
+                # Greenwood & Newton measured a 10.6 BW peak; net COM acceleration is (GRF/BW - 1)g.
+                # https://ojs.ub.uni-konstanz.de/cpa/article/view/2729
+                elastic_accel = (10.6 - 1.0) * 9.81
+            elif isinstance(contact_at, str) and contact_at.startswith('table@'):
+                # Penitente & Sands' measured table-force range reaches 1.81 BW per hand; sum both hands.
+                # https://doi.org/10.1515/hukin-2015-0034
+                elastic_accel = (2 * 1.81 - 1.0) * 9.81
+            elif (isinstance(contact_at, str) and contact_at.startswith('floor@') and contact_duration <= 0.15
+                  and phase_index > 0 and phase_index + 1 < len(spec['timeline'])
+                  and 'flight' in spec['timeline'][phase_index - 1] and 'flight' in spec['timeline'][phase_index + 1]):
+                # Burt et al. report up to 8.46 BW at the ankles in floor round-offs; use as a linked-acro envelope.
+                # https://www.fsp.uni-lj.si/mma/SCGYM_2_3_2010_article1/2010093009140391/?m=1285830843
+                elastic_accel = (8.46 - 1.0) * 9.81
+            existing = set(validate(tl, floor_y=sc.floor_y, bars=sc.bars,
+                                    front=spec.get('view') == 'front', solids=getattr(sc, 'solids', ())))
+            existing_momentum = len(momentum_warnings(tl))
+            contact(tl, keys, c['joint'], pt, surface=sc.floor_y, end_velocity=launch_velocity,
+                    phase_id=phase_index, elastic_accel=elastic_accel)   # front view is set per pose
+            if launch_velocity is not None:
+                candidate_problems = validate(tl, floor_y=sc.floor_y, bars=sc.bars,
+                                              front=spec.get('view') == 'front', solids=getattr(sc, 'solids', ()))
+                if set(candidate_problems) - existing:
+                    # Reduce the launch tangent only as much as needed to preserve every validator rule.
+                    low, high, best = 0.0, 1.0, None
+                    for _ in range(8):
+                        scale = (low + high) / 2
+                        tl.frames = tl.frames[:start]
+                        contact(tl, keys, c['joint'], pt, surface=sc.floor_y, end_velocity=launch_velocity,
+                                phase_id=phase_index, elastic_accel=elastic_accel, tangent_scale=scale)
+                        revised = validate(tl, floor_y=sc.floor_y, bars=sc.bars,
+                                           front=spec.get('view') == 'front', solids=getattr(sc, 'solids', ()))
+                        if set(revised) - existing or len(momentum_warnings(tl)) > existing_momentum:
+                            high = scale
+                        else:
+                            low, best = scale, list(tl.frames)
+                    if best is None:
+                        tl.frames = tl.frames[:start]
+                        contact(tl, keys, c['joint'], pt, surface=sc.floor_y, phase_id=phase_index,
+                                elastic_accel=elastic_accel)
+                    else:
+                        tl.frames = best
             if c.get('twist'):
                 # long-axis turn while in support (spindles): draw the twist ring + count. Display only:
                 # unlike flight twists, the joint-limit check still applies to these frames.

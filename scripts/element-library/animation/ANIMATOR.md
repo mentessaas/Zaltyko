@@ -114,9 +114,37 @@ element, decisions taken, anything you could not represent well in 2D (e.g. circ
 seen from the side). Commit nothing; the coordinator commits.
 
 ## Momentum continuity (report field `momentum`)
-`run_spec.py` also reports momentum warnings: the centre of mass must leave the support with the speed
-it already had (take-off jump > 1.5 m/s) and must not whip inside a support (> 3.5 m/s in one frame).
-Landings are exempt. Contact keys are eased (the body slows at each key), so a push that ends exactly on
-a key leaves at almost zero speed: put the last support key slightly BEFORE full extension, shorten the
-last support segment, or add an intermediate key so the final frames already move at the flight's
-`takeoff_v`. Reviews grade this: an element with take-off jumps will not reach 9/10.
+`run_spec.py` checks that the centre of mass (COM) keeps moving through take-off. The ordinary limit is
+a 1.5 m/s change between the last support sample and the first flight sample. Inside ordinary support,
+a speed change above 3.5 m/s in one frame is reported. Flight remains ballistic: its take-off speed,
+duration, apex, and landing point still come from `riseM`, `apexAbove`, `durationS`, and `land` in the spec.
+Support joints stay pinned and the final authored pose stays exact. If the final interval has only one
+frame, the engine can borrow a frame from the penultimate interval when that interval has at least two;
+this preserves the total support duration and every key pose. The ballistic flight time is unchanged.
+
+For a support that immediately precedes flight, the engine fits a bounded Hermite tangent to the final
+contact segment using that flight's computed COM velocity. It changes only the path between the final
+two keys. The fit must stay within the existing pose, segment-speed, floor, solid, bar, and contact
+checks. If it cannot, the engine reduces the tangent or keeps the original eased curve. If both final
+intervals contain only one frame, there is no frame to redistribute and the original timing remains.
+Animators should still give the last support key a plausible direction and extension, and inspect any
+remaining take-off warnings; the engine cannot infer a better technique or repair a contradictory key sequence.
+
+Impacts from flight into support remain exempt. Elastic launch contacts use a contact-level acceleration
+ceiling: the COM velocity change from entry to exit is checked against the maximum net acceleration
+measured for that apparatus multiplied by the contact duration. The 30 fps 1.5 m/s take-off threshold
+does not apply to these contacts. The ceilings use reported peak reaction forces, with body weight
+subtracted to estimate net COM acceleration:
+
+- `board`: `(10.6 − 1) × g` for the measured vault springboard peak; Greenwood & Newton report a mean
+  contact time of 0.133 s ([ISBS proceedings](https://ojs.ub.uni-konstanz.de/cpa/article/view/2729)).
+- `table@X`: `(2 × 1.81 − 1) × g`, summing the highest reported hand-table peak per hand; the table's
+  hand-support phase is elastic ([Penitente & Sands, 2015](https://doi.org/10.1515/hukin-2015-0034)).
+- `floor@X`: `(8.46 − 1) × g` for a floor contact lasting at most 0.15 s between two flights, using
+  the highest reported ankle force in a round-off as the linked-tumbling envelope ([Burt et al., 2010](https://www.fsp.uni-lj.si/mma/SCGYM_2_3_2010_article1/2010093009140391/?m=1285830843)).
+
+These ceilings apply only to contacts on the named board, vault table, or short linked floor acrobatics.
+Bars, rings, parallel bars, beam, and ordinary floor support keep the 1.5 m/s take-off and 3.5 m/s
+within-support limits. Review the remaining warnings: they usually indicate a one-frame final key
+interval, a launch pose whose pinned-contact COM path cannot reach the ballistic velocity within the
+existing segment-speed limits, or an internal stop-and-go between authored keys.
