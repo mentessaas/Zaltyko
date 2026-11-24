@@ -309,7 +309,7 @@
   },
   {
    "flight": {
-    "riseM": 0.946,
+    "riseM": 0.861,
     "rotation": 60,
     "shapes": [
      {
@@ -571,10 +571,10 @@
   }
  ],
  "poster": {
-  "main": 52,
+  "main": 50,
   "ghosts": [
-   38,
-   91
+   37,
+   89
   ]
  }
 }
