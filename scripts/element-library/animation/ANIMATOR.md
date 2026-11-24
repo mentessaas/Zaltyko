@@ -112,3 +112,11 @@ Every element of the batch has a spec, `run_spec.py` exits 0 for all of them (no
 you have looked at every sheet and poster and fixed what looks wrong, and you list in the notes file:
 element, decisions taken, anything you could not represent well in 2D (e.g. circles on pommel horse
 seen from the side). Commit nothing; the coordinator commits.
+
+## Momentum continuity (report field `momentum`)
+`run_spec.py` also reports momentum warnings: the centre of mass must leave the support with the speed
+it already had (take-off jump > 1.5 m/s) and must not whip inside a support (> 3.5 m/s in one frame).
+Landings are exempt. Contact keys are eased (the body slows at each key), so a push that ends exactly on
+a key leaves at almost zero speed: put the last support key slightly BEFORE full extension, shorten the
+last support segment, or add an intermediate key so the final frames already move at the flight's
+`takeoff_v`. Reviews grade this: an element with take-off jumps will not reach 9/10.

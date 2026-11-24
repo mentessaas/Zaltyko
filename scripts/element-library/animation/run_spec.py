@@ -6,7 +6,7 @@ Outputs per spec in DIR (default ./out): <key>.mp4 (preview), <key>.svg (static 
 """
 import json, math, os, subprocess, sys
 from figure import Pose
-from engine2 import Shape, Timeline, contact, flight, validate, com, FPS, PX_PER_M, joint_angles
+from engine2 import Shape, Timeline, contact, flight, validate, com, FPS, PX_PER_M, joint_angles, momentum_warnings
 from scenes import SCENES
 import volumen as V
 
@@ -162,9 +162,11 @@ def main():
         spec = json.load(open(path))
         sc, tl, flights = build(spec)
         probs = validate_spec(spec, sc, tl)
-        rep = dict(elementKey=spec['elementKey'], frames=len(tl.frames), seconds=round(len(tl.frames) / FPS, 2), flights=flights, problems=probs)
+        mom = momentum_warnings(tl)
+        rep = dict(elementKey=spec['elementKey'], frames=len(tl.frames), seconds=round(len(tl.frames) / FPS, 2), flights=flights, problems=probs, momentum=mom)
         json.dump(rep, open(os.path.join(out, spec['elementKey'] + '-report.json'), 'w'), indent=1, ensure_ascii=False)
-        print(f"{spec['elementKey']}: {len(tl.frames)} frames, flights={flights}, problems={len(probs)}")
+        print(f"{spec['elementKey']}: {len(tl.frames)} frames, flights={flights}, problems={len(probs)}, momentum={len(mom)}")
+        for w in mom[:4]: print('    momentum:', w)
         for pr in probs[:8]: print('   ', pr)
         bad += bool(probs)
         if '--render' in sys.argv: render(spec, sc, tl, out)

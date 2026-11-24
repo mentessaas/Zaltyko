@@ -196,3 +196,23 @@ def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=()):
                     if abs(d) > limit[attr]: problems.append(f'frame {i}: {attr} jumps {abs(d):.0f}°'); break
         prev, prev_meta = p, meta
     return problems
+
+
+def momentum_warnings(tl, takeoff=1.5, spike=3.5):
+    """Centre-of-mass velocity must be continuous. Flags (m/s):
+    - take-off: the first flight frame's velocity differs from the last support frame's by > takeoff
+      (at release no force is left: the body leaves with the speed it already had). Fix it by timing the
+      last support keys so the push already moves at the flight's take-off velocity (report: takeoff_v);
+    - spike: inside a support phase the velocity changes by > spike in one frame (whip / stop-and-go).
+    Landings (flight -> support) are exempt: impacts may stop the body fast."""
+    c = [com(p, pel) for p, pel, _ in tl.frames]
+    fl = [bool(m.get('flight')) for _, _, m in tl.frames]
+    v = [(0.0, 0.0)] + [((c[i][0] - c[i - 1][0]) * FPS / PX_PER_M, (c[i][1] - c[i - 1][1]) * FPS / PX_PER_M) for i in range(1, len(c))]
+    out = []
+    for i in range(2, len(c)):
+        dv = math.dist(v[i], v[i - 1])
+        if fl[i] and not fl[i - 1] and dv > takeoff:
+            out.append(f'frame {i}: take-off speed jumps {dv:.1f} m/s (support {v[i-1][0]:+.1f},{-v[i-1][1]:+.1f} -> flight {v[i][0]:+.1f},{-v[i][1]:+.1f}; x, up)')
+        elif not fl[i] and not fl[i - 1] and not fl[i - 2] and dv > spike:
+            out.append(f'frame {i}: support speed jumps {dv:.1f} m/s')
+    return out
