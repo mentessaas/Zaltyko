@@ -1,11 +1,18 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-11-19
+last_reviewed: 2026-11-24
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
   - ../docs/architecture/zaltyko-domain-model.md
 ---
+
+## 2026-11-24 — Oferta Gratis/Club y sedes adicionales
+
+- Se implementa localmente el catálogo Gratis/Club, el tope de dos personas en Gratis, la prueba de 30 días, checkout mensual/anual y el concepto de sedes con prorrateo. Se ocultan los planes heredados sin cambiar suscripciones ni importes existentes.
+- Se reemplazan precios y textos públicos, se preparan contratos de textos, checkout, fiscalidad y aislamiento, y se añade una migración candidata aditiva.
+- El precio de fundador usa un cupón neto de 3,39 € para obtener 24,90 € finales tras IVA; el objeto de Stripe aún no se ha creado.
+- Verificación local: `pnpm typecheck` y `pnpm lint` pasan; `pnpm test` pasa con 10.727 pruebas, 195 omitidas y 16 archivos omitidos. No se contactó Stripe, Supabase ni producción; no se aplicó migración ni se publicó.
 
 ## 2026-11-21 — Biblioteca: vocabulario de sala por país (ADR-0030, apagado)
 

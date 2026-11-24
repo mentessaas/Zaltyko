@@ -73,31 +73,26 @@ describe("llms contract", () => {
       path.resolve(process.cwd(), "src/app/llms-full.txt/route.ts"),
       "utf8",
     );
-    expect(content).toContain("Free");
-    expect(content).toContain("Starter");
-    expect(content).toContain("Growth");
-    // Network no es contratable ni tiene producto multi-sede: no se ofrece.
+    expect(content).toContain("Gratis: 0 €");
+    expect(content).toContain("Club: 29 €/mes o 290 €/año, IVA incluido");
+    expect(content).toContain("20 €/mes o 200 €/año, IVA incluido");
+    // Network no se ofrece como plan.
     expect(content).not.toContain("Network");
-    expect(content).toContain("19 €/mes");
-    expect(content).toContain("49 €/mes");
+    expect(content).not.toContain("19 €/mes");
+    expect(content).not.toContain("49 €/mes");
     expect(content).not.toContain("99 €/mes");
   });
 
-  it("llms-full.txt no promete academias ilimitadas en Starter o Growth", async () => {
+  it("llms-full.txt publica una sede adicional autoservicio y no una llamada a ventas", async () => {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
     const content = await fs.readFile(
       path.resolve(process.cwd(), "src/app/llms-full.txt/route.ts"),
       "utf8",
     );
-    // Mensajes aprobados §"No prometer como listo sin validación":
-    // "Academias ilimitadas en Starter o Growth".
-    // El archivo debe describir Starter con "1 sede" y Growth con "1 sede",
-    // nunca "ilimitado" para esos dos planes.
-    expect(content).not.toMatch(/Starter[^\n]*ilimitad[ao]/i);
-    expect(content).not.toMatch(/Growth[^\n]*ilimitad[ao]/i);
-    // Las consultas de varias sedes o academias van por contacto, sin plan propio.
-    expect(content).toContain("¿Varias sedes o academias? Escríbenos");
+    expect(content).toContain("La primera sede está incluida en Club");
+    expect(content).toContain("cada sede adicional cuesta 20 €/mes o 200 €/año");
+    expect(content).not.toMatch(/Starter|Growth|Network|contactar para añadir sede/i);
   });
 
   it("llms-full.txt documenta explícitamente la lista de claims prohibidos", async () => {

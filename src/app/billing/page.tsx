@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { useDevSession } from "@/components/dev-session-provider";
 import { createClient } from "@/lib/supabase/client";
@@ -13,6 +13,7 @@ import type { PlanCode, BillingSummary as BillingSummaryType, PlanSummary, Invoi
 import { logger } from "@/lib/logger";
 
 export default function BillingPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { session: devSession, loading: loadingSession, refresh } = useDevSession();
   const [userSession, setUserSession] = useState<{ userId: string; academyId: string | null } | null>(null);
@@ -245,6 +246,9 @@ export default function BillingPage() {
         currentSummary={summary}
         loading={loadingPlans}
         onSelectPlan={triggerCheckout}
+        onOpenClubBilling={() => {
+          if (academyId) router.push(`/owner/subscription?organizationId=${encodeURIComponent(academyId)}`);
+        }}
         loadingAction={checkoutLoadingAction}
         disabled={!academyId || !session?.userId}
       />

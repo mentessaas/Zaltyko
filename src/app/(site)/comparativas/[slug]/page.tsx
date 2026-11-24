@@ -330,8 +330,7 @@ export default async function ComparisonDetailPage({ params }: PageProps) {
               ¿Quieres probar Zaltyko con tu academia?
             </h2>
             <p className="text-base text-muted-foreground mb-6">
-              7 días de Starter sin tarjeta. Una activación por academia cada 12 meses.
-              Al terminar vuelve a Free automáticamente.
+              30 días de Club sin tarjeta. Al terminar vuelve a Gratis automáticamente.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link

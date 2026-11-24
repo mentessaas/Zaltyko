@@ -128,11 +128,10 @@ export async function createAcademy(
           {
             ...error.payload,
             upgradeInfo: {
-              plan: "premium",
-              price: "99€/mes",
+              plan: "club",
               benefits: [
+                "Una sede incluida y sedes adicionales para la misma organización",
                 "Gimnastas, grupos y clases sin límite",
-                "Condiciones acordadas por contacto",
               ],
             },
           }

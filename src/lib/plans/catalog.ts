@@ -13,6 +13,8 @@ export interface ProductPlan {
   groupLimit: number | null;
   classLimit: number | null;
   academyLimit: number | null;
+  /** Máximo de miembros activos o invitaciones abiertas, incluida la dueña. */
+  teamMemberLimit: number | null;
   highlight?: boolean;
   cta: string;
   ctaHref: string;
@@ -23,101 +25,114 @@ export interface ProductPlan {
 export const PRODUCT_PLANS: ProductPlan[] = [
   {
     code: "free",
-    publicName: "Free",
-    internalName: "Free",
+    publicName: "Gratis",
+    internalName: "Gratis",
     priceEurCents: 0,
     description:
       "Para academias que están empezando a digitalizar su gestión diaria.",
-    shortDescription: "Hasta 30 gimnastas · 1 sede",
+    shortDescription: "Hasta 30 gimnastas · 2 personas en el equipo",
     athleteLimit: 30,
-    groupLimit: 3,
-    classLimit: 10,
+    groupLimit: null,
+    classLimit: null,
     academyLimit: 1,
+    teamMemberLimit: 2,
     cta: "Crear academia gratis",
     ctaHref: "/auth/register?role=owner",
     checkoutMode: "included",
     features: [
       "Hasta 30 gimnastas",
-      "1 sede",
-      "3 grupos",
-      "10 clases activas",
-      "Asistencia y cobros básicos con registro manual",
+      "Grupos y clases sin límite",
+      "Dirección y una persona del equipo",
+      "Gestión diaria, asistencia y cuotas a mano",
+      "Niveles, diplomas, guiones de sesión y biblioteca",
     ],
   },
   {
-    // Decisión activa 2026-06-24: `pro` es el código interno de Starter.
-    code: "pro",
-    publicName: "Starter",
-    internalName: "Starter",
-    priceEurCents: 1900,
-    annualPriceEurCents: 19000,
+    code: "club",
+    publicName: "Club",
+    internalName: "Club",
+    priceEurCents: 2397,
+    annualPriceEurCents: 23967,
     description:
-      "Para academias pequeñas que quieren ordenar grupos, asistencia y cobros.",
-    shortDescription: "Hasta 75 gimnastas · 1 sede",
-    athleteLimit: 75,
-    groupLimit: 5,
-    classLimit: 20,
+      "Todo lo necesario para coordinar el día a día del club.",
+    shortDescription: "Sin límites de gimnastas, equipo, grupos ni clases",
+    athleteLimit: null,
+    groupLimit: null,
+    classLimit: null,
     academyLimit: 1,
+    teamMemberLimit: null,
     cta: "Crear academia gratis",
     ctaHref: "/auth/register?role=owner",
     checkoutMode: "self-serve",
     features: [
-      "Hasta 75 gimnastas · 1 sede",
-      "Familias, grupos, clases e inscripciones",
-      "Asistencia y cuotas mensuales con registro manual de pagos",
-      "Resumen de actividad y cobros registrados",
+      "Gimnastas, equipo, grupos y clases sin límite",
+      "Invitaciones al equipo, titulares y sustituciones",
+      "Portal familiar, avisos y recordatorios de cuotas pendientes",
+      "Clases de prueba, importación desde Excel y resumen semanal",
+      "Una sede incluida; añade otras cuando las necesites",
+      "Cobro automático de cuotas sin coste adicional cuando se active",
     ],
   },
   {
-    // Decisión activa 2026-06-24: `premium` es el código interno de Growth.
-    // Growth se contrata desde Facturación después del registro; no requiere demo.
+    // Plan heredado oculto: conserva su importe actual para clientes existentes.
+    code: "pro",
+    publicName: "Club (heredado)",
+    internalName: "Starter heredado",
+    priceEurCents: 1900,
+    annualPriceEurCents: 19000,
+    description: "Suscripción anterior conservada hasta que la dueña decida cambiarla.",
+    shortDescription: "Derechos de Club · precio anterior conservado",
+    athleteLimit: null,
+    groupLimit: null,
+    classLimit: null,
+    academyLimit: 1,
+    teamMemberLimit: null,
+    cta: "Crear academia gratis",
+    ctaHref: "/auth/register?role=owner",
+    checkoutMode: "included",
+    features: ["Derechos de Club con el precio de la suscripción anterior"],
+  },
+  {
+    // Growth también conserva el importe histórico, sin opción de alta nueva.
     code: "premium",
-    publicName: "Growth",
-    internalName: "Growth",
+    publicName: "Club (heredado)",
+    internalName: "Growth heredado",
     priceEurCents: 4900,
     annualPriceEurCents: 49000,
     description:
       "Para academias en crecimiento que necesitan más capacidad y seguimiento diario.",
-    shortDescription: "Hasta 200 gimnastas · 1 sede",
-    athleteLimit: 200,
-    groupLimit: 10,
-    classLimit: 40,
+    shortDescription: "Derechos de Club · precio anterior conservado",
+    athleteLimit: null,
+    groupLimit: null,
+    classLimit: null,
     academyLimit: 1,
-    highlight: true,
+    teamMemberLimit: null,
     cta: "Crear academia gratis",
     ctaHref: "/auth/register?role=owner",
-    checkoutMode: "self-serve",
+    checkoutMode: "included",
     features: [
-      "Hasta 200 gimnastas · 1 sede",
-      "Todo lo de Starter",
-      "10 grupos y 40 clases activas",
-      "Cuotas y pagos familiares con registro manual",
+      "Derechos de Club con el precio de la suscripción anterior",
     ],
   },
   {
     code: "network",
-    publicName: "Network",
-    internalName: "Network",
+    publicName: "Club (heredado)",
+    internalName: "Network heredado",
     priceEurCents: 9900,
-    // Network no es una oferta pública: no tiene checkout ni producto propio
-    // (no hay panel multi-sede ni resumen consolidado entre academias). Se
-    // conserva el código porque existe en la base de datos y en Stripe; los
-    // textos describen solo lo que hace el catálogo (límites sin tope) y la web
-    // pública usa PUBLIC_PRODUCT_PLANS, que lo excluye.
+    // Código histórico, conservado solo para leer suscripciones ya existentes.
     description:
-      "Condiciones acordadas por contacto, sin límites de gimnastas, grupos ni clases.",
-    shortDescription: "Condiciones acordadas por contacto",
+      "Plan histórico no disponible para nuevas contrataciones.",
+    shortDescription: "Plan histórico",
     athleteLimit: null,
     groupLimit: null,
     classLimit: null,
     academyLimit: null,
-    cta: "Hablar con Zaltyko",
-    ctaHref: "/contact?type=network",
-    checkoutMode: "sales-assisted",
+    teamMemberLimit: null,
+    cta: "Crear academia gratis",
+    ctaHref: "/auth/register?role=owner",
+    checkoutMode: "included",
     features: [
-      "Gimnastas ilimitadas",
-      "Grupos y clases ilimitados",
-      "Alcance y puesta en marcha acordados por contacto",
+      "Plan histórico oculto",
     ],
   },
 ];
@@ -128,6 +143,7 @@ export const PRODUCT_PLAN_BY_CODE = Object.fromEntries(
 
 const INTERNAL_PLAN_CODES = new Set([
   "free",
+  "club",
   "pro",
   "premium",
   "network",
@@ -168,12 +184,11 @@ export const BILLABLE_PRODUCT_PLANS = PRODUCT_PLANS.filter(
 );
 
 /**
- * Planes que la web pública ofrece: los que se pueden empezar o contratar por
- * cuenta propia. Network queda fuera porque no es contratable ni tiene producto
- * multi-sede propio; las consultas de varias sedes van por contacto.
+ * Planes que la web pública ofrece. Los códigos heredados siguen resolviendo
+ * derechos y facturas pero no se muestran como opciones nuevas.
  */
 export const PUBLIC_PRODUCT_PLANS = PRODUCT_PLANS.filter(
-  (plan) => plan.checkoutMode !== "sales-assisted"
+  (plan) => plan.code === "free" || plan.code === "club"
 );
 
 export function formatPlanAmount(priceEurCents: number) {

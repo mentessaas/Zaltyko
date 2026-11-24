@@ -5,6 +5,23 @@ parte del historial aplicable, no se recorren automáticamente y no recuperan
 migraciones perdidas. No ejecutar el directorio ni aplicar el snapshot sandbox
 completo sobre una base existente.
 
+## 2026-11-24 — Oferta Gratis/Club y sedes adicionales (pendiente)
+
+`20261124121000_pricing_club_locations_candidate.sql` amplía `public.plans` con
+límites de grupos, clases y equipo, sedes incluidas y precios de sedes extra;
+archiva los códigos antiguos sin alterar sus Prices ni sus importes, crea el
+registro Club y actualiza Gratis. Añade `extra_location_quantity` a las
+operaciones de checkout para fijar la cantidad inicial de sedes extras.
+
+**Estado: no aplicada en ningún entorno y sin autorización para aplicarla.**
+No llama a Stripe/Supabase; los cuatro Price IDs y el cupón de fundador se
+configuran en cada entorno después por el agente autorizado. `plans` es
+catálogo público de producto y `extra_location_quantity` es metadato SaaS
+excluido del paquete de datos de academia en `src/modules/data-rights/application/catalog.ts`.
+
+**SHA-256:** `381e0fba8c0032a440a92f5e65240ab56956188014cc110e71fba0a005070b5a`.
+Debe coincidir con el archivo exacto antes de cualquier revisión posterior.
+
 ## Estado a 12-11-2026
 
 Con autorización expresa de Elvis, el 12-11-2026 se aplicaron en producción

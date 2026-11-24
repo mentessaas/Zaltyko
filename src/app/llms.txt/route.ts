@@ -15,12 +15,10 @@ Zaltyko no inicia cargos automáticos a las familias.
 La suscripción SaaS de la academia es independiente de esas cuotas.
 Health Score, retención, IA, marketplace y funciones avanzadas no forman parte de esta versión.
 
-Free: 30 gimnastas, 3 grupos y 10 clases activas; el alta no pide tarjeta.
-Starter: 19 €/mes o 190 €/año, hasta 75 gimnastas.
-Growth: 49 €/mes o 490 €/año, hasta 200 gimnastas.
-Precios sin IVA. ¿Varias sedes o academias? Escríbenos y vemos tu caso.
-Prueba de Starter de 7 días sin tarjeta, una por academia cada 12 meses.
-Al terminar el acceso se aplican límites Free: si hay excedente, solo lectura hasta archivar o contratar capacidad.
+Gratis: 0 €, hasta 30 gimnastas y 2 personas en el equipo; grupos y clases sin límite.
+Club: 29 €/mes o 290 €/año, IVA incluido; sin límite de gimnastas, equipo, grupos ni clases.
+La primera sede está incluida en Club; cada sede adicional cuesta 20 €/mes o 200 €/año, IVA incluido.
+Prueba Club durante 30 días, sin tarjeta. México todavía no tiene precio publicado.
 
 Rutas: /, /features, /pricing, /faq, /ayuda, /auth/register?role=owner.
 Condiciones: /terminos. Privacidad: /politica-privacidad.

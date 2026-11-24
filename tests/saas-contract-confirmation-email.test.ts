@@ -51,9 +51,9 @@ function confirmation(
     billingInterval: "month",
     subscriptionReference: "sub_synthetic",
     invoiceReference: "in_synthetic",
-    baseCents: 1900,
-    taxCents: 399,
-    totalCents: 2299,
+    baseCents: 2397,
+    taxCents: 503,
+    totalCents: 2900,
     periodStartedAt: new Date("2026-11-14T10:00:00.000Z"),
     periodEndsAt: new Date("2026-12-14T10:00:00.000Z"),
     checkoutEmail: "facturacion@example.invalid",
@@ -85,15 +85,15 @@ describe("contenido del correo de confirmación de la contratación", () => {
   it("resume plan, periodicidad, base, IVA 21 %, total y fechas", () => {
     const { subject, text } = build();
     expect(subject).toBe(
-      "[Modo prueba] Confirmación de tu contratación: Zaltyko Starter mensual"
+      "[Modo prueba] Confirmación de tu contratación: Zaltyko Club mensual"
     );
     expect(text).toContain(
-      "Confirmamos la contratación del plan Starter de Zaltyko para Club Gimnasia Sintético, con pago mensual."
+      "Confirmamos la contratación del plan Club de Zaltyko para Club Gimnasia Sintético, con pago mensual."
     );
-    expect(text).toContain("- Plan: Starter (mensual)");
-    expect(text).toContain("- Precio sin IVA: 19,00 €");
-    expect(text).toContain("- IVA (21 %): 3,99 €");
-    expect(text).toContain("- Total cobrado: 22,99 €");
+    expect(text).toContain("- Plan: Club (mensual)");
+    expect(text).toContain("- Precio sin IVA: 23,97 €");
+    expect(text).toContain("- IVA (21 %): 5,03 €");
+    expect(text).toContain("- Total cobrado: 29,00 €");
     expect(text).toContain("- Fecha de inicio: 14 de noviembre de 2026");
     expect(text).toContain("- Próxima renovación: 14 de diciembre de 2026");
     expect(text).toContain("no se ha cobrado dinero real");
@@ -129,27 +129,27 @@ describe("contenido del correo de confirmación de la contratación", () => {
     );
   });
 
-  it("Growth anual en Live: sin aviso de prueba y con los importes del año", () => {
+  it("Club anual en Live: sin aviso de prueba y con los importes del año", () => {
     const { subject, text } = build({
       environment: "live",
-      planCode: "growth",
+      planCode: "starter",
       billingInterval: "year",
-      baseCents: 49000,
-      taxCents: 10290,
-      totalCents: 59290,
+      baseCents: 23967,
+      taxCents: 5033,
+      totalCents: 29000,
       periodEndsAt: new Date("2027-11-14T10:00:00.000Z"),
     });
-    expect(subject).toBe("Confirmación de tu contratación: Zaltyko Growth anual");
-    expect(text).toContain("- Plan: Growth (anual)");
-    expect(text).toContain("- Precio sin IVA: 490,00 €");
-    expect(text).toContain("- IVA (21 %): 102,90 €");
-    expect(text).toContain("- Total cobrado: 592,90 €");
+    expect(subject).toBe("Confirmación de tu contratación: Zaltyko Club anual");
+    expect(text).toContain("- Plan: Club (anual)");
+    expect(text).toContain("- Precio sin IVA: 239,67 €");
+    expect(text).toContain("- IVA (21 %): 50,33 €");
+    expect(text).toContain("- Total cobrado: 290,00 €");
     expect(text).toContain("- Próxima renovación: 14 de noviembre de 2027");
     expect(text).not.toContain("modo de prueba");
   });
 
   it("no atribuye un 21 % que Stripe no cobró (test sin tax rate)", () => {
-    const { text } = build({ taxCents: 0, totalCents: 1900 });
+    const { text } = build({ taxCents: 0, totalCents: 2397 });
     expect(text).toContain("- IVA: 0,00 €");
     expect(text).not.toContain("IVA (21 %)");
   });
@@ -288,7 +288,7 @@ describe("envío idempotente y tolerante a fallos", () => {
     // Correo legal: las preferencias de notificaciones no pueden silenciarlo.
     expect(options.profileId).toBeUndefined();
     expect(options.notificationType).toBeUndefined();
-    expect(plain(options.text)).toContain("- Total cobrado: 22,99 €");
+    expect(plain(options.text)).toContain("- Total cobrado: 29,00 €");
     expect(options.text).toContain("hola@zaltyko.com");
   });
 

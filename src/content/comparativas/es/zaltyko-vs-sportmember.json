@@ -57,7 +57,7 @@
     },
     {
       "feature": "Trial sin tarjeta",
-      "zaltyko": "7 días de Starter, sin tarjeta",
+      "zaltyko": "30 días de Club, sin tarjeta",
       "competitor": "No publica trial gratuito equivalente"
     },
     {
@@ -73,7 +73,7 @@
   ],
   "zaltykoPros": [
     "Especialización en gimnasia: terminología, niveles y federaciones hispanas.",
-    "Plan Free útil (hasta 30 gimnastas) y trial sin tarjeta.",
+    "Plan Gratis hasta 30 gimnastas y prueba Club sin tarjeta.",
     "Soporte, copy y documentación en español."
   ],
   "zaltykoContras": [
@@ -94,7 +94,7 @@
   "idealForZaltyko": [
     "Academias de gimnasia artística o rítmica en España o LATAM.",
     "Clubes que necesitan niveles, aparatos y federaciones hispanas.",
-    "Operaciones con trial sin tarjeta y plan Free útil."
+    "Operaciones con prueba de Club sin tarjeta y plan Gratis útil."
   ],
   "idealForCompetitor": [
     "Clubes europeos con deportes variados (fútbol, hockey, etc.).",

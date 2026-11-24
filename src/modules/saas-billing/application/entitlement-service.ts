@@ -28,14 +28,14 @@ const PLAN_LIMITS: Record<
   EffectiveSaasPlanCode,
   EffectiveOrganizationEntitlement["limits"]
 > = {
-  free: { athleteLimit: 30, groupLimit: 3, classLimit: 10, academyLimit: 1, locationLimit: 1 },
-  starter: { athleteLimit: 75, groupLimit: 5, classLimit: 20, academyLimit: 1, locationLimit: 1 },
+  free: { athleteLimit: 30, groupLimit: null, classLimit: null, academyLimit: 1, locationLimit: 1 },
+  starter: { athleteLimit: null, groupLimit: null, classLimit: null, academyLimit: 1, locationLimit: null },
   growth: {
-    athleteLimit: 200,
-    groupLimit: 10,
-    classLimit: 40,
+    athleteLimit: null,
+    groupLimit: null,
+    classLimit: null,
     academyLimit: 1,
-    locationLimit: 1,
+    locationLimit: null,
   },
   network: {
     athleteLimit: null,

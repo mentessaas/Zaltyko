@@ -8,6 +8,16 @@ source:
 
 # Decisiones
 
+## 2026-11-24 — Nueva oferta Gratis/Club, sedes y planes heredados (decisión de Elvis)
+
+- Sustituir Free/Starter/Growth/Network en la oferta por Gratis (0 €) y Club (29 €/mes o 290 €/año, IVA incluido en España peninsular y Baleares). Gratis admite 30 gimnastas y dos miembros de equipo contando a la dueña; grupos y clases sin límite. Club no limita gimnastas, equipo, grupos ni clases e incluye una sede.
+- Sede adicional: 20 €/mes o 200 €/año con IVA incluido por cada `location` activa extra dentro de la misma academia. Stripe usa un segundo concepto de suscripción y la cantidad es sedes activas menos una; añadir/desactivar sede aplica prorrateo. Alta autoservicio.
+- Prueba de Club de 30 días sin tarjeta. Precio fundador para los primeros diez clubes de Málaga: 24,90 €/mes durante 12 meses y luego el precio ordinario. Stripe aplica descuento fijo de 3,39 € antes del IVA (equivalente redondeado a 4,10 € de ahorro final con 21 %); configurar 4,10 € antes del IVA no daría 24,90 €.
+- No crear el producto de fundador separado. Permitir códigos promocionales en Club mensual. Los objetos Stripe y sus IDs los crea otro agente autorizado; este cambio no toca Stripe, Supabase ni producción.
+- `pro`/Starter y `premium`/Growth (y Network si existe) son códigos heredados ocultos: conservar sus suscripciones, Prices e importes vigentes hasta cambio voluntario de la dueña, otorgándoles derechos de Club. No aumentar ni migrar el precio automáticamente.
+- No publicar precio en México ni importes en MXN. Mantener el Tax Rate exclusivo español de Stripe y la emisión fiscal SaaS por FacturaDirecta.
+- Candidata `docs/deployment/candidates/20261124121000_pricing_club_locations_candidate.sql`; queda pendiente de revisión y autorización separada. La aplicación requiere gates de checkout/Stripe completos; la candidata no se aplicó.
+
 
 ## 2026-11-19 — Biblioteca de elementos, fase C: decisiones del ADR-0029 aplicadas al construirla
 

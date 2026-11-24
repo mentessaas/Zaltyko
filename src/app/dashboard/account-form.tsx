@@ -42,18 +42,18 @@ interface AccountFormProps {
 
 const PLAN_COPY: Record<string, { label: string; description: string; cta: string }> = {
   free: {
-    label: "Plan Free",
+    label: "Plan Gratis",
     description: "Incluye 1 academia y hasta 30 gimnastas activos.",
     cta: "Mejorar plan",
   },
   pro: {
-    label: "Plan Starter",
-    description: "Hasta 75 gimnastas, familias y responsables y gestión de cuotas.",
+    label: "Plan Club",
+    description: "Sin límites de gimnastas, personas del equipo, grupos ni clases.",
     cta: "Gestionar suscripción",
   },
   premium: {
-    label: "Plan Growth",
-    description: "Hasta 200 gimnastas, reportes de dirección y soporte prioritario.",
+    label: "Plan Club",
+    description: "Sin límites de gimnastas, personas del equipo, grupos ni clases.",
     cta: "Gestionar suscripción",
   },
 };

@@ -46,7 +46,7 @@ let savedValues: Record<string, unknown> | undefined;
 const selectLimit = vi.fn();
 const txUpdate = vi.fn();
 const txInsert = vi.fn();
-const tx = { select: () => ({ from: () => ({ where: () => ({ limit: selectLimit }) }) }), update: txUpdate, insert: txInsert };
+const tx = { execute: vi.fn().mockResolvedValue({ rows: [{ count: 1 }] }), select: () => ({ from: () => ({ where: () => ({ limit: selectLimit }) }) }), update: txUpdate, insert: txInsert };
 
 function identity(organizationId: string = qaOrg) {
   return { organizationId, planCode: "starter" as const, billingInterval: "month" as const,
@@ -57,7 +57,8 @@ function makeOperation(organizationId: string = qaOrg): Operation {
   const qa = resolveShortPaidCheckoutEnvelope({ identity: identity(organizationId), createdAt });
   const requestHash = qa?.requestHash ?? createHash("sha256").update(JSON.stringify({
     organizationId, planCode: "starter", billingInterval: "month", environment: config.environment,
-    providerAccountReference: config.providerAccountReference, priceReference: "price_synthetic", requestVersion: 3,
+    providerAccountReference: config.providerAccountReference, priceReference: "price_synthetic",
+    extraLocationQuantity: 0, requestVersion: 5,
   })).digest("hex");
   const id = "f0000000-0000-4000-8000-000000000001";
   return { id, organizationId, planCode: "starter", billingInterval: "month", ...config, createdAt, requestHash,
@@ -90,6 +91,7 @@ beforeEach(() => {
   vi.stubEnv("DATABASE_URL_POOL", databaseUrl);
   vi.stubEnv("DATABASE_URL_DIRECT", databaseUrl);
   operation = undefined; savedValues = undefined;
+  tx.execute.mockResolvedValue({ rows: [{ count: 1 }] });
   mocks.config.mockReturnValue(config);
   mocks.appUrl.mockReturnValue("https://zaltyko-sandbox-preview.vercel.app");
   mocks.databaseUrl.mockReturnValue(databaseUrl);
@@ -145,6 +147,11 @@ describe("short paid Checkout orchestration with isolated dependencies", () => {
   });
 
   it("versions new normal operations for fixed currency while retaining their stable Stripe key", async () => {
+    mocks.price.mockResolvedValueOnce({ ...price, unit_amount: 2397 });
+    mocks.retrieve.mockImplementationOnce(async () => ({
+      ...session(),
+      line_items: { data: [{ quantity: 1, price: { ...price, unit_amount: 2397 } }] },
+    }));
     await createOwnerSaasCheckout({ ...input, organizationId: normalOrg });
     const metadata = { zaltyko_saas: "true", organization_saas_checkout_operation_id: operation!.id,
       organization_id: normalOrg, plan_code: "starter", billing_interval: "month",
@@ -155,10 +162,11 @@ describe("short paid Checkout orchestration with isolated dependencies", () => {
     expect(savedValues?.requestHash).toBe(makeOperation(normalOrg).requestHash);
     expect(savedValues).not.toHaveProperty("createdAt");
     expect(mocks.databaseUrl).not.toHaveBeenCalled();
-    expect(mocks.create).toHaveBeenCalledExactlyOnceWith({ mode: "subscription", adaptive_pricing: { enabled: false }, customer: "cus_synthetic",
+    expect(mocks.create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ mode: "subscription", adaptive_pricing: { enabled: false }, customer: "cus_synthetic",
+      allow_promotion_codes: true,
       line_items: [{ price: "price_synthetic", quantity: 1 }], success_url: returnUrl.toString(),
       cancel_url: cancelUrl.toString(), integration_identifier: expect.any(String), metadata, subscription_data: { metadata },
-    }, { idempotencyKey: `zaltyko-saas-checkout-${operation!.id}` });
+    }), { idempotencyKey: `zaltyko-saas-checkout-${operation!.id}` });
   });
 
   it("replays an uncertain early creation with exactly the same payload and key after a local save failure", async () => {

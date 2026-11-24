@@ -17,17 +17,15 @@ const euros = (cents: number) => formatEuroCentsExact(cents).replace(/\s/gu, " "
 
 describe("IVA general del 21 % sobre los precios base aprobados", () => {
   it("mantiene los precios base sin IVA del catálogo", () => {
-    expect(PRODUCT_PLAN_BY_CODE.pro.priceEurCents).toBe(1900);
-    expect(PRODUCT_PLAN_BY_CODE.pro.annualPriceEurCents).toBe(19000);
-    expect(PRODUCT_PLAN_BY_CODE.premium.priceEurCents).toBe(4900);
-    expect(PRODUCT_PLAN_BY_CODE.premium.annualPriceEurCents).toBe(49000);
+    expect(PRODUCT_PLAN_BY_CODE.club.priceEurCents).toBe(2397);
+    expect(PRODUCT_PLAN_BY_CODE.club.annualPriceEurCents).toBe(23967);
   });
 
   it.each([
-    ["Starter mensual", 1900, 399, 2299, "22,99 €"],
-    ["Starter anual", 19000, 3990, 22990, "229,90 €"],
-    ["Growth mensual", 4900, 1029, 5929, "59,29 €"],
-    ["Growth anual", 49000, 10290, 59290, "592,90 €"],
+    ["Club mensual", 2397, 503, 2900, "29,00 €"],
+    ["Club anual", 23967, 5033, 29000, "290,00 €"],
+    ["Sede adicional mensual", 1653, 347, 2000, "20,00 €"],
+    ["Sede adicional anual", 16529, 3471, 20000, "200,00 €"],
   ])("%s: base %i + IVA %i = %i (%s)", (_plan, base, tax, total, label) => {
     expect(quoteSpanishVat(base)).toEqual({
       baseCents: base,
@@ -113,16 +111,17 @@ describe("contrato fiscal de Checkout", () => {
   });
 
   it("solo acepta una sesión de Stripe que cobra exactamente base + IVA", () => {
-    const quote = quoteSpanishVat(1900);
+    const quote = quoteSpanishVat(2397);
     const taxed = {
-      amount_subtotal: 1900,
-      amount_total: 2299,
-      total_details: { amount_tax: 399, amount_discount: 0 },
+      amount_subtotal: 2397,
+      amount_total: 2900,
+      total_details: { amount_tax: 503, amount_discount: 0 },
     };
     expect(checkoutSessionMatchesSpanishVat(taxed, quote)).toBe(true);
-    expect(checkoutSessionMatchesSpanishVat({ ...taxed, amount_total: 1900, total_details: { amount_tax: 0 } }, quote)).toBe(false);
-    expect(checkoutSessionMatchesSpanishVat({ ...taxed, amount_total: 2280, total_details: { amount_tax: 380 } }, quote)).toBe(false);
-    expect(checkoutSessionMatchesSpanishVat({ ...taxed, total_details: { amount_tax: 399, amount_discount: 100 } }, quote)).toBe(false);
+    expect(checkoutSessionMatchesSpanishVat({ ...taxed, amount_total: 2397, total_details: { amount_tax: 0 } }, quote)).toBe(false);
+    expect(checkoutSessionMatchesSpanishVat({ ...taxed, amount_total: 2880, total_details: { amount_tax: 483 } }, quote)).toBe(false);
+    expect(checkoutSessionMatchesSpanishVat({ ...taxed, total_details: { amount_tax: 503, amount_discount: 410 } }, quote, [339])).toBe(false);
+    expect(checkoutSessionMatchesSpanishVat({ ...taxed, amount_total: 2490, total_details: { amount_tax: 432, amount_discount: 339 } }, quote, [339])).toBe(true);
     expect(checkoutSessionMatchesSpanishVat({}, quote)).toBe(false);
   });
 });

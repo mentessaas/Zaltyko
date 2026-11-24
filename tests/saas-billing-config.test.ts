@@ -14,8 +14,12 @@ function env(
     [`${prefix}_SECRET_KEY`]: `${environment === "test" ? "rk_test" : "rk_live"}_synthetic`,
     [`${prefix}_WEBHOOK_SECRET`]: "whsec_synthetic",
     [`${prefix}_ACCOUNT_REFERENCE`]: "acct_synthetic",
-    [`${prefix}_PRICE_STARTER_MONTH`]: "price_startermonth",
-    [`${prefix}_PRICE_STARTER_YEAR`]: "price_starteryear",
+    [`${prefix}_PRICE_CLUB_MONTH`]: "price_clubmonth",
+    [`${prefix}_PRICE_CLUB_YEAR`]: "price_clubyear",
+    [`${prefix}_PRICE_LOCATION_MONTH`]: "price_locationmonth",
+    [`${prefix}_PRICE_LOCATION_YEAR`]: "price_locationyear",
+    [`${prefix}_PRICE_STARTER_MONTH`]: "price_legacy_startermonth",
+    [`${prefix}_PRICE_STARTER_YEAR`]: "price_legacy_starteryear",
     [`${prefix}_PRICE_GROWTH_MONTH`]: "price_growthmonth",
     [`${prefix}_PRICE_GROWTH_YEAR`]: "price_growthyear",
     ...values,
@@ -40,9 +44,11 @@ describe("SaaS Stripe environment configuration", () => {
         providerAccountReference: "acct_synthetic",
         portalEnabled: true,
         prices: {
-          starter: { month: "price_startermonth", year: "price_starteryear" },
+          starter: { month: "price_clubmonth", year: "price_clubyear" },
           growth: { month: "price_growthmonth", year: "price_growthyear" },
         },
+        legacyPrices: { starter: { month: "price_legacy_startermonth", year: "price_legacy_starteryear" } },
+        locationPrices: { month: "price_locationmonth", year: "price_locationyear" },
       });
     }
   );
@@ -52,6 +58,10 @@ describe("SaaS Stripe environment configuration", () => {
     delete onlyLive.STRIPE_SAAS_TEST_SECRET_KEY;
     delete onlyLive.STRIPE_SAAS_TEST_WEBHOOK_SECRET;
     delete onlyLive.STRIPE_SAAS_TEST_ACCOUNT_REFERENCE;
+    delete onlyLive.STRIPE_SAAS_TEST_PRICE_CLUB_MONTH;
+    delete onlyLive.STRIPE_SAAS_TEST_PRICE_CLUB_YEAR;
+    delete onlyLive.STRIPE_SAAS_TEST_PRICE_LOCATION_MONTH;
+    delete onlyLive.STRIPE_SAAS_TEST_PRICE_LOCATION_YEAR;
     delete onlyLive.STRIPE_SAAS_TEST_PRICE_STARTER_MONTH;
     delete onlyLive.STRIPE_SAAS_TEST_PRICE_STARTER_YEAR;
     delete onlyLive.STRIPE_SAAS_TEST_PRICE_GROWTH_MONTH;
@@ -68,7 +78,8 @@ describe("SaaS Stripe environment configuration", () => {
     ["mode mismatch", { STRIPE_SAAS_TEST_SECRET_KEY: "rk_live_wrong_mode" }],
     ["missing account", { STRIPE_SAAS_TEST_ACCOUNT_REFERENCE: "" }],
     ["invalid account", { STRIPE_SAAS_TEST_ACCOUNT_REFERENCE: "acct_bad-value" }],
-    ["missing monthly price", { STRIPE_SAAS_TEST_PRICE_STARTER_MONTH: "" }],
+    ["missing monthly price", { STRIPE_SAAS_TEST_PRICE_CLUB_MONTH: "" }],
+    ["missing legacy starter price", { STRIPE_SAAS_TEST_PRICE_STARTER_MONTH: "" }],
     ["non-Price reference", { STRIPE_SAAS_TEST_PRICE_GROWTH_YEAR: "prod_not_a_price" }],
     ["invalid webhook secret", { STRIPE_SAAS_TEST_WEBHOOK_SECRET: "" }],
   ])("rejects an incomplete or malformed test configuration: %s", (_case, values) => {
@@ -78,6 +89,10 @@ describe("SaaS Stripe environment configuration", () => {
   it("keeps webhook verification minimal but bound to the configured mode", () => {
     const values = env("test");
     delete values.STRIPE_SAAS_TEST_ACCOUNT_REFERENCE;
+    delete values.STRIPE_SAAS_TEST_PRICE_CLUB_MONTH;
+    delete values.STRIPE_SAAS_TEST_PRICE_CLUB_YEAR;
+    delete values.STRIPE_SAAS_TEST_PRICE_LOCATION_MONTH;
+    delete values.STRIPE_SAAS_TEST_PRICE_LOCATION_YEAR;
     delete values.STRIPE_SAAS_TEST_PRICE_STARTER_MONTH;
     delete values.STRIPE_SAAS_TEST_PRICE_STARTER_YEAR;
     delete values.STRIPE_SAAS_TEST_PRICE_GROWTH_MONTH;

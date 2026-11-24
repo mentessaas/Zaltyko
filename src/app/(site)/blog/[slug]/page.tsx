@@ -250,7 +250,7 @@ export default async function BlogDetailPage({ params }: PageProps) {
               ¿Listo para probarlo con tu academia?
             </h2>
             <p className="text-base text-muted-foreground mb-6">
-              7 días de Starter sin tarjeta. Una activación por academia cada 12 meses.
+              30 días de Club sin tarjeta.
             </p>
             <Link
               href="/auth/register?role=owner"

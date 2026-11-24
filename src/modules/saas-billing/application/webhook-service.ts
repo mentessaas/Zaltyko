@@ -1217,6 +1217,11 @@ function resolvePlanFromPrice(
   billingInterval: "month" | "year";
 } | null {
   if (!priceId) return null;
+  for (const billingInterval of ["month", "year"] as const) {
+    if (config.legacyPrices.starter[billingInterval] === priceId) {
+      return { planCode: "starter", billingInterval };
+    }
+  }
   for (const planCode of ["starter", "growth"] as const) {
     for (const billingInterval of ["month", "year"] as const) {
       if (config.prices[planCode][billingInterval] === priceId) {
@@ -1245,15 +1250,15 @@ function isCanonicalPrice(
 ): boolean {
   const recurring = price.recurring as
     { interval?: unknown; interval_count?: unknown } | null | undefined;
-  const expectedPriceId = config.prices[planCode][billingInterval];
-  const expectedAmount =
-    planCode === "starter"
-      ? billingInterval === "month"
-        ? 1900
-        : 19000
-      : billingInterval === "month"
-        ? 4900
-        : 49000;
+  const isLegacyStarter = config.legacyPrices.starter[billingInterval] === price.id;
+  const expectedPriceId = isLegacyStarter
+    ? config.legacyPrices.starter[billingInterval]
+    : config.prices[planCode][billingInterval];
+  const expectedAmount = planCode === "starter"
+    ? isLegacyStarter
+      ? billingInterval === "month" ? 1900 : 19000
+      : billingInterval === "month" ? 2397 : 23967
+    : billingInterval === "month" ? 4900 : 49000;
   return (
     price.id === expectedPriceId &&
     price.active === true &&

@@ -776,7 +776,7 @@ export function OwnerSetupForm({
                 específicas de {selectedMarket?.label} llegarán más adelante.{" "}
                 {selectedMarket?.sportCoverage.message} La contratación de
                 planes de pago para tu país todavía no está disponible: puedes
-                empezar con el plan Free.
+                empezar con el plan Gratis.
               </>
             )}
             {" "}

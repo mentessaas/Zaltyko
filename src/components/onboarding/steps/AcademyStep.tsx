@@ -23,11 +23,11 @@ interface AcademyStepProps {
   userHasAcademies: boolean;
   existingAcademies: Array<{ id: string; name: string | null }>;
   userPlanInfo: {
-    planCode: "free" | "pro" | "premium";
+    planCode: "free" | "pro" | "premium" | "club";
     academyLimit: number | null;
     currentAcademyCount: number;
     canCreateMore: boolean;
-    upgradeTo?: "pro" | "premium" | "network";
+    upgradeTo?: "pro" | "premium" | "club";
   } | null;
   effectiveUserId: string | null;
   onAcademyNameChange: (value: string) => void;
@@ -119,13 +119,7 @@ export function AcademyStep({
               </button>
               {userPlanInfo.upgradeTo && (
                 <Link
-                  href={
-                    userPlanInfo.upgradeTo === "network"
-                      ? "/contact?type=network"
-                      : existingAcademies[0]?.id
-                        ? `/owner/payments`
-                        : "/billing"
-                  }
+                  href="/owner/subscription"
                   className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90"
                 >
                   <TrendingUp className="h-4 w-4" />
