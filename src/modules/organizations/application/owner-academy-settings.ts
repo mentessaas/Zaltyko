@@ -32,8 +32,8 @@ import {
  * Solo trabaja con lo que ya guarda el modelo canónico: el nombre comercial y
  * la razón social de `zaltyko.organizations`, y las sedes de
  * `zaltyko.locations`. País, moneda y zona horaria se fijan en el alta y aquí
- * solo se leen. Únicamente la persona titular (`owner`) con acceso a todas las
- * sedes puede leer y cambiar estos datos; se comprueba dentro de la
+ * solo se leen. Únicamente la persona titular (`owner`) o administradora
+ * (`admin`) con acceso a todas las sedes puede leer y cambiar estos datos; se comprueba dentro de la
  * transacción, aunque la ruta ya lo haya hecho.
  */
 
@@ -182,7 +182,7 @@ async function assertOwnerSettingsAccess(
       )
     )
     .limit(1);
-  if (!member || member.role !== "owner" || member.locationScopeMode !== "all") {
+  if (!member || !["owner", "admin"].includes(member.role) || member.locationScopeMode !== "all") {
     throw forbidden();
   }
 }

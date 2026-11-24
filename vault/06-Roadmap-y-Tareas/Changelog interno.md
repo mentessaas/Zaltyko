@@ -7,6 +7,15 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-11-24 — Academy logo in Settings and diplomas (candidate, not applied)
+
+- `/owner/settings` lets an owner or an admin with access to every site upload, replace and remove a PNG, JPEG or WebP file up to 1 MB. The screen includes a preview, loading and error states, labels and accessible announcements.
+- The canonical logo uses `organizations.logo_path` and the private `organization-logos` bucket, separate from legacy `academies.logo_url`. Server routes authorize the academy before using Storage; academy and family diplomas receive a ten-minute signed URL.
+- Without the candidate column, Settings hides logo controls and the diploma continues without a logo through a safe `to_jsonb` read.
+- The export classifies but omits the private object locator and file bytes. Organization disposition only plans review and does not erase data; no fake Storage deletion was added.
+- SQL candidate `20261124120000_organization_logos_candidate.sql`; not applied. No new flag. No changes to pricing, billing, the element library or federation templates.
+- Closeout checks: `pnpm typecheck`, `pnpm lint` and `pnpm test`.
+
 ## 2026-11-21 — Biblioteca: vocabulario de sala por país (ADR-0030, apagado)
 
 **Contexto.** Los textos de la biblioteca usan el vocabulario de España (RFEG), decisión de Elvis del 21-11-2026. México dice distinto casi la mitad de los términos de sala. ADR-0030 aceptado por Elvis el 21-11-2026 (opción A con la búsqueda). Rama `biblioteca/vocabulario-por-pais`.

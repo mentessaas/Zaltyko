@@ -241,6 +241,7 @@ export const organizations = zaltyko.table(
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
     legalName: text("legal_name"),
+    logoPath: text("logo_path"),
     status: organizationStatus("status").notNull().default("trial"),
     countryCode: text("country_code").notNull().default("ES"),
     defaultCurrency: text("default_currency").notNull().default("EUR"),
@@ -256,6 +257,10 @@ export const organizations = zaltyko.table(
   },
   (table) => [
     uniqueIndex("organizations_id_country_uq").on(table.id, table.countryCode),
+    check(
+      "organizations_logo_path_scope",
+      sql`${table.logoPath} is null or ${table.logoPath} ~ ('^' || ${table.id}::text || '/logo\\.(jpg|png|webp)$')`
+    ),
     check("organizations_name_not_blank", sql`btrim(${table.name}) <> ''`),
     check(
       "organizations_country_code_format",

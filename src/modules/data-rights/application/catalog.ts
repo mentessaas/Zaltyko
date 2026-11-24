@@ -20,6 +20,8 @@ export interface CanonicalExportTableSpec {
    * (`withLaterCandidateColumns`); con una parte, la exportación falla cerrada.
    */
   laterCandidateColumns?: readonly string[];
+  /** Later candidate columns that stay out of the export with a classified reason. */
+  laterCandidateOmittedColumns?: readonly string[];
 }
 
 export interface CanonicalExportOmission {
@@ -195,6 +197,8 @@ function columns(value: string): string[] {
 }
 
 const omittedColumnReasons: Record<string, string> = {
+  "organizations.logo_path":
+    "This private Storage object locator is operational metadata; the JSON package neither exposes the path nor includes the logo file bytes.",
   "organization_members.user_id":
     "Supabase Auth user IDs identify accounts shared across academies and are outside this tenant export.",
   "guardians.auth_user_id":
@@ -279,6 +283,7 @@ function includedTable(input: {
   orderBy?: readonly string[];
   projections?: Readonly<Record<string, string>>;
   laterCandidateColumns?: readonly string[];
+  laterCandidateOmittedColumns?: readonly string[];
 }): CanonicalExportTableSpec {
   const expectedColumns = columns(input.expectedColumns);
   const omitted = new Set(input.omit ?? []);
@@ -300,7 +305,7 @@ function includedTable(input: {
   }
 
   for (const column of omitted) {
-    if (!expectedColumns.includes(column)) {
+    if (!expectedColumns.includes(column) && !laterCandidateColumns.includes(column)) {
       throw new Error(`Unknown omitted column ${input.name}.${column}`);
     }
     if (!omittedColumnReasons[`${input.name}.${column}`]) {
@@ -326,6 +331,7 @@ function includedTable(input: {
     orderBy,
     ...(input.projections ? { projections: input.projections } : {}),
     ...(laterCandidateColumns.length > 0 ? { laterCandidateColumns } : {}),
+    ...(input.laterCandidateOmittedColumns ? { laterCandidateOmittedColumns: input.laterCandidateOmittedColumns } : {}),
   };
 }
 
@@ -335,12 +341,13 @@ function includedTable(input: {
  * columnas posteriores devuelve la tabla tal cual.
  */
 export function withLaterCandidateColumns(table: CanonicalExportTableSpec): CanonicalExportTableSpec {
-  const { laterCandidateColumns, ...base } = table;
+  const { laterCandidateColumns, laterCandidateOmittedColumns, ...base } = table;
   if (!laterCandidateColumns || laterCandidateColumns.length === 0) return table;
+  const omitted = new Set(laterCandidateOmittedColumns ?? []);
   return {
     ...base,
     expectedColumns: [...base.expectedColumns, ...laterCandidateColumns],
-    exportColumns: [...base.exportColumns, ...laterCandidateColumns],
+    exportColumns: [...base.exportColumns, ...laterCandidateColumns.filter((column) => !omitted.has(column))],
   };
 }
 
@@ -350,6 +357,9 @@ export const CANONICAL_EXPORT_TABLES: readonly CanonicalExportTableSpec[] = [
     organizationColumn: "id",
     expectedColumns:
       "id name legal_name status country_code default_currency default_timezone created_at updated_at",
+    laterCandidateColumns: ["logo_path"],
+    omit: ["logo_path"],
+    laterCandidateOmittedColumns: ["logo_path"],
   }),
   includedTable({
     name: "locations",
@@ -621,7 +631,7 @@ export function exportOmissionsFor(
 }
 
 export const CANONICAL_EXPORT_OMISSIONS: readonly CanonicalExportOmission[] =
-  exportOmissionsFor(CANONICAL_EXPORT_TABLES);
+  exportOmissionsFor(CANONICAL_EXPORT_TABLES.map(withLaterCandidateColumns));
 
 /**
  * Fields of each block of a class plan template, classified as academy
@@ -1120,7 +1130,7 @@ export const EXCLUDED_CANONICAL_SOURCES = [
   {
     source: "Supabase Storage objects and metadata",
     reason:
-      "Storage was not inventoried by this service. The package does not claim that files are absent or covered.",
+      "The academy's private logo path is classified but excluded; this package includes no Storage object bytes and does not establish that other stored files are absent or covered.",
   },
   {
     source: "Legacy public schema",

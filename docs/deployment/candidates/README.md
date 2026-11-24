@@ -1,5 +1,25 @@
 # Candidatos SQL: aplicados y pendientes de autorización
 
+## 2026-11-24 — Private academy logo (not applied)
+
+| Candidata | SHA-256 | Estado |
+|---|---|---|
+| `20261124120000_organization_logos_candidate.sql` | `5069c597bdaa26adc3a52504ef812a9a44d872dc3b4bd754ccd513ff6f53d08a` | No aplicada en ningún entorno |
+
+Adds `zaltyko.organizations.logo_path` and the private `organization-logos`
+bucket (PNG, JPEG or WebP, up to 1 MB). Objects use
+`<organization_id>/logo.<ext>`. A restrictive policy blocks direct Auth-client
+access even if another permissive policy is added later; server routes require
+`owner`/`admin` access to every site and use `service_role`. Families receive
+no Storage read policy: the server creates ten-minute signed URLs only after
+authorizing each diploma.
+
+The export catalog classifies `logo_path` but omits the private object locator
+and file bytes from the JSON package. Academy disposition is review planning only and does not execute
+deletions; any future erasure executor must remove the object through the
+Storage API because deleting SQL rows does not remove the physical file. This
+candidate and its code have not been applied to any database.
+
 Estos archivos están fuera de `supabase/migrations` deliberadamente. No forman
 parte del historial aplicable, no se recorren automáticamente y no recuperan
 migraciones perdidas. No ejecutar el directorio ni aplicar el snapshot sandbox

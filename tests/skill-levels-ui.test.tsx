@@ -262,6 +262,7 @@ describe("progreso de solo lectura, diploma y sección de familias", () => {
     passId: "p1",
     athleteName: "Ana Niveles",
     academyName: "Club Gimnasia Sintético",
+    academyLogoUrl: null,
     templateName: "GAF · Progresión general",
     discipline: "artistic_female",
     levelName: "Iniciación",
@@ -289,6 +290,14 @@ describe("progreso de solo lectura, diploma y sección de familias", () => {
     }
     expect(html).toContain("size: A4 landscape");
     expect(html).not.toContain("undefined");
+  });
+
+  it("muestra el logo del club con texto alternativo y proporción conservada", () => {
+    const html = renderToStaticMarkup(
+      <SkillDiploma diploma={{ ...diploma, academyLogoUrl: "https://storage.example/logo?token=short" }} />
+    );
+    expect(html).toContain('alt="Logo de Club Gimnasia Sintético"');
+    expect(html).toContain("object-fit:contain");
   });
 
   it("el diploma resume los logros que no caben", () => {

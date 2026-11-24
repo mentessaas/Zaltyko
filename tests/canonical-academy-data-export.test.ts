@@ -8,6 +8,8 @@ import { exportCanonicalAcademyData } from "@/modules/data-rights/application/ca
 import {
   ALL_KNOWN_CANONICAL_TABLE_NAMES,
   CANONICAL_EXPORT_TABLES,
+  CANONICAL_EXPORT_OMISSIONS,
+  EXCLUDED_CANONICAL_SOURCES,
   EXCLUDED_CANONICAL_SCOPED_TABLES,
   EXCLUDED_CANONICAL_TABLES,
   OPTIONAL_DISCOVERY_EXPORT_TABLES,
@@ -18,6 +20,7 @@ import {
   OPTIONAL_INCLUDED_EXPORT_TABLES,
   OPTIONAL_SHARED_CATALOG_TABLES,
   OPTIONAL_TEAM_ACCESS_EXPORT_TABLES,
+  withLaterCandidateColumns,
 } from "@/modules/data-rights/application/catalog";
 import { validateCanonicalAcademyArchive } from "@/modules/data-rights/application/verify-canonical-academy-archive";
 import { ACTIVATED_IDS, activatedCatalogRows, activatedRowsByTable } from "./helpers/activated-module-rows";
@@ -72,6 +75,17 @@ beforeEach(() => {
 });
 
 describe("canonical export failure boundaries (database mocked)", () => {
+  it("classifies the optional organization logo path as academy data and the file bytes as a separate Storage source", () => {
+    const organization = CANONICAL_EXPORT_TABLES.find(table => table.name === "organizations");
+    expect(organization?.laterCandidateColumns).toContain("logo_path");
+    expect(organization?.laterCandidateOmittedColumns).toContain("logo_path");
+    const installedOrganization = withLaterCandidateColumns(organization!);
+    expect(installedOrganization.expectedColumns).toContain("logo_path");
+    expect(installedOrganization.exportColumns).not.toContain("logo_path");
+    expect(CANONICAL_EXPORT_OMISSIONS).toContainEqual(expect.objectContaining({ table: "organizations", column: "logo_path" }));
+    expect(EXCLUDED_CANONICAL_SOURCES.find(source => source.source === "Supabase Storage objects and metadata")?.reason).toContain("private logo path is classified but excluded");
+  });
+
   it.each(["missing team table", "unknown team column"])("fails closed before tenant reads for %s", async kind => {
     prepareThroughMembership();
     const moduleRows = OPTIONAL_TEAM_ACCESS_EXPORT_TABLES.flatMap(table => table.columns.map(column_name => ({ table_name: table.table, column_name })));
