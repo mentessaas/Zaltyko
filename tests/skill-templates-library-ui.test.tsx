@@ -69,6 +69,7 @@ function templateView(libraryAvailable: boolean): SkillTemplateView {
     description: null,
     source: "blank",
     starterKey: null,
+    sourceLabel: null,
     archived: false,
     revision: 4,
     levelCount: 1,
@@ -80,6 +81,21 @@ function templateView(libraryAvailable: boolean): SkillTemplateView {
   };
 }
 
+const federationFactSource =
+  "Fuente: RFEG, Programa técnico GAF 2026, pág. 5. Aparato RFEG: Suelo. Rueda lateral.";
+const federationTemplateView: SkillTemplateView = {
+  ...templateView(false),
+  source: "federation",
+  sourceLabel: "Fuente: RFEG, Programa técnico GAF 2026",
+  levels: [{
+    id: LEVEL,
+    position: 1,
+    name: "Nivel Base 1",
+    description: null,
+    elements: [{ ...elements[0]!, description: federationFactSource }],
+  }],
+};
+
 const list: SkillTemplatesListView = {
   templates: [
     {
@@ -89,6 +105,7 @@ const list: SkillTemplatesListView = {
       description: null,
       source: "blank",
       starterKey: null,
+      sourceLabel: null,
       archived: false,
       revision: 4,
       levelCount: 1,
@@ -97,6 +114,7 @@ const list: SkillTemplatesListView = {
     },
   ],
   starters: [],
+  federationTemplates: [],
   canManage: true,
   readOnly: false,
 };
@@ -152,12 +170,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function routeFetch(libraryAvailable: boolean, result: CatalogSearchResult = search) {
+function routeFetch(
+  libraryAvailable: boolean,
+  result: CatalogSearchResult = search,
+  view: SkillTemplateView = templateView(libraryAvailable)
+) {
   fetchMock.mockImplementation(async (input, init) => {
     const url = String(input);
     if (init?.method === "PUT") return json(200, { data: { id: TEMPLATE, revision: 5, replayed: false } });
     if (url.startsWith("/api/v1/owner/element-library?")) return json(200, { data: result });
-    if (url.startsWith(`/api/v1/owner/skill-templates/${TEMPLATE}?`)) return json(200, { data: templateView(libraryAvailable) });
+    if (url.startsWith(`/api/v1/owner/skill-templates/${TEMPLATE}?`)) return json(200, { data: view });
     if (url.startsWith("/api/v1/owner/skill-templates?")) return json(200, { data: list });
     return json(404, { detail: "No encontrado" });
   });
@@ -178,6 +200,20 @@ function putBody() {
 }
 
 describe("plantillas de niveles con la biblioteca", () => {
+  it("muestra la atribución y página oficial en cada elemento de una copia RFEG", async () => {
+    routeFetch(false, search, federationTemplateView);
+    await openEditor();
+
+    expect(screen.getByText(federationFactSource)).toBeTruthy();
+  });
+
+  it("conserva visible la página al copiar una plantilla RFEG", async () => {
+    routeFetch(false, search, { ...federationTemplateView, source: "copy" });
+    await openEditor();
+
+    expect(screen.getByText(federationFactSource)).toBeTruthy();
+  });
+
   it("el selector añade un elemento con su nombre corto y el enlace, y solo ese lleva catalogElementId", async () => {
     routeFetch(true);
     await openEditor();

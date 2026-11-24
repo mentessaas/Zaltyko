@@ -17,6 +17,13 @@ import { z } from "zod";
  * responden 503 con SKILL_LEVELS_UNAVAILABLE_REASON y /familia no muestra nada.
  */
 export const SKILL_LEVELS_ENV_FLAG = "ZALTYKO_SKILL_LEVELS_ENABLED";
+export const FEDERATION_LEVEL_TEMPLATES_ENV_FLAG = "ZALTYKO_FEDERATION_LEVEL_TEMPLATES_ENABLED";
+
+export function isFederationLevelTemplatesFlagOn(
+  env: Readonly<Record<string, string | undefined>> = process.env
+): boolean {
+  return env[FEDERATION_LEVEL_TEMPLATES_ENV_FLAG] === "true";
+}
 
 export function isSkillLevelsFlagOn(
   env: Readonly<Record<string, string | undefined>> = process.env
@@ -106,7 +113,7 @@ export const elementStatusLabels: Record<ElementStatus, string> = {
   achieved: "Conseguido",
 };
 
-export const TEMPLATE_SOURCES = ["blank", "starter", "copy"] as const;
+export const TEMPLATE_SOURCES = ["blank", "starter", "copy", "federation"] as const;
 export type TemplateSource = (typeof TEMPLATE_SOURCES)[number];
 
 export const TEMPLATE_NAME_MAX = 80;
@@ -114,10 +121,12 @@ export const LEVEL_NAME_MAX = 60;
 export const ELEMENT_NAME_MAX = 100;
 export const DESCRIPTION_MAX = 300;
 export const MAX_LEVELS_PER_TEMPLATE = 20;
-export const MAX_ELEMENTS_PER_LEVEL = 40;
+// RFEG Base requirements are imported atomically; GAM Base 2 needs 60 entries.
+export const MAX_ELEMENTS_PER_LEVEL = 64;
 export const MAX_ELEMENTS_PER_TEMPLATE = 300;
 export const MAX_EVALUATION_ATHLETES = 60;
-export const MAX_EVALUATION_ELEMENTS = 40;
+// Allows evaluating every atomic element in a federation level in one pass.
+export const MAX_EVALUATION_ELEMENTS = 64;
 export const MAX_EVALUATION_CELLS = 400;
 export const MAX_ROSTER_ATHLETES = 80;
 
@@ -240,6 +249,15 @@ export const createTemplateCommandSchema = z.discriminatedUnion("source", [
       source: z.literal("copy"),
       templateId: z.guid(),
       name: templateNameSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ...scopeShape,
+      clientRequestId: z.guid(),
+      source: z.literal("federation"),
+      federationTemplateKey: z.string().regex(/^rfeg_2026_(gaf|gam)_base$/),
+      name: templateNameSchema.nullable().optional(),
     })
     .strict(),
 ]);
@@ -426,6 +444,7 @@ export type SkillTemplateSummary = {
   description: string | null;
   source: TemplateSource;
   starterKey: string | null;
+  sourceLabel: string | null;
   archived: boolean;
   revision: number;
   levelCount: number;
@@ -456,6 +475,7 @@ export type StarterTemplateSummary = {
 export type SkillTemplatesListView = {
   templates: SkillTemplateSummary[];
   starters: StarterTemplateSummary[];
+  federationTemplates: StarterTemplateSummary[];
   canManage: boolean;
   /** Plan en solo lectura: se consulta todo, no se escribe. */
   readOnly: boolean;

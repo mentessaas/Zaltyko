@@ -192,6 +192,13 @@ describe("validación de órdenes", () => {
     expect(evaluateSkillsCommandSchema.safeParse({ ...base, athleteIds: [guid(5), guid(5)] }).success).toBe(false);
     expect(evaluateSkillsCommandSchema.safeParse({ ...base, elementIds: [guid(7), guid(7)] }).success).toBe(false);
     expect(evaluateSkillsCommandSchema.safeParse({ ...base, status: "perfect" }).success).toBe(false);
+    // Una sola gimnasta puede marcar todos los 60 requisitos de GAM Base 2.
+    const federationElements = Array.from({ length: 60 }, (_, index) => guid(300 + index));
+    expect(evaluateSkillsCommandSchema.safeParse({
+      ...base,
+      athleteIds: [guid(5)],
+      elementIds: federationElements,
+    }).success).toBe(true);
     // 60 x 40 supera el tope de 400 marcas por envío.
     const athletes = Array.from({ length: 60 }, (_, index) => guid(100 + index));
     const elements = Array.from({ length: 40 }, (_, index) => guid(200 + index));
@@ -210,6 +217,28 @@ describe("validación de órdenes", () => {
 });
 
 describe("plantillas de ejemplo", () => {
+  it("permite guardar los requisitos atómicos de una plantilla federativa GAM", () => {
+    const level = {
+      name: "Base 2",
+      description: null,
+      elements: Array.from({ length: 58 }, (_, index) => ({
+        name: `Requisito ${index + 1}`,
+        apparatus: "floor",
+        description: null,
+        required: true,
+      })),
+    };
+    const result = saveTemplateCommandSchema.safeParse({
+      ...scope,
+      expectedRevision: 1,
+      name: "GAM · RFEG Base 2026",
+      description: null,
+      archived: false,
+      levels: [level],
+    });
+    expect(result.success).toBe(true);
+  });
+
   it("hay una por disciplina, con cuatro niveles y claves únicas", () => {
     expect(STARTER_TEMPLATES.map((template) => template.discipline).sort()).toEqual([...SKILL_DISCIPLINES].sort());
     expect(new Set(STARTER_TEMPLATES.map((template) => template.key)).size).toBe(STARTER_TEMPLATES.length);
@@ -243,7 +272,7 @@ describe("plantillas de ejemplo", () => {
     }
   });
 
-  it("se declaran orientativas y no citan ni reproducen a ninguna federación", () => {
+  it("las plantillas de inicio no citan fuentes federativas sin verificación", () => {
     for (const template of STARTER_TEMPLATES) {
       expect(template.description, template.key).toContain(STARTER_TEMPLATE_NOTICE);
       // El aviso nombra «federación» para negarla; el resto del contenido no la cita.
