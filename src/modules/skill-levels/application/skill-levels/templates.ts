@@ -7,6 +7,7 @@ import type { TransactionClient } from "@/lib/db-transactions";
 // Directo y no desde la fachada de la biblioteca: lecturas sin autorización
 // propia que se hacen dentro de la transacción ya autorizada de niveles.
 import { findLinkableCatalogElement, getCatalogLinkView } from "@/modules/element-library/application/catalog-reads";
+import { catalogElementEditions, catalogElements } from "@/modules/element-library/infrastructure/element-library-schema";
 import { elementLibraryUnavailable, isElementLibraryAvailable } from "@/modules/element-library/application/storage";
 import { CATALOG_DISCIPLINES } from "@/modules/element-library/domain/element-library";
 import { assertOrganizationOperationalWritable } from "@/modules/saas-billing/application/organization-usage";
@@ -17,6 +18,7 @@ import {
   canManageTemplates,
   CATALOG_LINK_MISMATCH_MESSAGE,
   createTemplateCommandSchema,
+  ELEMENT_NAME_MAX,
   saveTemplateCommandSchema,
   templateQuerySchema,
   templatesQuerySchema,
@@ -29,8 +31,10 @@ import {
   type TemplateLevelView,
   type TemplateSource,
   type WriteResult,
+  isFederationLevelTemplatesFlagOn,
 } from "@/modules/skill-levels/domain/skill-levels";
 import { findStarterTemplate, starterTemplateSummaries } from "@/modules/skill-levels/domain/starter-templates";
+import { federationTemplateSummaries, findFederationTemplate } from "@/modules/skill-levels/domain/federation-templates";
 import {
   skillElementBaseColumns,
   skillElements,
@@ -54,6 +58,13 @@ import type { InstalledSkillLevelsShape } from "./storage";
 
 /** Tope de plantillas activas por academia: acota las listas y los selectores. */
 export const MAX_ACTIVE_TEMPLATES = 40;
+
+function federationRequirementName(fact: string): string {
+  if (fact.length <= ELEMENT_NAME_MAX) return fact;
+  const shortened = fact.slice(0, ELEMENT_NAME_MAX - 1);
+  const boundary = shortened.lastIndexOf(" ");
+  return `${shortened.slice(0, boundary > 60 ? boundary : shortened.length)}…`;
+}
 
 function iso(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
@@ -165,6 +176,28 @@ async function loadCatalogElementIds(
   return links;
 }
 
+async function resolveFederationElementIds(
+  tx: TransactionClient,
+  template: NonNullable<ReturnType<typeof findFederationTemplate>>
+): Promise<Map<string, string>> {
+  const keys = [...new Set(template.levels.flatMap((level) =>
+    level.requirements.flatMap((requirement) => requirement.elementKey ? [requirement.elementKey] : [])
+  ))];
+  if (keys.length === 0 || !(await isElementLibraryAvailable(tx))) return new Map();
+  const rows = await tx
+    .select({ elementKey: catalogElements.elementKey, id: catalogElements.id })
+    .from(catalogElements)
+    .innerJoin(catalogElementEditions, eq(catalogElementEditions.id, catalogElements.editionId))
+    .where(and(
+      inArray(catalogElements.elementKey, keys),
+      eq(catalogElements.discipline, template.discipline),
+      eq(catalogElements.reviewStatus, "reviewed"),
+      isNull(catalogElements.withdrawnAt),
+      eq(catalogElementEditions.status, "published")
+    ));
+  return new Map(rows.map((row) => [row.elementKey, row.id]));
+}
+
 /**
  * Añade su enlace con la biblioteca solo a los elementos enlazados. Un
  * elemento sin enlace se devuelve tal cual, sin la clave `catalogLink`: así la
@@ -217,6 +250,7 @@ function summary(
     description: row.description,
     source: row.source as TemplateSource,
     starterKey: row.starterKey,
+    sourceLabel: row.description?.startsWith("Fuente: RFEG,") ? row.description.split("\n")[0] : null,
     archived: row.archivedAt !== null,
     revision: row.revision,
     levelCount: counts.levelCount,
@@ -286,6 +320,7 @@ export async function listSkillTemplates(input: ActorInput & { query: unknown })
         includeArchived: query.includeArchived === "true",
       }),
       starters: starterTemplateSummaries(),
+      federationTemplates: isFederationLevelTemplatesFlagOn() ? federationTemplateSummaries() : [],
       canManage: canManageTemplates(access.role),
       readOnly: !(await isOrganizationWritable(tx, query.organizationId)),
     };
@@ -444,7 +479,11 @@ export async function createSkillTemplate(input: ActorInput & { command: unknown
           ? prior.discipline === command.discipline && prior.name === command.name
           : command.source === "starter"
             ? prior.starterKey === command.starterKey && (!command.name || prior.name === command.name)
-            : prior.name === command.name);
+            : command.source === "federation"
+              ? findFederationTemplate(command.federationTemplateKey)?.discipline === prior.discipline &&
+                prior.description?.startsWith("Fuente: RFEG,") === true &&
+                (!command.name || prior.name === command.name)
+              : prior.name === command.name);
       if (!same) throw idempotencyConflict();
       return { id: prior.id, revision: prior.revision, replayed: true };
     }
@@ -474,6 +513,27 @@ export async function createSkillTemplate(input: ActorInput & { command: unknown
           apparatus: element.apparatus,
           description: null,
           required: element.required ?? true,
+        })),
+      }));
+    } else if (command.source === "federation") {
+      if (!isFederationLevelTemplatesFlagOn()) throw notFound("Plantilla de federación no encontrada");
+      const federationTemplate = findFederationTemplate(command.federationTemplateKey);
+      if (!federationTemplate) throw notFound("Plantilla de federación no encontrada");
+      discipline = federationTemplate.discipline;
+      name = command.name ?? federationTemplate.name;
+      description = `Fuente: RFEG, ${federationTemplate.sourceTitle}. Edición rfeg-2026. Consultado el ${federationTemplate.sourceCheckedOn}. El documento oficial es la referencia válida.`;
+      const catalogIds = access.storageShape === "with_catalog_links"
+        ? await resolveFederationElementIds(tx, federationTemplate)
+        : new Map<string, string>();
+      levels = federationTemplate.levels.map((level) => ({
+        name: level.name,
+        description: null,
+        elements: level.requirements.map((requirement) => ({
+          name: federationRequirementName(requirement.fact),
+          apparatus: requirement.apparatus,
+          description: `Fuente: RFEG, ${federationTemplate.sourceTitle}, pág. ${requirement.page}. Aparato RFEG: ${requirement.sourceApparatus}. ${requirement.fact}`,
+          required: true,
+          catalogElementId: requirement.elementKey ? catalogIds.get(requirement.elementKey) ?? null : null,
         })),
       }));
     } else {

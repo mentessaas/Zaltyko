@@ -13413,6 +13413,13 @@ Navegación Owner solo lectura: dashboard/grupo2gimnastas y1grupo;inscripciones1
 
 **Siguiente paso:** CI remota completa del nuevo commit, revisión externa vigente y comprobación en delivery con academias separadas; después controles productivos y comerciales. No equivale a un lanzamiento ni a validar producción. Se conserva el ensayo natural sin consultas ni escrituras en esta ronda.
 
+
+## 2026-11-24 — Plantillas RFEG Base 2026, fase D
+
+Se corrigió el contenido de fase D: 262 hechos para GAF Base 1–10 y 274 para GAM Base 1–5, organizados por aparato y página. La copia crea un elemento por hecho y muestra la cita de documento y página; se enlazan cinco hechos con coincidencia FIG exacta (`fx_turn_1_one_foot_low_leg` en dos fichas, `mfx_handstand_hold` en dos y `mph_double_scissor_fwd` en una). «Seta» queda bajo `pommel_horse` con la nota de aparato de iniciación. El límite por nivel y por envío de evaluación pasa de 40 a 64 para admitir las 60 entradas de GAM Base 2; el máximo de 400 marcas por envío y de 300 elementos por plantilla no cambia. La ficha GAF Base 9–10 solo expresa mínimos de RC FIG, sin enumerar los elementos que pueden cumplirlos; se mantiene explícito como límite de la fuente. La bandera `ZALTYKO_FEDERATION_LEVEL_TEMPLATES_ENABLED` sigue apagada y la candidata `20261124134300_skill_template_federation_source_candidate.sql` no se aplicó. FMG queda fuera; RFEG 2027 espera su PDF. URL oficial no confirmada.
+
+Prueba focal de datos: PASS (3/3), incluyendo páginas, claves de biblioteca compatibles por disciplina/aparato y 8-gramas contra las extracciones locales indicadas por `RFEG_GAF_TEXT_PATH` y `RFEG_GAM_TEXT_PATH` (los PDF extraídos permanecen fuera del repositorio). Verificación completa: `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` PASS (824 ficheros, 10.733 tests pasaron; 16 ficheros/195 tests omitidos, 0 fallidos). El test PostgreSQL de importación/permisos/aislamiento queda omitido fuera del runner de CI con base desechable. `git diff --check` PASS. No se consultaron Supabase/Stripe/producción ni se aplicó SQL.
+
 No se ejecutaron pruebas, instalaciones, servicios ni builds locales. Revisión estática y git diff --check sin errores. Nuevas pruebas cubren scope/denegaciones, resumen no disponible, navegación sin módulos avanzados, rutas retiradas y ausencia de crons; ejecución pendiente de CI remota. No hay migraciones ni cambios de credenciales.
 
 

@@ -87,6 +87,7 @@ export function fetchTemplate(scope: SkillScope, templateId: string) {
 export type CreateTemplateBody =
   | { source: "blank"; discipline: string; name: string; description?: string | null }
   | { source: "starter"; starterKey: string; name?: string | null }
+  | { source: "federation"; federationTemplateKey: string; name?: string | null }
   | { source: "copy"; templateId: string; name: string };
 
 export function postTemplate(scope: SkillScope, body: CreateTemplateBody & { clientRequestId: string }) {

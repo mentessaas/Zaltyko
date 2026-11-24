@@ -6,6 +6,20 @@ All notable changes to Zaltyko are documented here. Format follows
 > SHA referenced corresponds to commits on `zaltyko-onboarding-ZAL-137`.
 > For commits on previous branches, refer to the git history directly.
 
+## 2026-11-24 — Plantillas de niveles RFEG 2026 (fase D, local)
+
+### Añadido
+
+- Datos de hechos RFEG GAF Base 1–10 y GAM Base 1–5, versionados por edición, con referencia visible de página y prueba local anti-copia.
+- Opción de importación como copia de academia tras activar `ZALTYKO_FEDERATION_LEVEL_TEMPLATES_ENABLED` (apagada por defecto).
+- Límite por nivel y por envío de evaluación de 64 elementos para admitir requisitos atómicos; el máximo de 400 marcas y 300 elementos por plantilla se mantiene.
+- Candidata no aplicada para admitir `source = 'federation'` en `skill_templates`.
+
+### Límites
+
+- FMG excluida por licencia. La edición 2027 queda pendiente del PDF y revisión; no se descargaron documentos ni se aplicó SQL.
+- No se verificó una URL oficial en el material local, por lo que se conserva el nombre del documento.
+
 ## 2026-10-06 — Nuevo núcleo PR-09: cutover prepiloto
 
 ### Changed

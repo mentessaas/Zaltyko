@@ -1,0 +1,1908 @@
+{
+  "federation": "RFEG",
+  "edition": "rfeg-2026",
+  "consultedOn": "2026-11-24",
+  "documentDate": "2025-09-26",
+  "sourceDocument": "Programa técnico GAF 2026",
+  "sourceUrl": null,
+  "key": "rfeg_2026_gaf_base",
+  "discipline": "artistic_female",
+  "levels": [
+    {
+      "name": "Nivel Base 1",
+      "page": 5,
+      "requirements": [
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 5,
+          "fact": "Carrera de aproximación.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 5,
+          "fact": "Salto en extensión tras el impulso en trampolín.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 5,
+          "fact": "Entrada a pino con bloqueo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 5,
+          "fact": "Recepción tumbada boca arriba.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 5,
+          "fact": "Condición: Un trampolín.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 5,
+          "fact": "Condición: Recepción sobre colchonetas a 60 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 5,
+          "fact": "Apoyo con pies en la banda inferior durante 3 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 5,
+          "fact": "Vuelo adelante.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 5,
+          "fact": "Vuelo atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 5,
+          "fact": "Recepción en colchoneta.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 5,
+          "fact": "Vuelta atrás hasta el apoyo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 5,
+          "fact": "Salida con impulso atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 5,
+          "fact": "Recepción de pie.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 5,
+          "fact": "Demi-plié.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 5,
+          "fact": "Relevé.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 5,
+          "fact": "Salto extendido.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 5,
+          "fact": "Paso de galope.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 5,
+          "fact": "Equilibrio en passé durante 2 s con cada pierna.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 5,
+          "fact": "Dos elevaciones de pierna al frente, una por lado, hasta la horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 5,
+          "fact": "Pasos de danza con desplazamiento lateral.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 5,
+          "fact": "Condición: Barra a 1 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 5,
+          "fact": "Condición: Ejercicio de hasta 1 min.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 5,
+          "fact": "Dos pasos de galope.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 5,
+          "fact": "Dos pasos de tijera.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 5,
+          "fact": "Rueda lateral.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 5,
+          "fact": "Voltereta atrás agrupada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 5,
+          "fact": "Pino.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 5,
+          "fact": "Voltereta al frente.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 5,
+          "fact": "Salto extendido.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 5,
+          "fact": "Medio giro en passé.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 5,
+          "fact": "Condición: Ejercicio de hasta 1 min.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 5,
+          "fact": "Salida: salto en el extremo de la barra.",
+          "elementKey": null
+        }
+      ]
+    },
+    {
+      "name": "Nivel Base 2",
+      "page": 6,
+      "requirements": [
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 6,
+          "fact": "Paloma con recepción de espalda en colchoneta.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 6,
+          "fact": "Condición: Una acción de salto.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 6,
+          "fact": "Condición: Recepción a 60 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 6,
+          "fact": "Escuadra mantenida 3 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 6,
+          "fact": "Apoyo con pies en la banda inferior durante 3 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 6,
+          "fact": "Dos vuelos en ambos sentidos (adelante/atrás).",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 6,
+          "fact": "Recepción en colchoneta.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 6,
+          "fact": "Vuelta atrás al apoyo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 6,
+          "fact": "Impulso atrás hasta horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 6,
+          "fact": "Vuelta al apoyo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 6,
+          "fact": "Recepción de pie.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 6,
+          "fact": "Galope.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 6,
+          "fact": "Salto extendido.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 6,
+          "fact": "Equilibrio en passé durante 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 6,
+          "fact": "Medio giro en relevé sobre dos pies.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 6,
+          "fact": "Dos elevaciones de pierna al frente, una por lado.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 6,
+          "fact": "Equilibrio en cada pierna durante 2 s, al menos a la horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 6,
+          "fact": "Condición: Barra a 1 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 6,
+          "fact": "Condición: Ejercicio de hasta 1 min.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 6,
+          "fact": "Doble paso de zancada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 6,
+          "fact": "Galope.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 6,
+          "fact": "Dos ruedas laterales.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 6,
+          "fact": "Pino.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 6,
+          "fact": "Voltereta al frente.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 6,
+          "fact": "Salto extendido.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 6,
+          "fact": "Voltereta atrás agrupada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 6,
+          "fact": "Medio giro o giro completo en passé.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 6,
+          "fact": "Condición: Ejercicio de hasta 1 min.",
+          "elementKey": null
+        }
+      ]
+    },
+    {
+      "name": "Nivel Base 3",
+      "page": 7,
+      "requirements": [
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 7,
+          "fact": "Salto a elegir: paloma con recepción dorsal o medio con repulsión y recepción de rodillas.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 7,
+          "fact": "Condición: Colchonetas a 80 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 7,
+          "fact": "Escuadra mantenida 3 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 7,
+          "fact": "Apoyo con pies en la banda inferior durante 3 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 7,
+          "fact": "Tres balanceos en ambos sentidos (adelante/atrás)",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 7,
+          "fact": "Vuelta atrás al apoyo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 7,
+          "fact": "Impulso atrás con piernas juntas hasta horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 7,
+          "fact": "Salida tipo poltrón.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 7,
+          "fact": "Serie de danza con dos elementos A.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 7,
+          "fact": "Rol al frente con apoyo de manos hasta posición dorsal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 7,
+          "fact": "Vertical con desviación mínima de 30°.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 7,
+          "fact": "Medio giro en passé.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 7,
+          "fact": "Condición: Barra a 1 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 7,
+          "fact": "Condición: Salida en rondada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 7,
+          "fact": "Pasaje de danza FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 7,
+          "fact": "Giro completo en passé.",
+          "elementKey": "fx_turn_1_one_foot_low_leg"
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 7,
+          "fact": "Rondada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 7,
+          "fact": "Voltereta atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 7,
+          "fact": "Rueda lateral.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 7,
+          "fact": "Pino.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 7,
+          "fact": "Voltereta al frente.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 7,
+          "fact": "Arco adelante o atrás desde una pierna.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 7,
+          "fact": "Ejercicio de hasta 1 min.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 7,
+          "fact": "Ejercicio de hasta 1 min.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 7,
+          "fact": "Condición: Un trampolín.",
+          "elementKey": null
+        }
+      ]
+    },
+    {
+      "name": "Nivel Base 4",
+      "page": 8,
+      "requirements": [
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 8,
+          "fact": "Salto a elegir: paloma con recepción dorsal o medio con repulsión y recepción de pie.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 8,
+          "fact": "Condición: Colchonetas a 80 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 8,
+          "fact": "Tres balanceos en ambos sentidos (adelante/atrás)",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 8,
+          "fact": "Vuelta atrás al apoyo o subida con molino.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 8,
+          "fact": "Impulso atrás con piernas juntas hasta horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 8,
+          "fact": "Salida tipo poltrón con medio giro.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 8,
+          "fact": "Serie de danza FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 8,
+          "fact": "Tres saltos A distintos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 8,
+          "fact": "Vertical con desviación mínima de 10°.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 8,
+          "fact": "Rol al frente con manos hasta posición dorsal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 8,
+          "fact": "Medio giro en passé.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 8,
+          "fact": "Medio giro en relevé sobre dos pies.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 8,
+          "fact": "Condición: Barra a 1,25 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 8,
+          "fact": "Pasaje de danza FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 8,
+          "fact": "Giro de 360° en passé (elemento 2.101)",
+          "elementKey": "fx_turn_1_one_foot_low_leg"
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 8,
+          "fact": "Rondada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 8,
+          "fact": "Salto.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 8,
+          "fact": "Quinta a vertical.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 8,
+          "fact": "Paloma desde una pierna.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 8,
+          "fact": "Rueda lateral.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 8,
+          "fact": "Arco atrás desde una pierna.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 8,
+          "fact": "Ejercicio de hasta 1 min.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 8,
+          "fact": "Ejercicio de hasta 1 min.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 8,
+          "fact": "Condición: Se permite banda inferior o superior.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 8,
+          "fact": "Condición: Un trampolín.",
+          "elementKey": null
+        }
+      ]
+    },
+    {
+      "name": "Nivel Base 5",
+      "page": 9,
+      "requirements": [
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 9,
+          "fact": "Salto a elegir: paloma o medio.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 9,
+          "fact": "Condición: Plataforma a 1 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 9,
+          "fact": "Un vuelo en cada sentido (adelante/atrás)",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 9,
+          "fact": "Kippe.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 9,
+          "fact": "Impulso atrás con piernas juntas hasta horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 9,
+          "fact": "Vuelta al apoyo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 9,
+          "fact": "Salida tipo poltrón con medio giro.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 9,
+          "fact": "Serie de danza FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 9,
+          "fact": "Tres saltos diferentes.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 9,
+          "fact": "Elemento acrobático adelante, lateral o atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 9,
+          "fact": "Rol al frente con apoyo de manos, sin pausa, hasta posición libre.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 9,
+          "fact": "Giro del grupo 3 distinto del usado en R1.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 9,
+          "fact": "Condición: Barra a 1,25 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 9,
+          "fact": "Pasaje de danza FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 9,
+          "fact": "Giro completo de grupo 2.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 9,
+          "fact": "Rondada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 9,
+          "fact": "Flic-flac.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 9,
+          "fact": "Salto.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 9,
+          "fact": "Paloma desde dos piernas.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 9,
+          "fact": "Rueda lateral.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 9,
+          "fact": "Arco atrás desde una pierna.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 9,
+          "fact": "Ejercicio de hasta 1 min.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 9,
+          "fact": "Ejercicio de hasta 1 min.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 9,
+          "fact": "Condición: Se permite banda inferior o superior.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 9,
+          "fact": "Condición: Trampolín simple o doble.",
+          "elementKey": null
+        }
+      ]
+    },
+    {
+      "name": "Nivel Base 6",
+      "page": 10,
+      "requirements": [
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 10,
+          "fact": "Salto del grupo FIG 1.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 10,
+          "fact": "Condición: Plataforma de salto a 1,15 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 10,
+          "fact": "Kippe en las bandas inferior y superior.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 10,
+          "fact": "Impulso atrás a 45° como mínimo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 10,
+          "fact": "Un cambio de banda.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 10,
+          "fact": "Vuelta atrás al apoyo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 10,
+          "fact": "Elemento 2.105.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 10,
+          "fact": "Entrada de valor B.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 10,
+          "fact": "Serie de danza FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 10,
+          "fact": "Salto libre.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 10,
+          "fact": "Condición: Un elemento de danza o el salto libre debe tener, como mínimo, valor B.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 10,
+          "fact": "Dos elementos acrobáticos distintos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 10,
+          "fact": "Giro del grupo 3.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 10,
+          "fact": "Condición: Barra a 1,25 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 10,
+          "fact": "Condición: Máximo ocho elementos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Pasaje de danza FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Salto libre.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Condición: Un elemento de danza o el salto libre debe tener valor B.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Rondada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Flic-flac.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Mortal atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Paloma desde dos piernas.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Flic-flac adelante.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Giro y medio en passé.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 10,
+          "fact": "Uso de uno o dos trampolines.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 10,
+          "fact": "Ejercicio de hasta 1 min 15 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 10,
+          "fact": "Ejercicio de hasta 1 min 15 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Ejercicio de hasta 1 min 15 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Máximo ocho elementos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 10,
+          "fact": "Máximo ocho elementos.",
+          "elementKey": null
+        }
+      ]
+    },
+    {
+      "name": "Nivel Base 7",
+      "page": 11,
+      "requirements": [
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 11,
+          "fact": "Salto FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 11,
+          "fact": "Condición: Plataforma de salto a 1,25 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 11,
+          "fact": "Kippe en las bandas inferior y superior.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 11,
+          "fact": "Impulso atrás hasta vertical.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 11,
+          "fact": "Cambio de banda.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 11,
+          "fact": "Se admite vuelta de plantas para subir.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 11,
+          "fact": "Quinta, Stalder o pisada a 45°, valor B.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 11,
+          "fact": "Serie de danza FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 11,
+          "fact": "Salto libre.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 11,
+          "fact": "Condición: Un elemento de danza o el salto libre debe tener, como mínimo, valor B.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 11,
+          "fact": "Elementos acrobáticos en las direcciones adelante o lateral y atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 11,
+          "fact": "Elemento acrobático de valor mínimo B distinto de R2.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 11,
+          "fact": "Giro grupo 3, rol o tijera conforme al código.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 11,
+          "fact": "Condición: Barra a 1,25 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 11,
+          "fact": "Pasaje de danza FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 11,
+          "fact": "Salto libre de valor B.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 11,
+          "fact": "Dos líneas acrobáticas FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 11,
+          "fact": "Al menos una hacia atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 11,
+          "fact": "Mortal adelante libre.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 11,
+          "fact": "Giro del grupo 2 de valor mínimo B.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 11,
+          "fact": "Uso de uno o dos trampolines.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 11,
+          "fact": "Ejercicio de hasta 1 min 15 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 11,
+          "fact": "Ejercicio de hasta 1 min 15 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 11,
+          "fact": "Máximo ocho elementos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 11,
+          "fact": "Ejercicio de hasta 1 min 15 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 11,
+          "fact": "Máximo ocho elementos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 11,
+          "fact": "Máximo ocho elementos.",
+          "elementKey": null
+        }
+      ]
+    },
+    {
+      "name": "Nivel Base 8",
+      "page": 12,
+      "requirements": [
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 12,
+          "fact": "Salto FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 12,
+          "fact": "Condición: Plataforma de salto a 1,25 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 12,
+          "fact": "Molino atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 12,
+          "fact": "Vuelta libre atrás a 45° mínimo mediante quinta, Stalder o pisada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 12,
+          "fact": "Un cambio de banda.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 12,
+          "fact": "Impulso atrás a vertical.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 12,
+          "fact": "Serie de danza FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 12,
+          "fact": "Un salto libre.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 12,
+          "fact": "Dos elementos acrobáticos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 12,
+          "fact": "Elemento acrobático con vuelo en dirección adelante, lateral o atrás, distinto de R2.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 12,
+          "fact": "Giro grupo 3, rol o tijera conforme al código.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 12,
+          "fact": "Condición: Barra a 1,25 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 12,
+          "fact": "Condición: Máximo ocho elementos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 12,
+          "fact": "Pasaje de danza FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 12,
+          "fact": "Salto libre.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 12,
+          "fact": "Condición: Un elemento de danza o el salto libre debe tener valor C.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 12,
+          "fact": "Dos líneas acrobáticas FIG diferentes, adelante o atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 12,
+          "fact": "Mortal adelante libre.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 12,
+          "fact": "Giro libre del grupo 2.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 12,
+          "fact": "Uso de uno o dos trampolines.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 12,
+          "fact": "Ejercicio de hasta 1 min 15 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 12,
+          "fact": "Ejercicio de hasta 1 min 15 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 12,
+          "fact": "Máximo ocho elementos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 12,
+          "fact": "Ejercicio de hasta 1 min 15 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 12,
+          "fact": "Máximo ocho elementos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 12,
+          "fact": "Máximo ocho elementos.",
+          "elementKey": null
+        }
+      ]
+    },
+    {
+      "name": "Nivel Base 9",
+      "page": 13,
+      "requirements": [
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 13,
+          "fact": "Salto FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 13,
+          "fact": "Condición: Plataforma de salto a 1,25 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 13,
+          "fact": "Uno o dos requisitos de composición FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 13,
+          "fact": "Condición: No se permite elemento con vuelo en la misma banda.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 13,
+          "fact": "Condición: Se admiten cambios entre bandas.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 13,
+          "fact": "Serie de danza FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 13,
+          "fact": "Un salto libre.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 13,
+          "fact": "Dos elementos acrobáticos distintos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 13,
+          "fact": "Uno con vuelo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 13,
+          "fact": "Elemento acrobático adelante, lateral o atrás distinto de R2.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 13,
+          "fact": "Giro grupo 3, rol o tijera conforme al código.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 13,
+          "fact": "Condición: Barra a 1,25 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 13,
+          "fact": "Pasaje de danza FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 13,
+          "fact": "Salto libre.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 13,
+          "fact": "Condición: Un elemento de danza o el salto libre debe tener, como mínimo, valor C.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 13,
+          "fact": "Línea acrobática FIG hacia atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 13,
+          "fact": "Línea acrobática FIG hacia adelante.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 13,
+          "fact": "Giro de grupo 2 de valor B mínimo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 13,
+          "fact": "Condición: No se permiten dobles mortales.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 13,
+          "fact": "Uso de uno o dos trampolines.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 13,
+          "fact": "Ejercicio de hasta 1 min 15 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 13,
+          "fact": "Ejercicio de hasta 1 min 15 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 13,
+          "fact": "Máximo ocho elementos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 13,
+          "fact": "Ejercicio de hasta 1 min 15 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 13,
+          "fact": "Máximo ocho elementos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 13,
+          "fact": "Máximo ocho elementos.",
+          "elementKey": null
+        }
+      ]
+    },
+    {
+      "name": "Nivel Base 10",
+      "page": 14,
+      "requirements": [
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 14,
+          "fact": "Salto FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 14,
+          "fact": "Condición: Plataforma de salto a 1,25 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 14,
+          "fact": "Dos o tres requisitos de composición FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 14,
+          "fact": "Condición: No se permite elemento con vuelo en la misma banda.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 14,
+          "fact": "Condición: Se admiten cambios entre bandas.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 14,
+          "fact": "Tres requisitos de composición FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 14,
+          "fact": "Condición: Barra a 1,25 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 14,
+          "fact": "Condición: Ejercicio de hasta 1 min 15 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 14,
+          "fact": "Uno a tres requisitos de composición FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 14,
+          "fact": "Condición: No se permiten dobles mortales.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 14,
+          "fact": "Condición: Ejercicio de hasta 1 min 15 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 14,
+          "fact": "Condición: Un trampolín.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 14,
+          "fact": "Ejercicio de hasta 1 min 15 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 14,
+          "fact": "Ejercicio de hasta 1 min 15 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "beam",
+          "sourceApparatus": "Barra de equilibrio",
+          "page": 14,
+          "fact": "Máximo ocho elementos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 14,
+          "fact": "Ejercicio de hasta 1 min 15 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 14,
+          "fact": "Máximo ocho elementos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "uneven_bars",
+          "sourceApparatus": "Paralelas asimétricas",
+          "page": 14,
+          "fact": "Máximo ocho elementos.",
+          "elementKey": null
+        }
+      ]
+    }
+  ],
+  "sportProfileVersion": "rfeg-2026-v2",
+  "validThrough": "2026-12-31"
+}

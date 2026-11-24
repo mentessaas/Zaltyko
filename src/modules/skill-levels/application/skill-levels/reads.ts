@@ -407,7 +407,7 @@ async function readDiploma(
       academyLogoUrl = await createOrganizationLogoUrl(organization.logo_path);
     }
   }
-  // unbounded-read-ok: como mucho 40 elementos por nivel (dominio).
+  // unbounded-read-ok: como mucho 64 elementos por nivel (dominio).
   const achieved = await tx
     .select({ name: skillElements.name, apparatus: skillElements.apparatus, position: skillElements.position })
     .from(skillElements)

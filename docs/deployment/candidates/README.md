@@ -152,6 +152,15 @@ commit;
 - **Espejo Drizzle** fuera de `src/db/schema/`, como los demás candidatos.
 - **Producto y prueba en staging:** `docs/producto/niveles-y-progresion.md`.
 
+## Importación de plantillas RFEG de niveles (candidata nueva, sin aplicar)
+
+**Estado: `20261124134300_skill_template_federation_source_candidate.sql` es candidata local y no está aplicada.** Amplía el CHECK de `zaltyko.skill_templates.source` para admitir `federation`; conserva los valores anteriores y no añade columnas ni reescribe filas.
+
+- **Revisión previa.** Comprueba manualmente que el esquema instalado tenga `skill_templates_source_check` antes de promoverla. La candidata aborta si falta la tabla o la restricción.
+- **Bandera separada.** `ZALTYKO_FEDERATION_LEVEL_TEMPLATES_ENABLED` permanece apagada por defecto. La importación también requiere `ZALTYKO_SKILL_LEVELS_ENABLED` y el esquema existente de niveles.
+- **Datos.** La clave, el título de fuente, edición y fecha consultada se conservan en la descripción de la copia y en las citas de cada requisito. Por ello no hacen falta columnas de migración en esta fase.
+- **Rollback.** No se recomienda revertir mientras existan copias `source = 'federation'`. Si no hay ninguna, puede restaurarse el CHECK previo (`blank`, `starter`, `copy`) en una candidata revisada.
+
 ## Candidato de instalación canónica
 
 **Estado: aplicada en producción el 25-10-2026** con autorización expresa
