@@ -40,7 +40,28 @@ archiva los códigos antiguos sin alterar sus Prices ni sus importes, crea el
 registro Club y actualiza Gratis. Añade `extra_location_quantity` a las
 operaciones de checkout para fijar la cantidad inicial de sedes extras.
 
-**Estado: no aplicada en ningún entorno y sin autorización para aplicarla.**
+**Estado: aplicada en staging y en producción el 24-11-2026**, con autorización
+expresa de Elvis («Tienes mi permiso»), sobre el archivo exacto con el SHA-256 de
+abajo. Orden seguido: staging → fusión del PR #390 → producción → despliegue
+`zaltyko-1jr3xgk7k` el mismo minuto. En staging `public.plans` estaba vacía antes
+de aplicarla (falta la fila `free`; pendiente de revisar la semilla).
+
+Stripe Live (cuenta Zaltyko), creados el 24-11-2026; los identificadores no son
+secretos y están en Vercel Production:
+
+| Variable | Objeto | Importe |
+|---|---|---|
+| `STRIPE_SAAS_LIVE_PRICE_CLUB_MONTH` | `price_1UfQfDDXXopppUpeaJ3EAZnc` | 23,97 € + IVA / mes |
+| `STRIPE_SAAS_LIVE_PRICE_CLUB_YEAR` | `price_1UfQfEDXXopppUpezMaX0SnK` | 239,67 € + IVA / año |
+| `STRIPE_SAAS_LIVE_PRICE_LOCATION_MONTH` | `price_1UfQfFDXXopppUpeg9kHO67b` | 16,53 € + IVA / mes |
+| `STRIPE_SAAS_LIVE_PRICE_LOCATION_YEAR` | `price_1UfQfHDXXopppUpeUfCvbSmI` | 165,29 € + IVA / año |
+| `STRIPE_SAAS_LIVE_TAX_RATE_ES_IVA21` | `txr_1UfQfIDXXopppUpesU7pmtXR` | IVA 21 % exclusivo |
+
+Cupón fundador `pa0OmWjT` (339 céntimos, 12 meses, máximo 10, solo producto Club)
+con el código promocional `FUNDADOR`. El Checkout Live sigue cerrado: faltan
+`STRIPE_SAAS_ENVIRONMENT`, la clave y el webhook Live, y en
+`commercial-launch-profile.ts` siguen en `false` `legalTextsApproved`,
+`invoicingIntegrationReady` y `liveReleaseApproved`.
 No llama a Stripe/Supabase; los cuatro Price IDs y el cupón de fundador se
 configuran en cada entorno después por el agente autorizado. `plans` es
 catálogo público de producto y `extra_location_quantity` es metadato SaaS
