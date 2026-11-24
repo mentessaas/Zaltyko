@@ -802,6 +802,7 @@ export type DiplomaView = {
   passId: string;
   athleteName: string;
   academyName: string;
+  academyLogoUrl: string | null;
   templateName: string;
   discipline: SkillDiscipline;
   levelName: string;

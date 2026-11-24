@@ -62,6 +62,14 @@ export function SkillDiploma({ diploma }: { diploma: DiplomaView }) {
           }}
         >
           <header style={{ display: "grid", gap: "0.4em", justifyItems: "center" }}>
+            {diploma.academyLogoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={diploma.academyLogoUrl}
+                alt={`Logo de ${diploma.academyName}`}
+                style={{ display: "block", maxWidth: "8rem", maxHeight: "3.5rem", width: "auto", height: "auto", objectFit: "contain" }}
+              />
+            ) : null}
             <p
               style={{
                 margin: 0,
