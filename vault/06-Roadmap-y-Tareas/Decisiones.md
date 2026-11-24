@@ -8,6 +8,14 @@ source:
 
 # Decisiones
 
+## 2026-11-24 — Private academy logo in Settings and diplomas
+
+- **Data and file.** `zaltyko.organizations.logo_path` stores `<organization_id>/logo.<ext>` in the private `organization-logos` bucket. Accepted formats are PNG, JPEG and WebP up to 1 MB; SVG is excluded. This is separate from legacy `academies.logo_url` and is not a public URL.
+- **Access.** Server-side upload and removal require an active `owner` or `admin` membership with access to every site. Families receive a ten-minute signed URL only after authorization to read that diploma. A restrictive policy blocks direct `anon` and `authenticated` access.
+- **Compatibility.** No feature flag is needed. Drizzle omits the candidate column; the organization-logo storage boundary checks `information_schema` before explicit SQL reads or writes. Without the column, Settings hides upload controls, POST/DELETE return 503 without touching Storage, and diplomas render without a logo.
+- **Data rights.** The catalog classifies but omits `logo_path` from the JSON export; neither the private object locator nor its bytes are included. Canonical academy disposition is a review plan and does not delete data. There is no canonical organization erasure executor; if one is added, it must delete the Storage object through the Storage API as well as the database rows.
+- **Status.** Candidate only: `20261124120000_organization_logos_candidate.sql`; not applied in any environment. The earlier decision to allow public logos in `actor-photos` does not apply to this private diploma asset.
+
 
 ## 2026-11-19 — Biblioteca de elementos, fase C: decisiones del ADR-0029 aplicadas al construirla
 

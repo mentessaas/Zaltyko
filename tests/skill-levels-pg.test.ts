@@ -4,7 +4,9 @@ import { resolve } from "node:path";
 
 import { sql } from "drizzle-orm";
 import { Client } from "pg";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 
 import { db } from "@/db";
 import {

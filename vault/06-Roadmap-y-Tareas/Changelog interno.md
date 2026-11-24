@@ -7,6 +7,26 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-11-24 — Corrección 2 de CI para logo de academia
+
+- `tests/organization-logo-pg.test.ts` aplica solo la sección de columna y constraint de la candidata en PostgreSQL desechable; no presupone ni consulta el esquema Supabase Storage y no modifica el SQL candidato.
+- `tests/skill-levels-pg.test.ts` simula `server-only` en Vitest, siguiendo el patrón de pruebas existente; el módulo de producción conserva su importación `server-only`.
+- Se revierte la ampliación accidental de `assertOwnerSettingsAccess`: los ajustes generales siguen exigiendo rol `owner` y alcance completo. La autorización separada de la ruta de logo para `owner`/`admin` no cambia.
+- Primera CI del commit `3de055a`: las 48 suites PostgreSQL ejecutaron 540 pruebas; los tres fallos originales se corrigieron, pero la limpieza del fixture de logo intentó borrar una academia y activó el historial append-only de entitlements. El fix de limpieza conserva esa fila sintética en la base efímera y solo retira la columna candidata.
+- Verificación local: 83 pruebas unitarias dirigidas, `pnpm typecheck`, `pnpm lint` y `git diff --check` pasan; los tests PostgreSQL importan localmente y quedan omitidos fuera del runner protegido de GitHub Actions.
+- CI del commit `465b2945` (SHA completo `465b29451a5a73e51836133d12d8cd1fc4b09fd2`): Postgres integration `45476252214` pasó las 48 suites (540/540); CI `45476252018` pasó Unit Tests, Build, Lint & Type Check, los E2E sintéticos Chromium/Firefox/WebKit y `Local Synthetic Owner E2E Required Gate`; Static Gates operativo `45476252116` también pasó.
+- La candidata `20261124120000_organization_logos_candidate.sql` sigue sin aplicarse a ningún entorno.
+
+## 2026-11-24 — Academy logo in Settings and diplomas (candidate, not applied)
+
+- `/owner/settings` lets an owner or an admin with access to every site upload, replace and remove a PNG, JPEG or WebP file up to 1 MB. The screen includes a preview, loading and error states, labels and accessible announcements.
+- The canonical logo uses `organizations.logo_path` and the private `organization-logos` bucket, separate from legacy `academies.logo_url`. Server routes authorize the academy before using Storage; academy and family diplomas receive a ten-minute signed URL.
+- Without the candidate column, logo SQL first checks `information_schema`; Settings hides upload controls, POST/DELETE return 503 without using Storage, and diplomas continue without a logo. Drizzle does not declare the candidate column.
+- The export classifies but omits the private object locator and file bytes. Organization disposition only plans review and does not erase data; no fake Storage deletion was added.
+- SQL candidate `20261124120000_organization_logos_candidate.sql`; not applied. No new flag. No changes to pricing, billing, the element library or federation templates.
+- `tests/organization-logo-pg.test.ts` checks the baseline schema, then explicitly applies the SQL candidate and verifies read/write plus the organization-scope constraint in the disposable GitHub database. It was skipped locally because the runner requires GitHub Actions; `scripts/ci/run-postgres-integration.sh` refused with `GitHub Actions is required`.
+- Verification: targeted tests 64 passed / 1 PostgreSQL test skipped; full unit suite 10,732 passed / 196 skipped; `pnpm typecheck` and `pnpm lint` passed. The supplied historical CI log also has one unrelated 403 expectation failure in `tests/owner-academy-settings-pg.test.ts:91`; the local Owner E2E run cannot start because its pinned Supabase images are not installed and the harness refuses to pull them.
+
 ## 2026-11-21 — Biblioteca: vocabulario de sala por país (ADR-0030, apagado)
 
 **Contexto.** Los textos de la biblioteca usan el vocabulario de España (RFEG), decisión de Elvis del 21-11-2026. México dice distinto casi la mitad de los términos de sala. ADR-0030 aceptado por Elvis el 21-11-2026 (opción A con la búsqueda). Rama `biblioteca/vocabulario-por-pais`.
