@@ -1059,6 +1059,8 @@ Las preguntas L1–L5 y L7 bloquean la **activación** con familias reales
 (Fase 5 y Live). No bloquean construir y probar en staging. L2 debe estar
 resuelta antes de que una academia real conecte su Stripe en producción.
 
+Investigación legal y fiscal (consulta 24-11-2026): [cobro automático de cuotas y precios](../../legal/investigacion-cobro-automatico-y-precios-2026-11.md).
+
 ## Consecuencias
 
 - Al aprobar este ADR se actualizarán:
