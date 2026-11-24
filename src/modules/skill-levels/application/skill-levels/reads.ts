@@ -387,26 +387,17 @@ async function readDiploma(
     .where(and(...conditions))
     .limit(1);
   if (!pass) return null;
-  // JSON field access is safe before the additive column candidate exists and
-  // avoids aborting this read transaction with PostgreSQL 42703.
-  const organizationResult = await tx.execute(sql`
-    select name, to_jsonb(organization)->>'logo_path' as logo_path
-    from zaltyko.organizations as organization
-    where id = ${input.organizationId}::uuid
-    limit 1
-  `);
-  const organization = organizationResult.rows[0] as { name: string; logo_path: string | null } | undefined;
-  let academyLogoUrl: string | null = null;
-  if (organization?.logo_path) {
-    // Keep privileged Storage code out of the shared skill-level module graph;
-    // this read is served by server routes after the diploma access checks.
-    const { createOrganizationLogoUrl, isOrganizationLogoPath } = await import(
-      "@/modules/organizations/infrastructure/organization-logo-storage"
-    );
-    if (isOrganizationLogoPath(organization.logo_path)) {
-      academyLogoUrl = await createOrganizationLogoUrl(organization.logo_path);
-    }
-  }
+  const [organization] = await tx
+    .select({ name: organizations.name })
+    .from(organizations)
+    .where(eq(organizations.id, input.organizationId))
+    .limit(1);
+  // Keep the candidate column lookup and privileged Storage code inside the
+  // organization logo boundary; an unapplied candidate leaves the diploma intact.
+  const { createOrganizationLogoUrlForOrganization } = await import(
+    "@/modules/organizations/infrastructure/organization-logo-storage"
+  );
+  const academyLogoUrl = await createOrganizationLogoUrlForOrganization(input.organizationId, tx);
   // unbounded-read-ok: como mucho 40 elementos por nivel (dominio).
   const achieved = await tx
     .select({ name: skillElements.name, apparatus: skillElements.apparatus, position: skillElements.position })

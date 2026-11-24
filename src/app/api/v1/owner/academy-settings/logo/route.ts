@@ -1,25 +1,31 @@
-import { and, eq, isNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { operationalProblem } from "@/app/api/v1/problem";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { getCurrentUser } from "@/lib/auth/current-user";
-import { db } from "@/db";
-import { organizationMembers, organizations } from "@/db/zaltyko-schema";
+import {
+  createOrganizationLogoUrl,
+  getOrganizationLogoState,
+  ORGANIZATION_LOGO_UNAVAILABLE_MESSAGE,
+  setOrganizationLogoPath,
+  isMissingOrganizationLogoColumn,
+  organizationLogoPath,
+  removeOrganizationLogo,
+  uploadOrganizationLogo,
+  validateOrganizationLogo,
+} from "@/modules/organizations/infrastructure/organization-logo-storage";
 import {
   getLimitForRoute,
   getVerifiedTenantRateLimitIdentifier,
   rateLimit,
   rateLimitExceededResponse,
 } from "@/lib/rate-limit";
-import { validateOrganizationLogo, organizationLogoPath, uploadOrganizationLogo, removeOrganizationLogo, createOrganizationLogoUrl, isMissingOrganizationLogoColumn } from "@/modules/organizations/infrastructure/organization-logo-storage";
 import { resolveOwnerScope } from "@/modules/owner-dashboard/application/owner-scope";
 import { hasSameOrigin } from "@/modules/saas-billing/application/owner-access";
 import { OperationalError } from "@/modules/shared/domain/operational-error";
 
 const organizationIdSchema = z.guid();
-const logoPathSchema = z.string().nullable();
 const deleteBodySchema = z.object({ organizationId: organizationIdSchema }).strict();
 const formSchema = z.object({ organizationId: organizationIdSchema }).strict();
 
@@ -43,15 +49,6 @@ async function authorizedScope(request: Request, organizationId: string) {
   return { user, scope };
 }
 
-async function storedLogoPath(organizationId: string): Promise<string | null> {
-  const [organization] = await db
-    .select({ logoPath: organizations.logoPath })
-    .from(organizations)
-    .where(eq(organizations.id, organizationId))
-    .limit(1);
-  return logoPathSchema.parse(organization?.logoPath ?? null);
-}
-
 // @auth-flexible route-guard-reason: sesión comprobada en servidor y alcance owner/admin con todas las sedes; Storage permanece privado y todas las operaciones usan service role desde este handler.
 export async function GET(request: Request) {
   const query = z.object({ organizationId: organizationIdSchema }).strict().safeParse(
@@ -62,9 +59,9 @@ export async function GET(request: Request) {
     const auth = await authorizedScope(request, query.data.organizationId);
     if ("response" in auth) return auth.response;
     try {
-      const path = await storedLogoPath(auth.scope.organization.id);
-      const logoUrl = path ? await createOrganizationLogoUrl(path) : null;
-      return noStore(apiSuccess({ logoUrl, available: true }));
+      const state = await getOrganizationLogoState(auth.scope.organization.id);
+      const logoUrl = state.logoPath ? await createOrganizationLogoUrl(state.logoPath) : null;
+      return noStore(apiSuccess({ logoUrl, available: state.available }));
     } catch (error) {
       if (isMissingOrganizationLogoColumn(error)) return noStore(apiSuccess({ logoUrl: null, available: false }));
       throw error;
@@ -89,6 +86,8 @@ export async function POST(request: Request) {
   try {
     const auth = await authorizedScope(request, parsed.data.organizationId);
     if ("response" in auth) return auth.response;
+    const previous = await getOrganizationLogoState(auth.scope.organization.id);
+    if (!previous.available) return noStore(apiError("LOGO_NOT_READY", ORGANIZATION_LOGO_UNAVAILABLE_MESSAGE, 503));
     const bytes = new Uint8Array(await file.arrayBuffer());
     const validation = validateOrganizationLogo(bytes, file.type);
     if (!validation.ok) {
@@ -99,20 +98,17 @@ export async function POST(request: Request) {
     }
 
     const newPath = organizationLogoPath(auth.scope.organization.id, validation.extension);
-    let previousPath: string | null;
-    try {
-      previousPath = await storedLogoPath(auth.scope.organization.id);
-    } catch (error) {
-      if (isMissingOrganizationLogoColumn(error)) return noStore(apiError("LOGO_NOT_READY", "Esta opción estará disponible cuando se actualicen los ajustes de la academia.", 503));
-      throw error;
-    }
+    const previousPath = previous.logoPath;
 
     await uploadOrganizationLogo(newPath, bytes, file.type);
     try {
-      await db.update(organizations).set({ logoPath: newPath, updatedAt: new Date() }).where(eq(organizations.id, auth.scope.organization.id));
+      if (!(await setOrganizationLogoPath(auth.scope.organization.id, newPath, previousPath))) {
+        await removeOrganizationLogo(newPath).catch(() => undefined);
+        return noStore(apiError("LOGO_NOT_READY", ORGANIZATION_LOGO_UNAVAILABLE_MESSAGE, 503));
+      }
     } catch (error) {
       if (newPath !== previousPath) await removeOrganizationLogo(newPath).catch(() => undefined);
-      if (isMissingOrganizationLogoColumn(error)) return noStore(apiError("LOGO_NOT_READY", "Esta opción estará disponible cuando se actualicen los ajustes de la academia.", 503));
+      if (isMissingOrganizationLogoColumn(error)) return noStore(apiError("LOGO_NOT_READY", ORGANIZATION_LOGO_UNAVAILABLE_MESSAGE, 503));
       throw error;
     }
 
@@ -120,10 +116,7 @@ export async function POST(request: Request) {
       try {
         await removeOrganizationLogo(previousPath);
       } catch {
-        await db.update(organizations)
-          .set({ logoPath: previousPath })
-          .where(and(eq(organizations.id, auth.scope.organization.id), eq(organizations.logoPath, newPath)))
-          .catch(() => undefined);
+        await setOrganizationLogoPath(auth.scope.organization.id, previousPath, newPath).catch(() => false);
         await removeOrganizationLogo(newPath).catch(() => undefined);
         return noStore(apiError("LOGO_REPLACE_FAILED", "No hemos podido sustituir el logo anterior. Inténtalo de nuevo.", 503));
       }
@@ -146,19 +139,23 @@ export async function DELETE(request: Request) {
     const auth = await authorizedScope(request, body.data.organizationId);
     if ("response" in auth) return auth.response;
     const organizationId = auth.scope.organization.id;
-    const previousPath = await storedLogoPath(organizationId);
+    const state = await getOrganizationLogoState(organizationId);
+    if (!state.available) return noStore(apiError("LOGO_NOT_READY", ORGANIZATION_LOGO_UNAVAILABLE_MESSAGE, 503));
+    const previousPath = state.logoPath;
     if (!previousPath) return noStore(apiSuccess({ logoUrl: null }));
-    await db.update(organizations).set({ logoPath: null, updatedAt: new Date() }).where(and(eq(organizations.id, organizationId), eq(organizations.logoPath, previousPath)));
+    if (!(await setOrganizationLogoPath(organizationId, null, previousPath))) {
+      return noStore(apiError("LOGO_NOT_READY", ORGANIZATION_LOGO_UNAVAILABLE_MESSAGE, 503));
+    }
     try {
       await removeOrganizationLogo(previousPath);
     } catch {
-      await db.update(organizations).set({ logoPath: previousPath }).where(and(eq(organizations.id, organizationId), isNull(organizations.logoPath))).catch(() => undefined);
+      await setOrganizationLogoPath(organizationId, previousPath, null).catch(() => false);
       throw new Error("No se ha podido quitar el logo de la academia.");
     }
     return noStore(apiSuccess({ logoUrl: null }));
   } catch (error) {
     if (error instanceof OperationalError) return noStore(operationalProblem(error));
-    if (isMissingOrganizationLogoColumn(error)) return noStore(apiError("LOGO_NOT_READY", "Esta opción estará disponible cuando se actualicen los ajustes de la academia.", 503));
+    if (isMissingOrganizationLogoColumn(error)) return noStore(apiError("LOGO_NOT_READY", ORGANIZATION_LOGO_UNAVAILABLE_MESSAGE, 503));
     return noStore(apiError("LOGO_DELETE_FAILED", "No hemos podido quitar el logo. Inténtalo de nuevo.", 503));
   }
 }

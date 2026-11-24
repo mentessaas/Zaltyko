@@ -11,10 +11,11 @@ source:
 
 - `/owner/settings` lets an owner or an admin with access to every site upload, replace and remove a PNG, JPEG or WebP file up to 1 MB. The screen includes a preview, loading and error states, labels and accessible announcements.
 - The canonical logo uses `organizations.logo_path` and the private `organization-logos` bucket, separate from legacy `academies.logo_url`. Server routes authorize the academy before using Storage; academy and family diplomas receive a ten-minute signed URL.
-- Without the candidate column, Settings hides logo controls and the diploma continues without a logo through a safe `to_jsonb` read.
+- Without the candidate column, logo SQL first checks `information_schema`; Settings hides upload controls, POST/DELETE return 503 without using Storage, and diplomas continue without a logo. Drizzle does not declare the candidate column.
 - The export classifies but omits the private object locator and file bytes. Organization disposition only plans review and does not erase data; no fake Storage deletion was added.
 - SQL candidate `20261124120000_organization_logos_candidate.sql`; not applied. No new flag. No changes to pricing, billing, the element library or federation templates.
-- Closeout checks: `pnpm typecheck`, `pnpm lint` and `pnpm test`.
+- `tests/organization-logo-pg.test.ts` checks the baseline schema, then explicitly applies the SQL candidate and verifies read/write plus the organization-scope constraint in the disposable GitHub database. It was skipped locally because the runner requires GitHub Actions; `scripts/ci/run-postgres-integration.sh` refused with `GitHub Actions is required`.
+- Verification: targeted tests 64 passed / 1 PostgreSQL test skipped; full unit suite 10,732 passed / 196 skipped; `pnpm typecheck` and `pnpm lint` passed. The supplied historical CI log also has one unrelated 403 expectation failure in `tests/owner-academy-settings-pg.test.ts:91`; the local Owner E2E run cannot start because its pinned Supabase images are not installed and the harness refuses to pull them.
 
 ## 2026-11-21 — Biblioteca: vocabulario de sala por país (ADR-0030, apagado)
 
