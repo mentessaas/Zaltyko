@@ -13,7 +13,8 @@ source:
 - `tests/skill-levels-pg.test.ts` simula `server-only` en Vitest, siguiendo el patrón de pruebas existente; el módulo de producción conserva su importación `server-only`.
 - Se revierte la ampliación accidental de `assertOwnerSettingsAccess`: los ajustes generales siguen exigiendo rol `owner` y alcance completo. La autorización separada de la ruta de logo para `owner`/`admin` no cambia.
 - Primera CI del commit `3de055a`: las 48 suites PostgreSQL ejecutaron 540 pruebas; los tres fallos originales se corrigieron, pero la limpieza del fixture de logo intentó borrar una academia y activó el historial append-only de entitlements. El fix de limpieza conserva esa fila sintética en la base efímera y solo retira la columna candidata.
-- Verificación local: 83 pruebas unitarias dirigidas, `pnpm typecheck`, `pnpm lint` y `git diff --check` pasan para el primer commit. Se volverán a ejecutar antes del siguiente push; PostgreSQL y E2E sintético están pendientes de una nueva CI.
+- Verificación local: 83 pruebas unitarias dirigidas, `pnpm typecheck`, `pnpm lint` y `git diff --check` pasan; los tests PostgreSQL importan localmente y quedan omitidos fuera del runner protegido de GitHub Actions.
+- CI del commit `465b2945` (SHA completo `465b29451a5a73e51836133d12d8cd1fc4b09fd2`): Postgres integration `45476252214` pasó las 48 suites (540/540); CI `45476252018` pasó Unit Tests, Build, Lint & Type Check, los E2E sintéticos Chromium/Firefox/WebKit y `Local Synthetic Owner E2E Required Gate`; Static Gates operativo `45476252116` también pasó.
 - La candidata `20261124120000_organization_logos_candidate.sql` sigue sin aplicarse a ningún entorno.
 
 ## 2026-11-24 — Academy logo in Settings and diplomas (candidate, not applied)
