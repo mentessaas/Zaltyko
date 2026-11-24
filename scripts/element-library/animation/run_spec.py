@@ -27,7 +27,13 @@ def build(spec):
             keys = [(k.get('dt', 0), k['pose']['torso'], shape_of(k['pose'])) for k in c['keys']]
             if tl.frames and keys[0][0] == 0 and len(keys) > 1 and c.get('continue', True):
                 pass
+            start = len(tl.frames)
             contact(tl, keys, c['joint'], pt, surface=sc.floor_y)   # front view is set per pose ("front": true)
+            if c.get('twist'):
+                # long-axis turn while in support (spindles): draw the twist ring + count. Display only:
+                # unlike flight twists, the joint-limit check still applies to these frames.
+                for i in range(start, len(tl.frames)):
+                    tl.frames[i][2]['twistShow'] = True; tl.frames[i][2]['twistTotal'] = abs(c['twist']['total'])
         else:
             f = ph['flight']; land = f['land']; pt = sc.at(land['at']) if isinstance(land['at'], str) else tuple(land['at'])
             p0, pel0, _ = tl.last; c0y = pel0[1] + com(p0)[1]
@@ -61,7 +67,7 @@ def turns_label(deg):
     frac = {0: '', 1: '¼', 2: '½', 3: '¾'}[rest]
     return (str(whole) if whole else '') + frac or '0'
 
-def overlay(sc, p, pel, meta):
+def overlay(sc, p, pel, meta, label=True):
     o = ''
     if sc.kind == 'rings':
         j = p.joints(pel)
@@ -69,12 +75,16 @@ def overlay(sc, p, pel, meta):
         for (tx, ty), h in zip(tops, (j['haf'], j['han']) if p.front else (j['han'], j['han'])):
             o += f'<line x1="{tx}" y1="{ty}" x2="{h[0]:.1f}" y2="{h[1]-9:.1f}" stroke="{V.APP_D}" stroke-width="2"/>'
             o += f'<circle cx="{h[0]:.1f}" cy="{h[1]:.1f}" r="8.5" fill="none" stroke="#7d8aab" stroke-width="4"/>'
-    if meta.get('twist'):
+    if meta.get('twist') or meta.get('twistShow'):
         j = p.joints(pel); c = ((j['pelvis'][0] + j['neck'][0]) / 2, (j['pelvis'][1] + j['neck'][1]) / 2)
         o += f'<ellipse cx="{c[0]:.1f}" cy="{c[1]:.1f}" rx="26" ry="8" transform="rotate({p.torso:.1f} {c[0]:.1f} {c[1]:.1f})" fill="none" stroke="{V.BLUE}" stroke-width="3" opacity=".8"/>'
-        if meta.get('twistTotal'):
-            # the ring alone does not say how much the gymnast twists: label the total (½, 1, 1½, ...)
-            lx, ly = c[0] + 40 * math.cos(math.radians(p.torso)), c[1] + 40 * math.sin(math.radians(p.torso))
+        if meta.get('twistTotal') and label:
+            # the ring alone does not say how much the gymnast twists: label the total (½, 1, 1½, ...),
+            # placed at the end of the ring's long axis that is higher on screen (clear of floor/apparatus)
+            dx, dy = math.cos(math.radians(p.torso)), math.sin(math.radians(p.torso))
+            if dy > 0 or (abs(dy) < 1e-6 and dx < 0): dx, dy = -dx, -dy
+            if abs(dy) < 0.5: dx, dy = dx * 0.6, dy * 0.6 - 0.8   # trunk nearly vertical: lift the label above
+            lx, ly = c[0] + 40 * dx, c[1] + 40 * dy
             o += (f'<g transform="translate({lx:.1f},{ly:.1f})"><rect x="-17" y="-11" width="34" height="22" rx="11" fill="{V.BLUE}" opacity=".9"/>'
                   f'<text y="5" text-anchor="middle" font-family="Inter,Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#fff">{turns_label(meta["twistTotal"])}</text></g>')
     return o
@@ -118,8 +128,11 @@ def poster_svg(spec, sc, tl, uid):
     body = sc.draw(uid)
     for g in ghosts:
         q, qp, qm = tl.frames[g]
-        # ghosts keep their own overlays (rings straps, and the twist ring + count of a twisting flight)
-        body += f'<g opacity=".55">{overlay(sc, q, qp, qm)}</g>'
+        # ghosts keep their own overlays (rings straps, twist ring); the count only when the ghost is in a
+        # different twist than the main frame (e.g. the first-flight turn of a vault), so labels never pile up
+        tw = lambda k: tl.frames[k][2].get('twist') or tl.frames[k][2].get('twistShow')
+        lab = not all(tw(k) for k in range(min(g, main), max(g, main) + 1))
+        body += f'<g opacity=".55">{overlay(sc, q, qp, qm, label=lab)}</g>'
         body += V.fig(uid, q, qp, False, .16)
     p, pel, meta = tl.frames[main]
     body += overlay(sc, p, pel, meta) + V.fig(uid, p, pel)
