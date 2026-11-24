@@ -44,7 +44,7 @@ operaciones de checkout para fijar la cantidad inicial de sedes extras.
 expresa de Elvis («Tienes mi permiso»), sobre el archivo exacto con el SHA-256 de
 abajo. Orden seguido: staging → fusión del PR #390 → producción → despliegue
 `zaltyko-1jr3xgk7k` el mismo minuto. En staging `public.plans` estaba vacía antes
-de aplicarla (falta la fila `free`; pendiente de revisar la semilla).
+de aplicarla; el 24-11-2026 se añadió en staging la fila `free` con los mismos valores que producción (30 gimnastas, equipo de 2).
 
 Stripe Live (cuenta Zaltyko), creados el 24-11-2026; los identificadores no son
 secretos y están en Vercel Production:
