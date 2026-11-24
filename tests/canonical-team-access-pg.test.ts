@@ -540,7 +540,7 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
   });
 
   it("in plan read-only mode blocks invite, reissue and acceptance but still allows revoking", async () => {
-    const f = await fixture(); const who = await identity(); const created = await invite(f, who);
+    const f = await fixture("free"); const who = await identity(); const created = await invite(f, who);
     await db.execute(sql`
       with new_people as (
         insert into zaltyko.people (organization_id, given_name, family_name)
