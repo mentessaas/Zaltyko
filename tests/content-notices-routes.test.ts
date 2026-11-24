@@ -544,7 +544,7 @@ describe("cron de conservación de solicitudes de contacto", () => {
     expect(mocks.eraseLeads).not.toHaveBeenCalled();
   });
 
-  it("deja la candidata sin aplicar y publica el plazo en la política", () => {
+  it("deja la candidata sin aplicar y documenta su programación", () => {
     const candidate = readFileSync(
       join(process.cwd(), "docs/deployment/scheduler/candidates/lead-retention.sql"),
       "utf8"
@@ -556,9 +556,6 @@ describe("cron de conservación de solicitudes de contacto", () => {
     expect(candidate).not.toMatch(/create (or replace )?function/i);
     expect(readFileSync(join(process.cwd(), "docs/deployment/scheduler/README.md"), "utf8")).toContain(
       "`zaltyko-lead-retention`"
-    );
-    expect(readFileSync(join(process.cwd(), "src/app/politica-privacidad/page.tsx"), "utf8")).toContain(
-      "Las solicitudes de contacto que no acaban en un alta se borran a los seis meses desde su última actividad."
     );
   });
 });

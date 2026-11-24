@@ -82,6 +82,8 @@ const leadIds = [
 const emailFor = (id: string) => `lead-retention-${id}@example.invalid`;
 let academyId: string | null = null;
 let seeded = false;
+// The disposable database has no academies of its own; the test creates one.
+const fixtureOwner = { userId: randomUUID(), profileId: randomUUID() };
 
 async function insertLead(
   id: string,
@@ -143,6 +145,9 @@ async function cleanupFixtures() {
   await db.execute(sql`
     delete from public.leads where id = any(${sqlUuidArray(leadIds)})
   `);
+  if (academyId) await db.execute(sql`delete from public.academies where id = ${academyId}::uuid`);
+  await db.execute(sql`delete from public.profiles where id = ${fixtureOwner.profileId}::uuid`);
+  await db.execute(sql`delete from auth.users where id = ${fixtureOwner.userId}::uuid`);
 }
 
 describe.skipIf(!disposablePgEnabled)("retención de contactos en PostgreSQL desechable", () => {
@@ -151,10 +156,20 @@ describe.skipIf(!disposablePgEnabled)("retención de contactos en PostgreSQL des
     const client = new Client({ connectionString: process.env.ZALTYKO_PG_INTEGRATION_DATABASE_URL });
     await client.connect();
     try {
-      const result = await client.query<{ id: string }>(
-        "select id::text as id from public.academies order by id limit 1"
+      const createdAcademy = randomUUID();
+      await client.query("insert into auth.users (id, email) values ($1, $2)", [
+        fixtureOwner.userId,
+        `ci-lead-retention-${fixtureOwner.userId}@example.invalid`,
+      ]);
+      await client.query(
+        "insert into public.profiles (id, user_id, tenant_id, name, role) values ($1, $2, $3, 'Persona CI', 'coach')",
+        [fixtureOwner.profileId, fixtureOwner.userId, randomUUID()]
       );
-      academyId = result.rows[0]?.id ?? null;
+      await client.query(
+        "insert into public.academies (id, tenant_id, name, owner_id) values ($1, $2, 'Academia CI retención', $3)",
+        [createdAcademy, createdAcademy, fixtureOwner.profileId]
+      );
+      academyId = createdAcademy;
     } finally {
       await client.end();
     }

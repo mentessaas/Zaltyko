@@ -10,7 +10,7 @@ import { SellerIdentification } from "@/components/legal/SellerIdentification";
 
 const baseUrl = getPublicSiteUrl();
 
-const updatedAt = "24 de noviembre de 2026";
+const updatedAt = "26 de octubre de 2026";
 
 const sections = [
   {
@@ -51,7 +51,6 @@ const sections = [
     content: [
       "Los datos se almacenan en la infraestructura de Supabase (UE) y se conservan mientras mantengas una cuenta activa o exista una obligación legal.",
       "Podemos anonimizar o agregar información para fines estadísticos una vez finalizada la relación contractual.",
-      "Las solicitudes de contacto que no acaban en un alta se borran a los seis meses desde su última actividad.",
     ],
   },
   {
