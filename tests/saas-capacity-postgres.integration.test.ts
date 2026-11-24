@@ -206,13 +206,13 @@ async function usage(organizationId: string) {
 
 function assertFreeUsage(
   value: Awaited<ReturnType<typeof usage>>,
-  expected: [number, number, number],
+  expectedAthletes: number,
   readOnly = false
 ) {
   expect(value.planCode).toBe("free");
   expect(value.readOnly).toBe(readOnly);
-  expect(value.resources.map((item) => item.current)).toEqual(expected);
-  expect(value.resources.map((item) => item.limit)).toEqual([30, 3, 10]);
+  expect(value.resources.map((item) => item.current)).toEqual([expectedAthletes, null, null]);
+  expect(value.resources.map((item) => item.limit)).toEqual([30, null, null]);
 }
 
 async function oneCapacityWinner<T>(attempts: Array<() => Promise<T>>) {
@@ -623,7 +623,7 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
     assertDisposableTarget();
     const fixture = await seedFreeAcademy();
     const organizationId = fixture.organizationId;
-    assertFreeUsage(await usage(organizationId), [29, 2, 9]);
+    assertFreeUsage(await usage(organizationId), 29);
 
     const beforeRaces = await snapshot(organizationId);
     const athleteCommands = [0, 1].map((index) => ({
@@ -639,7 +639,7 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
     );
     const afterAthleteRace = await snapshot(organizationId);
     expect(afterAthleteRace).not.toEqual(beforeRaces);
-    assertFreeUsage(await usage(organizationId), [30, 2, 9]);
+    assertFreeUsage(await usage(organizationId), 30);
     await expect(
       createAthleteForGroup(athleteCommands[athleteWinner.index]!)
     ).resolves.toMatchObject({ id: athleteWinner.value.id });
@@ -655,15 +655,13 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       actor: fixture.actor,
     }));
     const beforeGroupRace = await snapshot(organizationId);
-    const groupWinner = await oneCapacityWinner(
-      groupCommands.map((command) => () => createOperationalGroup(command))
+    const groupResults = await Promise.all(
+      groupCommands.map((command) => createOperationalGroup(command))
     );
     const afterGroupRace = await snapshot(organizationId);
     expect(afterGroupRace).not.toEqual(beforeGroupRace);
-    assertFreeUsage(await usage(organizationId), [30, 3, 9]);
-    await expect(
-      createOperationalGroup(groupCommands[groupWinner.index]!)
-    ).resolves.toMatchObject({ id: groupWinner.value.id });
+    assertFreeUsage(await usage(organizationId), 30);
+    expect(groupResults).toHaveLength(2);
     expect(await snapshot(organizationId)).toEqual(afterGroupRace);
 
     const { date, weekday } = futureLocalDateAndWeekday();
@@ -677,26 +675,21 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       effectiveTo: date,
       schedule: [{
         isoWeekday: weekday,
-        startsAtLocal: "08:00",
-        endsAtLocal: "09:00",
+        startsAtLocal: index === 0 ? "08:00" : "09:00",
+        endsAtLocal: index === 0 ? "09:00" : "10:00",
       }],
       idempotencyKey: "ci-class-" + randomUUID(),
       actor: fixture.actor,
     }));
     const beforeClassRace = await snapshot(organizationId);
-    const classWinner = await oneCapacityWinner(
-      classCommands.map((command) => () => createScheduledClass(command))
+    const classResults = await Promise.all(
+      classCommands.map((command) => createScheduledClass(command))
     );
     const afterClassRace = await snapshot(organizationId);
     expect(afterClassRace).not.toEqual(beforeClassRace);
-    assertFreeUsage(await usage(organizationId), [30, 3, 10]);
-    expect(classWinner.value.sessionCount).toBe(1);
-    await expect(
-      createScheduledClass(classCommands[classWinner.index]!)
-    ).resolves.toMatchObject({
-      classTemplate: { id: classWinner.value.classTemplate.id },
-      sessionCount: 1,
-    });
+    assertFreeUsage(await usage(organizationId), 30);
+    expect(classResults).toHaveLength(2);
+    expect(classResults.every((result) => result.sessionCount === 1)).toBe(true);
     expect(await snapshot(organizationId)).toEqual(afterClassRace);
 
     const fullSnapshot = await snapshot(organizationId);
@@ -714,26 +707,22 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
     });
     expect(await snapshot(organizationId)).toEqual(fullSnapshot);
 
-    const rejectedGroup = {
+    const extraGroup = {
       organizationId,
       locationId: fixture.locationId,
       programId: null,
-      name: "Blocked group four",
+      name: "Uncapped group four",
       capacity: 30,
-      idempotencyKey: "ci-block-group-" + randomUUID(),
+      idempotencyKey: "ci-uncapped-group-" + randomUUID(),
       actor: fixture.actor,
     };
-    await expect(createOperationalGroup(rejectedGroup)).rejects.toMatchObject({
-      code: "CAPACITY_FULL",
-      status: 409,
-    });
-    expect(await snapshot(organizationId)).toEqual(fullSnapshot);
+    await expect(createOperationalGroup(extraGroup)).resolves.toMatchObject({ id: expect.any(String) });
 
     const rejectedClass = {
       organizationId,
       locationId: fixture.locationId,
       programId: null,
-      name: "Blocked class eleven",
+      name: "Uncapped class eleven",
       capacity: 30,
       effectiveFrom: date,
       effectiveTo: date,
@@ -745,11 +734,7 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       idempotencyKey: "ci-block-class-" + randomUUID(),
       actor: fixture.actor,
     };
-    await expect(createScheduledClass(rejectedClass)).rejects.toMatchObject({
-      code: "CAPACITY_FULL",
-      status: 409,
-    });
-    expect(await snapshot(organizationId)).toEqual(fullSnapshot);
+    await expect(createScheduledClass(rejectedClass)).resolves.toMatchObject({ sessionCount: 1 });
 
     const excessPersonId = randomUUID();
     const excessAthleteId = randomUUID();
@@ -771,7 +756,7 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
       )
     `);
     const excessSnapshot = await snapshot(organizationId);
-    assertFreeUsage(await usage(organizationId), [31, 3, 10], true);
+    assertFreeUsage(await usage(organizationId), 31, true);
 
     for (const [label, attempt] of [
       ["athlete", () => createAthleteForGroup({
@@ -780,13 +765,13 @@ describe("Free capacity guards on disposable PostgreSQL", () => {
         idempotencyKey: "ci-over-cap-athlete-" + randomUUID(),
       })],
       ["group", () => createOperationalGroup({
-        ...rejectedGroup,
-        name: "Blocked over-capacity group",
+        ...extraGroup,
+        name: "Blocked while over athlete capacity",
         idempotencyKey: "ci-over-cap-group-" + randomUUID(),
       })],
       ["class", () => createScheduledClass({
         ...rejectedClass,
-        name: "Blocked over-capacity class",
+        name: "Blocked while over athlete capacity",
         idempotencyKey: "ci-over-cap-class-" + randomUUID(),
       })],
     ] as const) {

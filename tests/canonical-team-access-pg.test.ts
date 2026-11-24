@@ -63,8 +63,12 @@ async function fixture(planCode: "free" | "starter" = "starter") {
     values (${locationA}::uuid,${organizationId}::uuid,'sede-a','Sede A'),(${locationB}::uuid,${organizationId}::uuid,'sede-b','Sede B')`);
   await db.execute(sql`insert into zaltyko.organization_members(id,organization_id,user_id,role,status,location_scope_mode)
     values (${memberId}::uuid,${organizationId}::uuid,${owner.userId}::uuid,'owner','active','all')`);
-  await db.execute(sql`insert into zaltyko.organization_entitlements(organization_id,plan_code,source,source_reference)
-    values (${organizationId}::uuid,${planCode},${planCode === "free" ? "bootstrap" : "contract"},${`test-${organizationId}`})`);
+  await db.execute(sql`insert into zaltyko.organization_entitlements(
+      organization_id,plan_code,source,source_reference,effective_from
+    ) values (
+      ${organizationId}::uuid,${planCode},${planCode === "free" ? "bootstrap" : "contract"},
+      ${`test-${organizationId}`},now()
+    )`);
   return { organizationId, locationA, locationB, actor: { userId: owner.userId, memberId } };
 }
 

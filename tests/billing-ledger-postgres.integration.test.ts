@@ -1141,29 +1141,26 @@ describe("monthly manual invoice issuance on disposable PostgreSQL", () => {
     expect(initialUsage.planCode).toBe("free");
     expect(initialUsage.readOnly).toBe(false);
 
-    const groupValues = sql.join(
-      Array.from({ length: 4 }, (_, index) => sql`(
-        ${randomUUID()}::uuid,
-        ${fixture.organizationId}::uuid,
-        ${fixture.locationId}::uuid,
-        ${`CI monthly capacity group ${index + 1}`},
-        30,
-        'active'
-      )`),
-      sql`, `
-    );
-    await db.execute(sql`
-      insert into zaltyko.groups (
-        id, organization_id, location_id, name, capacity, status
-      ) values ${groupValues}
+    const extraAthletes = await db.execute(sql`
+      with people as (
+        insert into zaltyko.people (id, organization_id, given_name, family_name)
+        select gen_random_uuid(), ${fixture.organizationId}::uuid,
+          'CI monthly capacity', 'Synthetic athlete ' || series.n
+        from generate_series(1, 30) as series(n)
+        returning id
+      )
+      insert into zaltyko.athletes (id, organization_id, person_id)
+      select gen_random_uuid(), ${fixture.organizationId}::uuid, id from people
+      returning id
     `);
+    expect(extraAthletes.rows).toHaveLength(30);
     const overCapacityUsage = await db.transaction(tx =>
       getOrganizationUsage(tx, fixture.organizationId)
     );
     expect(overCapacityUsage.planCode).toBe("free");
     expect(overCapacityUsage.readOnly).toBe(true);
-    expect(overCapacityUsage.resources.map(resource => resource.current)).toEqual([1, 4, 1]);
-    expect(overCapacityUsage.resources.map(resource => resource.limit)).toEqual([30, 3, 10]);
+    expect(overCapacityUsage.resources.map(resource => resource.current)).toEqual([31, null, null]);
+    expect(overCapacityUsage.resources.map(resource => resource.limit)).toEqual([30, null, null]);
 
     const before = await snapshotMonthlyInvoiceLedger(fixture.organizationId);
     expect(before.invoices.count).toBe(0);

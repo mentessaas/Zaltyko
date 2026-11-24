@@ -13,6 +13,7 @@ source:
 - Se reemplazan precios y textos públicos, se preparan contratos de textos, checkout, fiscalidad y aislamiento, y se añade una migración candidata aditiva.
 - El precio de fundador usa un cupón neto de 3,39 € para obtener 24,90 € finales tras IVA; el objeto de Stripe aún no se ha creado.
 - Verificación local: `pnpm typecheck` y `pnpm lint` pasan; `pnpm test` pasa con 10.727 pruebas, 195 omitidas y 16 archivos omitidos. No se contactó Stripe, Supabase ni producción; no se aplicó migración ni se publicó.
+- Corrección CI Postgres del mismo catálogo: los tests de capacidad conservaban los topes anteriores de 3 grupos/10 clases; ahora prueban límites sin tope y mantienen el bloqueo cuando se superan los 30 gimnastas. La factura mensual también supera Free mediante el gimnasta 31. La fixture de acceso de equipo omitía `effective_from`, obligatoria desde el esquema canónico; no cambió esquema ni helper. Ajustes de academia simula el marcador `server-only` y aplica explícitamente la candidata de precios antes de usar las columnas nuevas. El README de candidatas fija el orden migración → Prices/variables → despliegue. Typecheck, lint y suite unitaria local pasan; integración Postgres no ejecutable directamente en macOS porque el script exige un runner Linux de GitHub.
 
 ## 2026-11-21 — Biblioteca: vocabulario de sala por país (ADR-0030, apagado)
 

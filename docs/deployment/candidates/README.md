@@ -19,6 +19,12 @@ configuran en cada entorno después por el agente autorizado. `plans` es
 catálogo público de producto y `extra_location_quantity` es metadato SaaS
 excluido del paquete de datos de academia en `src/modules/data-rights/application/catalog.ts`.
 
+**Orden de producción obligatorio:** aplicar y verificar primero esta migración;
+después configurar los Prices de Stripe y las variables de entorno; desplegar
+el código al final. El código de esta rama no es seguro para desplegar sobre una
+base que aún no tenga la candidata: Drizzle lee las columnas nuevas de
+`public.plans` y del checkout (`extra_location_quantity`).
+
 **SHA-256:** `381e0fba8c0032a440a92f5e65240ab56956188014cc110e71fba0a005070b5a`.
 Debe coincidir con el archivo exacto antes de cualquier revisión posterior.
 
