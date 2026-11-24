@@ -32,6 +32,7 @@
    - **Qué guarda.** `data/<edición>/animaciones/<clave>.json` lleva las posturas clave, los apoyos, los vuelos (altura, giro y pirueta) y los fotogramas del pictograma fijo. Pesa pocos KB.
    - **Quién anima.** La app anima en el navegador con un renderizador SVG en TypeScript, una traslación del motor actual.
    - **Por qué no vídeos.** 1.301 vídeos ocuparían unos 150 MB en el repositorio. Los datos permiten cambiar el estilo sin rehacer nada y respetar «reducir movimiento».
+   - **Precisión del formato de la app (24-11-2026).** Los JSON exportados guardan los fotogramas ya calculados por el motor Python: ángulos de segmentos, pelvis y metadatos de apoyo y pirueta, cuantizados para ocupar pocos KB, junto con los índices del pictograma. TypeScript no vuelve a calcular la física; solo dibuja las siluetas Bezier «Volumen», los aparatos y el anillo de pirueta. Así se conserva una sola física y el resultado coincide con el motor.
 3. **Pictograma fijo de los mismos datos.** Sin animación, o con «reducir movimiento» activado, la ficha muestra el momento clave en sólido y una o dos fases translúcidas.
 4. **Requisitos para entrar al repositorio.** Una animación entra solo si cumple todo esto:
    - el validador no da ningún problema (articulaciones dentro de rango, velocidades por segmento, apoyos que no resbalan, nada que atraviese suelo o aparato);

@@ -7,6 +7,7 @@ import { OwnerWorkspacePageShell } from "@/components/owner-dashboard/OwnerWorks
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
 import { PageHeader } from "@/components/ui/page-header";
 import { db } from "@/db";
+import { ELEMENT_LIBRARY_ANIMATIONS_ENV_FLAG } from "@/modules/element-library/animation/config";
 import {
   getEditionGroupLabels,
   isElementLibraryAvailableForPage,
@@ -59,6 +60,7 @@ export default async function OwnerElementLibraryPage({
           locationId={locationId}
           disciplines={disciplines}
           groupLabels={getEditionGroupLabels()}
+          animationsEnabled={process.env[ELEMENT_LIBRARY_ANIMATIONS_ENV_FLAG] === "true"}
         />
       </main>
     </OwnerWorkspacePageShell>

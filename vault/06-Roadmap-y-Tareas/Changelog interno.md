@@ -13461,3 +13461,19 @@ Aprobación externa exacta y CI completa SUCCESS (tres navegadores sintéticos).
 ## 2026-10-27 — QA A actual y corrección móvil demostrada
 
 QA A humana enab067043: resumen30/3/1/3pagos70EUR,usageFree30/3/10,2inscripciones activas,Presente persistido,cuota35EUR noviembre impide duplicado y cobros sin pendientes. Lecturas ajenas denegadasNOT_FOUND/403; no se atribuyen escrituras/snapshots actuales. A375px no hay scrollhorizontal pero capturaCDP demuestra solapamiento de Inscripciones/Asistencia. Se corrige grid móvil3columnas bajo640/6desde640, alineación de objetivos y etiquetas completas; nuevo E2E remoto mide texto contenido,44pxmínimo y nointersección. PendienteCI/revisión/publicación,ab067preview intacta. Sin producción/ensayo/builds locales. Matriz vigente del corte docs/qa/essential-release-current-2026-10-27.md separa gates técnicos, ensayo natural y bloqueos vendedor/fiscal/Live. Nota anterior de publicación se incorpora sin reescribir historia.
+# 2026-11-24 — Renderizador de animaciones de la biblioteca detrás de bandera
+
+Se añadió el exportador de fotogramas desde el motor Python y la lista cerrada
+`accepted.json` (vacía hasta revisión), el render SVG de la ficha con carga
+perezosa protegida por el acceso de biblioteca, control de reproducción y
+respeto de `prefers-reduced-motion`. La bandera
+`ZALTYKO_ELEMENT_LIBRARY_ANIMATIONS_ENABLED` sigue apagada por defecto. El ADR-0031
+precisa que TypeScript solo dibuja los fotogramas precalculados. Las tres fixtures
+de prueba pesan 3.255, 6.894 y 4.094 bytes (media: 4.747,7 bytes); `accepted.json`
+permanece vacío y el exportador no publica datos en la biblioteca. Pasan
+typecheck, lint, paridad (2/2), componente (3/3) y matriz de rutas coach
+(131/131). La suite raíz completa no se pudo cerrar: el proyecto mobile no
+resuelve `expo/package.json`; su instalación congelada se bloquea por desajuste
+entre overrides y `mobile/pnpm-lock.yaml`. El barrido web global se detuvo tras
+17 minutos sin resumen final. No se modificaron lockfiles. No se encendieron
+banderas ni se tocaron servicios remotos.

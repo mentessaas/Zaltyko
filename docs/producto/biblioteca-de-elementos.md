@@ -285,6 +285,14 @@ Pendiente ahora mismo de Elvis: el permiso para aplicar en staging la semilla re
 
 ## Pruebas
 
+### Animaciones propias (ADR-0031)
+
+Las fichas pueden mostrar animaciones propias de Zaltyko cuando existe un JSON revisado para la edición y el elemento, y está encendida `ZALTYKO_ELEMENT_LIBRARY_ANIMATIONS_ENABLED`. La bandera está apagada por defecto. Los JSON contienen fotogramas calculados por el motor Python a 30 fps, cuantizados; el navegador solo los dibuja. Se cargan al abrir una ficha, se pausan fuera de pantalla y ofrecen control accesible de reproducir/pausar. Con `prefers-reduced-motion` se muestra el pictograma fijo. La atribución explica que los dibujos son propios y no reproducen los del Código.
+
+El exportador `scripts/element-library/animation/export_app.py` escribe solo claves incluidas en `accepted.json` y rechaza datos de 15 KB o más. La lista de aceptados permanece vacía hasta revisión expresa. Esto no enciende la bandera ni publica animaciones en ningún entorno.
+
+`tests/element-library-animation.test.ts` compara la geometría del pictograma TypeScript con tres specs existentes del motor Python; `tests/element-animation-component.test.tsx` cubre movimiento reducido, control de reproducción y pausa fuera de pantalla.
+
 - `tests/element-library-domain.test.ts` y `tests/element-library-data-files.test.ts`: límites del dominio, atribución, archivos de datos con esquema estricto, registro de cada tanda (con la muestra del 10 %) y semilla igual a lo que genera el script.
 - `tests/element-library-contract.test.ts` y `tests/element-library-pg.test.ts`: candidatas, espejo Drizzle, RLS y `REVOKE`, banderas, hashes y, en PostgreSQL desechable, orden de instalación, semilla idempotente y retiradas que ninguna semilla deshace.
 - `tests/element-library-routes.test.ts`, `tests/element-library-service-pg.test.ts` y `tests/element-library-ui.test.tsx`: búsqueda, ficha, nota de la academia con su revisión, roles, aislamiento entre academias, pie de atribución y ningún vídeo ni imagen en pantalla.

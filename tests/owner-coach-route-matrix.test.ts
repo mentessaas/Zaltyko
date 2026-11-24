@@ -721,6 +721,7 @@ const coachAllowed = new Set([
   // (tests/element-library-*).
   "GET owner/element-library/route.ts",
   "GET owner/element-library/[elementId]/route.ts",
+  "GET owner/element-library/[elementId]/animation/route.ts",
   "PUT owner/element-library/[elementId]/note/route.ts",
 ]);
 

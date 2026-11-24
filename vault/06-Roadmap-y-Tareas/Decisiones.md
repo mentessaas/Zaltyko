@@ -1482,3 +1482,12 @@ Se prepara una bandeja de gimnastas sin asignación operativa, exclusiva para Ow
 **Decisión e importancia:** publicar solo acceso, academia, gimnastas/familias, grupos/clases/inscripciones, asistencia, cuotas/pagos manuales y resumen. Health Score/Insights quedan sin navegación y sus páginas directas devuelven404. El resumen no consulta métricas avanzadas. Los embudos históricos /modules/* redirigen a /features y salen del sitemap. No se incluyen tareas programadas en el candidato. Se mantienen intactos contratos API, precios base, límites y esquema; no se activa un worker global.
 
 **Siguiente paso:** CI remota completa del nuevo commit, revisión externa vigente y comprobación en delivery con academias separadas; después controles productivos y comerciales. No equivale a un lanzamiento ni a validar producción. Se conserva el ensayo natural sin consultas ni escrituras en esta ronda.
+# 2026-11-24 — Los fotogramas de animación se calculan una vez en Python
+
+El formato que consume la app conserva, por elemento, los fotogramas de 30 fps
+calculados por el motor Python (segmentos, pelvis y metadatos de contacto y
+pirueta), cuantizados junto a los índices del pictograma. TypeScript solo porta
+el dibujo SVG de siluetas Bezier, escenas y anillo de pirueta. Esto evita
+mantener dos implementaciones de física y preserva el resultado del motor. Los
+datos exportados requieren una clave en `accepted.json`; el archivo queda vacío
+hasta la revisión. La bandera de app permanece apagada por defecto.
