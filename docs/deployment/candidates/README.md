@@ -20,6 +20,13 @@ deletions; any future erasure executor must remove the object through the
 Storage API because deleting SQL rows does not remove the physical file. This
 candidate and its code have not been applied to any database.
 
+Runtime compatibility: Drizzle does not declare `logo_path`. The organization
+logo storage module checks `information_schema` before its explicit SQL reads
+and writes. Without the column, Settings shows no upload controls, GET reports
+no logo, POST/DELETE return 503 without accessing Storage, and diplomas omit the
+logo. The PostgreSQL integration suite checks this baseline and applies this
+candidate only to its disposable database before checking the enabled state.
+
 Estos archivos están fuera de `supabase/migrations` deliberadamente. No forman
 parte del historial aplicable, no se recorren automáticamente y no recuperan
 migraciones perdidas. No ejecutar el directorio ni aplicar el snapshot sandbox

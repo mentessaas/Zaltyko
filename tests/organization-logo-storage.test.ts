@@ -3,8 +3,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 vi.mock("server-only", () => ({}));
+const { execute } = vi.hoisted(() => ({ execute: vi.fn() }));
+vi.mock("@/db", () => ({ db: { execute } }));
 
 import {
+  getOrganizationLogoState,
   isMissingOrganizationLogoColumn,
   isOrganizationLogoPath,
   organizationLogoPath,
@@ -45,9 +48,24 @@ describe("organization logo storage boundary", () => {
     expect(isMissingOrganizationLogoColumn({ code: "08006", message: "connection lost" })).toBe(false);
   });
 
-  it("reads the optional logo through row JSON so a missing candidate column cannot abort the diploma transaction", () => {
+  it("does not query logo_path before the candidate column exists", async () => {
+    execute.mockResolvedValueOnce({ rows: [{ available: false }] });
+    expect(await getOrganizationLogoState(ORGANIZATION_A)).toEqual({ available: false, logoPath: null });
+    expect(execute).toHaveBeenCalledTimes(1);
+    const statement = JSON.stringify(execute.mock.calls[0]?.[0]);
+    expect(statement).toContain("information_schema.columns");
+    expect(statement).not.toContain("select logo_path");
+  });
+
+  it("keeps the diploma read behind the organization logo storage boundary", () => {
     const reads = readFileSync(join(process.cwd(), "src/modules/skill-levels/application/skill-levels/reads.ts"), "utf8");
-    expect(reads).toContain("to_jsonb(organization)->>'logo_path'");
-    expect(reads).not.toContain(".select({ path: organizations.logoPath })");
+    expect(reads).toContain("createOrganizationLogoUrlForOrganization");
+    expect(reads).not.toContain("logo_path");
+  });
+
+  it("hides logo upload controls while the candidate is unavailable", () => {
+    const settings = readFileSync(join(process.cwd(), "src/components/owner-dashboard/OwnerAcademySettingsManager.tsx"), "utf8");
+    expect(settings).toContain("available === false");
+    expect(settings).toContain("available === true ? <form");
   });
 });
