@@ -7,6 +7,14 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-11-24 — Corrección 2 de CI para logo de academia
+
+- `tests/organization-logo-pg.test.ts` aplica solo la sección de columna y constraint de la candidata en PostgreSQL desechable; no presupone ni consulta el esquema Supabase Storage y no modifica el SQL candidato.
+- `tests/skill-levels-pg.test.ts` simula `server-only` en Vitest, siguiendo el patrón de pruebas existente; el módulo de producción conserva su importación `server-only`.
+- Se revierte la ampliación accidental de `assertOwnerSettingsAccess`: los ajustes generales siguen exigiendo rol `owner` y alcance completo. La autorización separada de la ruta de logo para `owner`/`admin` no cambia.
+- Verificación local: 83 pruebas unitarias dirigidas, `pnpm typecheck`, `pnpm lint` y `git diff --check` pasan. Las suites PostgreSQL y el E2E sintético quedan pendientes de CI en este commit.
+- La candidata `20261124120000_organization_logos_candidate.sql` sigue sin aplicarse a ningún entorno.
+
 ## 2026-11-24 — Academy logo in Settings and diplomas (candidate, not applied)
 
 - `/owner/settings` lets an owner or an admin with access to every site upload, replace and remove a PNG, JPEG or WebP file up to 1 MB. The screen includes a preview, loading and error states, labels and accessible announcements.

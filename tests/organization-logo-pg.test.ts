@@ -88,16 +88,24 @@ const candidate = () =>
     "utf8"
   );
 
+function candidateColumnOnly(): string {
+  const text = candidate();
+  const start = text.indexOf("alter table zaltyko.organizations");
+  const end = text.indexOf("insert into storage.buckets");
+  if (start < 0 || end < 0 || end <= start) {
+    throw new Error("Organization logo candidate column section is unavailable");
+  }
+  return `begin;\n${text.slice(start, end)}\ncommit;`;
+}
+
 describeDisposablePg("organization logo candidate on disposable PostgreSQL", () => {
   beforeAll(async () => {
     assertDisposableTarget();
     const result = await db.execute(sql`
       select
-        exists (select 1 from information_schema.columns where table_schema = 'zaltyko' and table_name = 'organizations' and column_name = 'logo_path') as has_column,
-        exists (select 1 from storage.buckets where id = 'organization-logos') as has_bucket,
-        exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'organization_logos_server_only') as has_policy
+        exists (select 1 from information_schema.columns where table_schema = 'zaltyko' and table_name = 'organizations' and column_name = 'logo_path') as has_column
     `);
-    expect(result.rows[0]).toEqual({ has_column: false, has_bucket: false, has_policy: false });
+    expect(result.rows[0]).toEqual({ has_column: false });
     await db.execute(sql`
       insert into zaltyko.organizations (id, name)
       values (${ORGANIZATION_ID}::uuid, 'CI logo candidate')
@@ -109,7 +117,7 @@ describeDisposablePg("organization logo candidate on disposable PostgreSQL", () 
     expect(await setOrganizationLogoPath(ORGANIZATION_ID, LOGO_PATH, null)).toBe(false);
     expect(await createOrganizationLogoUrlForOrganization(ORGANIZATION_ID)).toBeNull();
 
-    await runOnOwnConnection(candidate());
+    await runOnOwnConnection(candidateColumnOnly());
     candidateApplied = true;
 
     expect(await getOrganizationLogoState(ORGANIZATION_ID)).toEqual({ available: true, logoPath: null });
@@ -129,9 +137,6 @@ describeDisposablePg("organization logo candidate on disposable PostgreSQL", () 
     await db.execute(sql`delete from zaltyko.organizations where id = ${ORGANIZATION_ID}::uuid`);
     if (!candidateApplied) return;
     await runOnOwnConnection(`
-      delete from storage.objects where bucket_id = 'organization-logos';
-      drop policy if exists organization_logos_server_only on storage.objects;
-      delete from storage.buckets where id = 'organization-logos';
       alter table zaltyko.organizations drop constraint if exists organizations_logo_path_scope;
       alter table zaltyko.organizations drop column if exists logo_path;
     `);
