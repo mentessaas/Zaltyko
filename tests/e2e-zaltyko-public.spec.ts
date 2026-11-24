@@ -358,17 +358,18 @@ test.describe("Zaltyko public site smoke", () => {
     );
   });
 
-  test("Starter CTA explains the real self-serve next step", async ({
+  test("Club CTA explains the real self-serve next step", async ({
     page,
   }) => {
     await gotoPublic(page, "/pricing");
-    // La tabla de planes pinta cada plan como <li> con su <h2>; antes eran
-    // tarjetas <article>. El CTA del catálogo es «Crear academia gratis».
-    const starter = page.getByRole("listitem").filter({
-      has: page.getByRole("heading", { name: "Starter", exact: true }),
+    // La tabla de planes pinta cada plan como <li> con su <h2>. Desde la
+    // oferta Gratis/Club (PR #390) el plan de pago es Club; su CTA lleva al
+    // alta gratuita con prueba de 30 días, no a un pago.
+    const club = page.getByRole("listitem").filter({
+      has: page.getByRole("heading", { name: "Club", exact: true }),
     });
     await expect(
-      starter.getByRole("link", { name: "Crear academia gratis" })
+      club.getByRole("link", { name: "Crear academia gratis" })
     ).toHaveAttribute("href", "/auth/register?role=owner");
   });
 
