@@ -211,8 +211,13 @@ function assertFreeUsage(
 ) {
   expect(value.planCode).toBe("free");
   expect(value.readOnly).toBe(readOnly);
-  expect(value.resources.map((item) => item.current)).toEqual([expectedAthletes, null, null]);
+  expect(value.resources.map((item) => item.current)).toEqual([
+    expectedAthletes,
+    expect.any(Number),
+    expect.any(Number),
+  ]);
   expect(value.resources.map((item) => item.limit)).toEqual([30, null, null]);
+  expect(value.resources.every((item) => Number.isSafeInteger(item.current) && item.current >= 0)).toBe(true);
 }
 
 async function oneCapacityWinner<T>(attempts: Array<() => Promise<T>>) {

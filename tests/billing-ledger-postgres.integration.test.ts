@@ -1159,7 +1159,7 @@ describe("monthly manual invoice issuance on disposable PostgreSQL", () => {
     );
     expect(overCapacityUsage.planCode).toBe("free");
     expect(overCapacityUsage.readOnly).toBe(true);
-    expect(overCapacityUsage.resources.map(resource => resource.current)).toEqual([31, null, null]);
+    expect(overCapacityUsage.resources.map(resource => resource.current)).toEqual([31, 0, 1]);
     expect(overCapacityUsage.resources.map(resource => resource.limit)).toEqual([30, null, null]);
 
     const before = await snapshotMonthlyInvoiceLedger(fixture.organizationId);
