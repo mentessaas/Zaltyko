@@ -134,8 +134,10 @@ describeDisposablePg("organization logo candidate on disposable PostgreSQL", () 
 
   afterAll(async () => {
     if (!disposablePgEnabled) return;
-    await db.execute(sql`delete from zaltyko.organizations where id = ${ORGANIZATION_ID}::uuid`);
     if (!candidateApplied) return;
+    // Organization insertion records append-only entitlement history. Keep the
+    // synthetic organization in this disposable database and remove only the
+    // candidate schema added by this suite.
     await runOnOwnConnection(`
       alter table zaltyko.organizations drop constraint if exists organizations_logo_path_scope;
       alter table zaltyko.organizations drop column if exists logo_path;
