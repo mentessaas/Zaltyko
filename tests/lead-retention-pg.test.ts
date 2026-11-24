@@ -229,10 +229,10 @@ describe.skipIf(!disposablePgEnabled)("retención de contactos en PostgreSQL des
         (id, tenant_id, academy_id, lead_id, status, started_at, ends_at, created_at, updated_at, converted_at)
       values
         (${ids.staleAcademyTrial}::uuid, ${academyId}::uuid, ${academyId}::uuid,
-          ${ids.staleLead}::uuid, 'ended', now() - interval '7 months',
+          ${ids.staleLead}::uuid, 'expired', now() - interval '7 months',
           now() - interval '6 months', now() - interval '7 months', now() - interval '7 months', null),
         (${ids.convertedAcademyTrial}::uuid, ${academyId}::uuid, ${academyId}::uuid,
-          ${ids.academyConvertedLead}::uuid, 'ended', now() - interval '7 months',
+          ${ids.academyConvertedLead}::uuid, 'converted', now() - interval '7 months',
           now() - interval '6 months', now() - interval '7 months', now() - interval '7 months',
           now() - interval '6 months')
     `);
