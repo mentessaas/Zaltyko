@@ -10,5 +10,9 @@ FIG drawing and your knowledge of the skill:
 3. Copy risk 0–1 of the static pictogram's composition versus the FIG drawing (≥ 0.5 = too close).
 Fixes as technical facts only, never a description of the FIG drawing's layout. FIG PDFs only
 (paths in EXTRACT_BATCH.md); never Upgrade Gymnastics/GymPro.
-Output: `work/check-<edition>-<batch>.json` = {elementKey: {"technique": "ok|errors", "errors": [...],
-"physics": [...], "copyScore": x}}. Read-only on specs.
+4. Score 0–10 for the animation as a whole (technique, physics, readability of the static pictogram),
+   as a demanding coach would grade it. **An element is accepted only with score ≥ 9**; below 9 it goes
+   back to the animator with its errors. Known engine limits listed in "limits" do not lower the score
+   unless they make the element hard to recognise.
+Output: `work/check-<edition>-<batch>.json` = {elementKey: {"technique": "ok|errors", "score": 0-10,
+"errors": [...], "physics": [...], "limits": [...], "copyScore": x}}. Read-only on specs.
