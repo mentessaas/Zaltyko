@@ -3,12 +3,12 @@
  * Un código desconocido no recibe nombre: no se inventa un plan.
  */
 const PLAN_NAMES: Record<string, string> = {
-  free: "Free",
-  starter: "Starter",
-  pro: "Starter",
-  growth: "Growth",
-  premium: "Growth",
-  network: "Network",
+  free: "Gratis",
+  starter: "Club",
+  pro: "Club",
+  growth: "Club",
+  premium: "Club",
+  network: "Club",
 };
 
 export function ownerPlanPublicName(planCode: string | null | undefined): string | null {

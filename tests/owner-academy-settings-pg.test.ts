@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { describe, expect, it, beforeAll } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it, beforeAll, vi } from "vitest";
 import { sql } from "drizzle-orm";
+
+vi.mock("server-only", () => ({}));
+
 import { db } from "@/db";
 import {
   createOwnerLocation,
@@ -24,6 +29,11 @@ const actor = (userId: string, memberId: string) => ({ userId, memberId });
 describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("ajustes y sedes en Postgres desechable", () => {
   beforeAll(async () => {
     assertDisposableTarget();
+    const pricingCandidate = readFileSync(resolve(
+      process.cwd(),
+      "docs/deployment/candidates/20261124121000_pricing_club_locations_candidate.sql"
+    ), "utf8");
+    await db.execute(sql.raw(pricingCandidate));
     for (const id of [ownerFree, ownerNetwork, ownerOther, admin, ownerEmpty]) {
       await db.execute(sql`insert into auth.users(id,email) values (${id}::uuid,${`ci-settings-${id}@example.invalid`})`);
     }

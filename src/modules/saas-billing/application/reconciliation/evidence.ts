@@ -19,6 +19,11 @@ export function resolvePrice(
   config: SaasStripeConfig,
   priceReference: string
 ): { planCode: PlanCode; billingInterval: SaasBillingInterval } | null {
+  for (const billingInterval of ["month", "year"] as const) {
+    if (config.legacyPrices.starter[billingInterval] === priceReference) {
+      return { planCode: "starter", billingInterval };
+    }
+  }
   for (const planCode of ["starter", "growth"] as const) {
     for (const billingInterval of ["month", "year"] as const) {
       if (config.prices[planCode][billingInterval] === priceReference) {
@@ -41,14 +46,13 @@ export function canonicalPrice(
   const priceReference = typeof price?.id === "string" ? price.id : null;
   const mapped = priceReference ? resolvePrice(config, priceReference) : null;
   const recurring = record(price?.recurring);
-  const amount =
-    mapped?.planCode === "starter"
-      ? mapped.billingInterval === "month"
-        ? 1900
-        : 19000
-      : mapped?.billingInterval === "month"
-        ? 4900
-        : 49000;
+  const legacyStarter = mapped?.planCode === "starter" &&
+    config.legacyPrices.starter[mapped.billingInterval] === priceReference;
+  const amount = mapped?.planCode === "starter"
+    ? legacyStarter
+      ? mapped.billingInterval === "month" ? 1900 : 19000
+      : mapped.billingInterval === "month" ? 2397 : 23967
+    : mapped?.billingInterval === "month" ? 4900 : 49000;
   if (
     !priceReference ||
     !mapped ||

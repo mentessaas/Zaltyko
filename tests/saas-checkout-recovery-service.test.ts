@@ -63,11 +63,12 @@ function session() {
     },
     line_items: { data: [{ quantity: 1, price: {
       id: "price_synthetic", active: true, livemode: false, currency: "eur", type: "recurring",
-      recurring: { interval: "month", interval_count: 1 }, unit_amount: 1900,
+      recurring: { interval: "month", interval_count: 1 }, unit_amount: 2397,
     } }] },
   };
 }
 const tx = {
+  execute: vi.fn().mockResolvedValue({ rows: [{ count: 1 }] }),
   select: () => ({ from: () => ({ where: mocks.where }) }),
   insert: mocks.insert, update: mocks.update, delete: mocks.remove,
 };
@@ -89,6 +90,7 @@ beforeEach(() => {
   });
   vi.useFakeTimers(); vi.setSystemTime(now);
   mocks.transaction.mockImplementation(fn => fn(tx));
+  tx.execute.mockResolvedValue({ rows: [{ count: 1 }] });
   mocks.where.mockImplementation(() => ({ limit: mocks.limit }));
   mocks.scope.mockResolvedValue({ organizationId, countryCode: "ES" });
   mocks.liveReady = false;

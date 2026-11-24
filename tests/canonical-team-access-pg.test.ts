@@ -52,7 +52,7 @@ async function identity(email?: string, confirmed = true, auth: { provider?: str
   return { userId, email: normalizedEmail.trim().toLowerCase() };
 }
 
-async function fixture() {
+async function fixture(planCode: "free" | "starter" = "starter") {
   const organizationId = randomUUID();
   const locationA = randomUUID();
   const locationB = randomUUID();
@@ -63,6 +63,13 @@ async function fixture() {
     values (${locationA}::uuid,${organizationId}::uuid,'sede-a','Sede A'),(${locationB}::uuid,${organizationId}::uuid,'sede-b','Sede B')`);
   await db.execute(sql`insert into zaltyko.organization_members(id,organization_id,user_id,role,status,location_scope_mode)
     values (${memberId}::uuid,${organizationId}::uuid,${owner.userId}::uuid,'owner','active','all')`);
+  const entitlement = await db.execute(sql`update zaltyko.organization_entitlements
+    set plan_code = ${planCode},
+        source = ${planCode === "free" ? "bootstrap" : "contract"},
+        source_reference = ${`test-${organizationId}`}
+    where organization_id = ${organizationId}::uuid
+    returning organization_id`);
+  expect(entitlement.rows).toHaveLength(1);
   return { organizationId, locationA, locationB, actor: { userId: owner.userId, memberId } };
 }
 
@@ -182,6 +189,17 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
       }), "42501");
     }
     await expect(db.execute(sql.raw(candidate()))).rejects.toThrow(/all three new relations absent/);
+  });
+
+  it("Gratis reserva una plaza al invitar y cuenta solo miembros de la misma academia", async () => {
+    const free = await fixture("free");
+    await invite(free, await identity());
+    await expect(invite(free, await identity())).rejects.toMatchObject({
+      status: 402,
+      message: "El plan Gratis incluye 2 personas en el equipo, incluida la dirección. Para invitar a otra persona, cambia a Club.",
+    });
+    const anotherAcademy = await fixture("free");
+    await expect(invite(anotherAcademy, await identity())).resolves.toMatchObject({ token: expect.any(String) });
   });
 
   it.each([
@@ -522,7 +540,7 @@ describe.skipIf(process.env.ZALTYKO_PG_INTEGRATION !== "1")("canonical team acce
   });
 
   it("in plan read-only mode blocks invite, reissue and acceptance but still allows revoking", async () => {
-    const f = await fixture(); const who = await identity(); const created = await invite(f, who);
+    const f = await fixture("free"); const who = await identity(); const created = await invite(f, who);
     await db.execute(sql`
       with new_people as (
         insert into zaltyko.people (organization_id, given_name, family_name)

@@ -1,4 +1,4 @@
-export const TRIAL_DURATION_DAYS = 7;
+export const TRIAL_DURATION_DAYS = 30;
 export const TRIAL_COOLDOWN_DAYS = 365;
 export const DAY_MS = 24 * 60 * 60 * 1000;
 

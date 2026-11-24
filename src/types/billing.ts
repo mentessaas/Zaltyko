@@ -1,8 +1,8 @@
 /** Códigos persistidos en DB y sincronizados con Stripe. */
-export type PlanCode = "free" | "pro" | "premium";
+export type PlanCode = "free" | "club" | "pro" | "premium";
 export type BillingInterval = "month" | "year";
 
-/** Network es comercial y acompañado; no existe como checkout autoservicio. */
+/** Network solo se conserva como código histórico oculto. */
 export type CommercialPlanCode = PlanCode | "network";
 
 export interface PlanSummary {

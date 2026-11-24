@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/modules/saas-billing/application/location-addon-service", () => ({
+  syncOrganizationLocationAddon: vi.fn(),
+}));
 
 import {
   academyNameSchema,
@@ -31,7 +35,8 @@ describe("ajustes de la academia: piezas puras", () => {
     expect(locationTimezoneOptions("ES", "Atlantic/Canary")).toEqual(["Atlantic/Canary", "Europe/Madrid"]);
   });
 
-  it("explica el límite de una sola sede y remite a Network", () => {
-    expect(locationLimitMessage(1)).toContain("Network");
+  it("explica el alta autoservicio de sedes extra en Club", () => {
+    expect(locationLimitMessage(1)).toContain("20 €/mes o 200 €/año");
+    expect(locationLimitMessage(1)).not.toContain("contactar");
   });
 });

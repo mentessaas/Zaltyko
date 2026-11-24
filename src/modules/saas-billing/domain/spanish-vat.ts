@@ -6,8 +6,8 @@ import {
 /**
  * Contrato fiscal de Checkout SaaS para academias de España.
  *
- * Los precios aprobados son base sin IVA (Starter 19 €/190 €, Growth
- * 49 €/490 €). Para Península y Baleares se repercute el tipo general del
+ * Los precios aprobados son base sin IVA (Club 23,97 €/239,67 €; sede
+ * adicional 16,53 €/165,29 €). Para Península y Baleares se repercute el tipo general del
  * 21 % sobre la base mediante un Tax Rate de Stripe exclusivo (no incluido en
  * el precio) creado por Elvis y referenciado por variable de entorno. No se
  * usa Stripe Tax (automatic_tax): el tipo y el territorio quedan fijados aquí
@@ -104,12 +104,14 @@ export function checkoutSessionMatchesSpanishVat(
     amount_total?: number | null;
     total_details?: { amount_tax?: number | null; amount_discount?: number | null } | null;
   },
-  quote: SpanishVatQuote
+  quote: SpanishVatQuote,
+  allowedPreTaxDiscountCents: readonly number[] = []
 ): boolean {
-  return (
-    session.amount_subtotal === quote.baseCents &&
-    session.amount_total === quote.totalCents &&
-    session.total_details?.amount_tax === quote.taxCents &&
-    (session.total_details?.amount_discount ?? 0) === 0
-  );
+  const discount = session.total_details?.amount_discount ?? 0;
+  if (!Number.isSafeInteger(discount) || discount > quote.baseCents ||
+      ![0, ...allowedPreTaxDiscountCents].includes(discount)) return false;
+  const discountedQuote = quoteSpanishVat(quote.baseCents - discount);
+  return session.amount_subtotal === quote.baseCents &&
+    session.amount_total === discountedQuote.totalCents &&
+    session.total_details?.amount_tax === discountedQuote.taxCents;
 }

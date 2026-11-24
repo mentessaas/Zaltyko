@@ -246,7 +246,7 @@ export function OwnerFamilyPaymentMethodsPanel({
       ) : null}
       {collection && !collection.available ? (
         <p className={`${ownerUi.noticeWarning} mt-4`}>
-          El cobro automático de cuotas está incluido en Starter y Growth.
+          Cuando se active, el cobro automático estará incluido en Club sin coste adicional.
         </p>
       ) : null}
 

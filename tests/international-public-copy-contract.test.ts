@@ -13,8 +13,9 @@ describe("international public copy", () => {
     const marketFaq = ESSENTIAL_FAQS.find((item) => item.question === "¿Sirve para mi academia y mi país?");
     const plansFaq = ESSENTIAL_FAQS.find((item) => item.question === "¿Cuánto cuesta? ¿Hay un plan gratis?");
 
-    expect(marketFaq?.answer).toContain("España y México");
-    expect(marketFaq?.answer).toContain("EUR o MXN");
+    expect(marketFaq?.answer).toContain("México");
+    expect(marketFaq?.answer).not.toContain("MXN");
+    expect(marketFaq?.answer).toContain("todavía no publicamos precio de suscripción");
     expect(marketFaq?.answer).toContain("se registran manualmente");
     expect(marketFaq?.answer).toContain("no hay conversión automática");
     expect(marketFaq?.answer).toContain("ni emisión de facturas fiscales");
@@ -27,11 +28,11 @@ describe("international public copy", () => {
       .map((market) => market.label);
     expect(liveMarkets).toEqual(["España"]);
     expect(getCommercialLaunchReadiness().ready).toBe(false);
-    expect(plansFaq?.answer).toContain("los planes de pago todavía no se pueden contratar (se abrirán primero en España)");
-    expect(plansFaq?.answer).toContain("puedes empezar con Free desde cualquier país");
+    expect(plansFaq?.answer).toContain("En México todavía no publicamos precio");
+    expect(plansFaq?.answer).toContain("puedes empezar gratis desde cualquier país");
     expect(plansFaq?.answer).not.toContain("contratación internacional");
-    expect(plansFaq?.answer).toContain("19 €/mes o 190 €/año");
-    expect(plansFaq?.answer).toContain("49 €/mes o 490 €/año");
+    expect(plansFaq?.answer).toContain("Club cuesta 29 €/mes o 290 €/año");
+    expect(plansFaq?.answer).toContain("IVA incluido");
     expect(plansFaq?.answer).not.toContain("Network");
   });
 
@@ -51,8 +52,8 @@ describe("international public copy", () => {
     const llmsFull = readFileSync(join(REPO, "src/app/llms-full.txt/route.ts"), "utf8");
 
     expect(answer).toContain("Zaltyko funciona en cualquier país");
-    expect(answer).toContain("Nos centramos primero en España y México");
-    expect(answer).toContain("llegará más adelante, sin fecha comprometida");
+    expect(answer).toContain("En México todavía no publicamos precio");
+    expect(answer).toContain("no tienen fecha comprometida");
     // Ya no se pide contacto para poder registrarse; el contacto es para priorizar un país.
     expect(answer).not.toContain("consultar el acceso");
     expect(answer).toContain("Si quieres que prioricemos tu país, contáctanos");

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { apiSuccess } from "@/lib/api-response";
 
 import { db } from "@/db";
@@ -59,7 +59,7 @@ export const GET = withTenant(async () => {
       isArchived: plans.isArchived,
     })
     .from(plans)
-    .where(eq(plans.isArchived, false))
+    .where(and(eq(plans.isArchived, false), inArray(plans.code, ["free", "club"])))
     // unbounded-read-ok: plan catalog is a fixed, operator-managed table.
     .orderBy(asc(plans.priceEur));
 

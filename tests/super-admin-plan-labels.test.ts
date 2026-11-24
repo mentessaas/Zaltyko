@@ -5,10 +5,10 @@ import { getProductPlanPublicName } from "@/lib/plans/catalog";
 
 describe("super-admin commercial plan labels", () => {
   it("maps persisted Stripe codes to the current public catalog names", () => {
-    expect(getProductPlanPublicName("free", "free")).toBe("Free");
-    expect(getProductPlanPublicName("pro", "pro")).toBe("Starter");
-    expect(getProductPlanPublicName("premium", "premium")).toBe("Growth");
-    expect(getProductPlanPublicName("network", "network")).toBe("Network");
+    expect(getProductPlanPublicName("free", "free")).toBe("Gratis");
+    expect(getProductPlanPublicName("pro", "pro")).toBe("Club (heredado)");
+    expect(getProductPlanPublicName("premium", "premium")).toBe("Club (heredado)");
+    expect(getProductPlanPublicName("network", "network")).toBe("Club (heredado)");
   });
 
   it("does not leak an internal code when a historical plan is unknown", () => {

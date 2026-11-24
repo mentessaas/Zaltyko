@@ -181,19 +181,26 @@ describe("Phase 4 commercial validation contracts", () => {
     expect(first).not.toBe(otherCity);
   });
 
-  it("keeps pricing v3 and plan attribution aligned", () => {
+  it("keeps public pricing and legacy plan attribution aligned", () => {
     expect(PRODUCT_PLAN_BY_CODE.free.priceEurCents).toBe(0);
+    expect(PRODUCT_PLAN_BY_CODE.free.publicName).toBe("Gratis");
     expect(PRODUCT_PLAN_BY_CODE.free.athleteLimit).toBe(30);
+    expect(PRODUCT_PLAN_BY_CODE.free.teamMemberLimit).toBe(2);
+    expect(PRODUCT_PLAN_BY_CODE.free.groupLimit).toBeNull();
+    expect(PRODUCT_PLAN_BY_CODE.free.classLimit).toBeNull();
+    expect(PRODUCT_PLAN_BY_CODE.club.priceEurCents).toBe(2_397);
+    expect(PRODUCT_PLAN_BY_CODE.club.annualPriceEurCents).toBe(23_967);
+    expect(PRODUCT_PLAN_BY_CODE.club.publicName).toBe("Club");
     expect(PRODUCT_PLAN_BY_CODE.pro.priceEurCents).toBe(1_900);
-    expect(PRODUCT_PLAN_BY_CODE.pro.athleteLimit).toBe(75);
-    expect(PRODUCT_PLAN_BY_CODE.pro.groupLimit).toBe(5);
-    expect(PRODUCT_PLAN_BY_CODE.pro.classLimit).toBe(20);
+    expect(PRODUCT_PLAN_BY_CODE.pro.athleteLimit).toBeNull();
+    expect(PRODUCT_PLAN_BY_CODE.pro.groupLimit).toBeNull();
+    expect(PRODUCT_PLAN_BY_CODE.pro.classLimit).toBeNull();
     expect(PRODUCT_PLAN_BY_CODE.pro.cta).toBe("Crear academia gratis");
     expect(PRODUCT_PLAN_BY_CODE.premium.priceEurCents).toBe(4_900);
-    expect(PRODUCT_PLAN_BY_CODE.premium.athleteLimit).toBe(200);
-    expect(PRODUCT_PLAN_BY_CODE.premium.groupLimit).toBe(10);
-    expect(PRODUCT_PLAN_BY_CODE.premium.classLimit).toBe(40);
-    expect(PRODUCT_PLAN_BY_CODE.network.checkoutMode).toBe("sales-assisted");
+    expect(PRODUCT_PLAN_BY_CODE.premium.athleteLimit).toBeNull();
+    expect(PRODUCT_PLAN_BY_CODE.premium.groupLimit).toBeNull();
+    expect(PRODUCT_PLAN_BY_CODE.premium.classLimit).toBeNull();
+    expect(PRODUCT_PLAN_BY_CODE.network.checkoutMode).toBe("included");
     expect(toCommercialPlanSlug("pro")).toBe("starter");
     expect(toCommercialPlanSlug("premium")).toBe("growth");
   });

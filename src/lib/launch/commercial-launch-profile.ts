@@ -110,8 +110,8 @@ const declaredCommercialLaunchProfile: Readonly<
   // España: IAE 844, IVA 21 %, sin retención. No abre otros mercados.
   taxTreatmentReviewed: true,
   // Comprobado por Claude el 16-11-2026 en Stripe test (staging), con el tax
-  // rate de IVA: Starter mensual 19,00 + 3,99 = 22,99 € con CIF es_cif validado
-  // (in_1UbcEHDA0PFJp7KMDStDPewd) y Growth anual 490,00 + 102,90 = 592,90 €
+  // rate de IVA: Club mensual 23,97 + 5,03 = 29,00 € con CIF ES validado
+  // y Club anual 239,67 + 50,33 = 290,00 €.
   // (in_1UbIouDA0PFJp7KM6McQgdwB). No abre Live por sí solo.
   checkoutTaxVerified: true,
   // Elvis: true tras aprobar Términos, Privacidad y encargo de tratamiento.

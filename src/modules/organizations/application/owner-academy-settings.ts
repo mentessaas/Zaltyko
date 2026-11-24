@@ -12,6 +12,7 @@ import {
   resolveEffectiveOrganizationEntitlement,
   type EffectiveSaasPlanCode,
 } from "@/modules/saas-billing/application/entitlement-service";
+import { syncOrganizationLocationAddon } from "@/modules/saas-billing/application/location-addon-service";
 import {
   assertOrganizationOperationalWritable,
   getOrganizationUsage,
@@ -43,6 +44,7 @@ const LOCATION_CODE_SCAN_LIMIT = 200;
 
 const profileEventName = "organization.profile_updated";
 const locationEventName = "location.created";
+const locationDeactivatedEventName = "location.deactivated";
 
 const idSchema = z.guid();
 const commandKeySchema = z.string().trim().min(8).max(180);
@@ -89,6 +91,9 @@ const createLocationSchema = scopeSchema
     timezone: locationTimezoneSchema,
     idempotencyKey: commandKeySchema,
   })
+  .strict();
+const deactivateLocationSchema = scopeSchema
+  .extend({ locationId: idSchema, idempotencyKey: commandKeySchema })
   .strict();
 
 export type OwnerAcademySettingsScope = z.input<typeof scopeSchema>;
@@ -285,8 +290,8 @@ function locationLimitReached(
 
 export function locationLimitMessage(locationLimit: number): string {
   return locationLimit === 1
-    ? "Tu plan incluye 1 sede. Para añadir otra necesitas el plan Network, que incluye varias sedes."
-    : `Tu plan incluye ${locationLimit} sedes y ya las tienes todas. Para añadir otra necesitas ampliar el plan.`;
+    ? "Gratis incluye una sede. Club incluye una sede y permite añadir más por 20 €/mes o 200 €/año cada una."
+    : `Tu plan incluye ${locationLimit} sedes y ya las tienes todas. Club permite añadir más por 20 €/mes o 200 €/año cada una.`;
 }
 
 export async function getOwnerAcademySettings(
@@ -473,10 +478,9 @@ export function nextLocationCode(base: string, taken: ReadonlySet<string>): stri
 export type CreatedOwnerLocation = OwnerAcademyLocation & { replayed: boolean };
 
 /**
- * Da de alta otra sede si el plan lo permite. El límite es `academyLimit` del
- * plan efectivo (1 en Free, Starter y Growth; sin límite en Network) contra
- * las sedes activas. Bloquea la organización antes de contar, igual que los
- * demás recursos limitados, y no crea nada si la academia está en solo lectura.
+ * Da de alta otra sede si el plan lo permite. Gratis incluye una sede; Club
+ * permite añadir más con su concepto facturable. Bloquea la organización
+ * antes de contar y no crea nada si la academia está en solo lectura.
  */
 export async function createOwnerLocation(
   input: CreateOwnerLocationInput
@@ -491,7 +495,7 @@ export async function createOwnerLocation(
   });
 
   await precheckOwnerAccess(command);
-  return db.transaction(async (tx) => {
+  const createdLocation = await db.transaction(async (tx) => {
     await lockCommand(tx, command.organizationId, command.idempotencyKey);
     await assertOwnerSettingsAccess(tx, command);
 
@@ -641,4 +645,48 @@ export async function createOwnerLocation(
 
     return { ...created, replayed: false };
   });
+  await syncOrganizationLocationAddon({
+    organizationId: command.organizationId,
+    idempotencyKey: command.idempotencyKey,
+  });
+  return createdLocation;
+}
+
+/** Desactiva una sede conservando su historial y sincroniza la cantidad facturada. */
+export async function deactivateOwnerLocation(input: z.input<typeof deactivateLocationSchema>): Promise<void> {
+  const command = deactivateLocationSchema.parse(input);
+  const commandFingerprint = fingerprint({ organizationId: command.organizationId, locationId: command.locationId,
+    actorUserId: command.actor.userId, actorMemberId: command.actor.memberId });
+  await precheckOwnerAccess(command);
+  await db.transaction(async (tx) => {
+    await lockCommand(tx, command.organizationId, command.idempotencyKey);
+    await assertOwnerSettingsAccess(tx, command);
+    const prior = await findOutboxEvent(tx, { organizationId: command.organizationId,
+      eventName: locationDeactivatedEventName, idempotencyKey: command.idempotencyKey });
+    if (prior) {
+      if (prior.aggregateId !== command.locationId) throw new OperationalError("IDEMPOTENCY_CONFLICT", "La clave ya pertenece a otra operación.", 409);
+      assertIdempotencyPayload(prior.payload, { actorUserId: command.actor.userId,
+        actorMemberId: command.actor.memberId, commandFingerprint });
+      return;
+    }
+    const current = await tx.execute(sql`select id,name,is_active from zaltyko.locations
+      where organization_id=${command.organizationId}::uuid and id=${command.locationId}::uuid for update`);
+    const location = current.rows[0] as { id: string; name: string; is_active: boolean } | undefined;
+    if (!location) throw new OperationalError("NOT_FOUND", "Sede no encontrada.", 404);
+    if (!location.is_active) return;
+    const activeLocations = await countActiveLocations(tx, command.organizationId);
+    if (activeLocations <= 1) throw new OperationalError("INVALID_STATE_TRANSITION", "La academia debe conservar al menos una sede activa.", 409);
+    await tx.execute(sql`update zaltyko.locations set is_active=false, updated_at=clock_timestamp()
+      where organization_id=${command.organizationId}::uuid and id=${command.locationId}::uuid`);
+    await appendOutboxEvent(tx, { organizationId: command.organizationId, locationId: command.locationId,
+      eventName: locationDeactivatedEventName, aggregateType: "location", aggregateId: command.locationId,
+      idempotencyKey: command.idempotencyKey, payload: { actorUserId: command.actor.userId,
+        actorMemberId: command.actor.memberId, commandFingerprint } });
+    await appendAuditEntry(tx, { organizationId: command.organizationId, locationId: command.locationId,
+      actorUserId: command.actor.userId, action: locationDeactivatedEventName, targetType: "location",
+      targetId: command.locationId, idempotencyKey: command.idempotencyKey,
+      before: { name: location.name, isActive: true }, after: { name: location.name, isActive: false },
+      metadata: { commandFingerprint, activeLocationsBefore: activeLocations } });
+  });
+  await syncOrganizationLocationAddon({ organizationId: command.organizationId, idempotencyKey: command.idempotencyKey });
 }

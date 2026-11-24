@@ -69,20 +69,20 @@ interface OwnerProfileProps {
 
 const PLAN_COPY: Record<string, { label: string; description: string; cta: string; color: string }> = {
   free: {
-    label: "Plan Free",
+    label: "Plan Gratis",
     description: "Incluye 1 academia y hasta 30 gimnastas activos.",
     cta: "Mejorar plan",
     color: "bg-muted text-muted-foreground",
   },
   pro: {
-    label: "Plan Starter",
-    description: "Hasta 75 gimnastas, familias y responsables y gestión de cuotas.",
+    label: "Plan Club",
+    description: "Sin límites de gimnastas, personas del equipo, grupos ni clases.",
     cta: "Gestionar suscripción",
     color: "bg-blue-100 text-blue-800",
   },
   premium: {
-    label: "Plan Growth",
-    description: "Hasta 200 gimnastas, reportes de dirección y soporte prioritario.",
+    label: "Plan Club",
+    description: "Sin límites de gimnastas, personas del equipo, grupos ni clases.",
     cta: "Gestionar suscripción",
     color: "bg-red-100 text-red-800",
   },
@@ -478,13 +478,12 @@ export function OptimizedOwnerProfile({
                     <Clock className="h-4 w-4" />
                     <p>
                       Acceso completo al periodo de prueba. Te quedan {trialDaysLeft ?? 0} días para explorar todas las
-                      funciones premium.
+                      funciones del plan Club.
                     </p>
                   </div>
                 ) : (
                   <p>
-                    Tu periodo de prueba terminó. Activa Starter para mantener automatizaciones y cobranzas sin
-                    fricciones.
+                    Tu periodo de prueba terminó. Activa Club para seguir usando todas las funciones de pago.
                   </p>
                 )}
               </div>

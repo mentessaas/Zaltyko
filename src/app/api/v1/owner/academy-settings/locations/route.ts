@@ -12,6 +12,7 @@ import {
 } from "@/lib/rate-limit";
 import {
   createOwnerLocation,
+  deactivateOwnerLocation,
   locationNameSchema,
   locationTimezoneSchema,
 } from "@/modules/organizations/application/owner-academy-settings";
@@ -27,6 +28,7 @@ const bodySchema = z
   })
   .strict();
 const idempotencyKeySchema = z.string().trim().min(8).max(180);
+const deactivateBodySchema = z.object({ organizationId: z.guid(), locationId: z.guid() }).strict();
 
 function noStore(response: NextResponse): NextResponse {
   response.headers.set("cache-control", "private, no-store");
@@ -84,6 +86,26 @@ export async function POST(request: Request) {
       actor: { userId: user.id, memberId: scope.member.id },
     });
     return noStore(apiCreated(location));
+  } catch (error) {
+    if (error instanceof OperationalError) return operationalProblem(error);
+    throw error;
+  }
+}
+
+// @auth-flexible route-guard-reason: la sesión, mismo origen e idempotencia son obligatorios; el servicio vuelve a comprobar titularidad, alcance y pertenencia de la sede dentro de la transacción.
+export async function DELETE(request: Request) {
+  const user = await getCurrentUser(request);
+  if (!user) return problemResponse({ status: 401, title: "Autenticación requerida", detail: "Inicia sesión para desactivar una sede.", type: "authentication-required" });
+  if (!hasSameOrigin(request)) return noStore(problemResponse({ status: 403, title: "Origen no válido", detail: "La baja de la sede debe proceder de la misma web.", type: "invalid-origin" }));
+  const body = deactivateBodySchema.safeParse(await request.json().catch(() => null));
+  const key = idempotencyKeySchema.safeParse(request.headers.get("idempotency-key") ?? "");
+  if (!body.success || !key.success) return problemResponse({ status: 400, title: "Datos de la sede incompletos", detail: "No hemos podido identificar la sede.", type: "invalid-location-command" });
+  try {
+    const scope = await resolveOwnerScope({ userId: user.id, organizationId: body.data.organizationId });
+    const limit = await rateLimit({ identifier: getVerifiedTenantRateLimitIdentifier(request, scope.organization.id), ...getLimitForRoute(new URL(request.url).pathname) });
+    if (!limit.success) return rateLimitExceededResponse(limit);
+    await deactivateOwnerLocation({ ...body.data, idempotencyKey: key.data, actor: { userId: user.id, memberId: scope.member.id } });
+    return noStore(NextResponse.json({ data: { deactivated: true } }));
   } catch (error) {
     if (error instanceof OperationalError) return operationalProblem(error);
     throw error;

@@ -32,7 +32,6 @@ const read = (path: string) => readFileSync(join(REPO, path), "utf8");
  */
 const DORMANT: RegExp[] = [
   /\bchoques?\b/i,
-  /portal (de|para) (las )?familias|portal familiar|enlace para familias/i,
   // Paraphrases of the same dormant features.
   /familias (consultan|ven) (sus )?cuotas/i,
   /planific/i,
@@ -221,7 +220,7 @@ describe("lo dormido solo aparece en «En preparación», sin fechas", () => {
   });
 
   it("cada elemento de «En preparación» es una función dormida, sin fechas, y ya no incluye lo activado", () => {
-    expect(IN_PREPARATION).toEqual(["Portal de familias"]);
+    expect(IN_PREPARATION).toEqual([]);
     for (const item of IN_PREPARATION) {
       expect(matching(item, DORMANT).length, item).toBeGreaterThan(0);
       expect(matching(item, ACTIVATED), item).toEqual([]);
@@ -232,11 +231,10 @@ describe("lo dormido solo aparece en «En preparación», sin fechas", () => {
     expect(home).toContain("sin fecha comprometida");
   });
 
-  it("en llms-full.txt solo la línea «En preparación» nombra funciones dormidas, y no las activadas", () => {
+  it("llms-full.txt no presenta como dormidas las funciones que ya están en la oferta aprobada", () => {
     const lines = read("src/app/llms-full.txt/route.ts").split("\n");
     const preparation = lines.filter((line) => line.startsWith("En preparación, sin fecha"));
-    expect(preparation).toEqual(["En preparación, sin fecha y no disponible todavía: portal de familias."]);
-    expect(matching(preparation[0], ACTIVATED)).toEqual([]);
+    expect(preparation).toEqual([]);
     for (const line of lines.filter((line) => !preparation.includes(line))) {
       expect(matching(line, DORMANT), line).toEqual([]);
       expect(matching(line, NOT_YET), line).toEqual([]);
@@ -327,8 +325,9 @@ describe("la portada dice lo mismo que sus datos estructurados", () => {
 
   it("los precios no cambian", () => {
     const plans = ESSENTIAL_FAQS.find((item) => item.question === "¿Cuánto cuesta? ¿Hay un plan gratis?")!.answer;
-    expect(plans).toContain("Free es gratis hasta 30 gimnastas, 3 grupos y 10 clases activas");
-    expect(plans).toContain("19 €/mes o 190 €/año");
-    expect(plans).toContain("49 €/mes o 490 €/año");
+    expect(plans).toContain("Gratis cuesta 0 € e incluye hasta 30 gimnastas y dos personas");
+    expect(plans).toContain("Club cuesta 29 €/mes o 290 €/año");
+    expect(plans).toContain("24,90 €/mes durante 12 meses");
+    expect(plans).toContain("En México todavía no publicamos precio");
   });
 });

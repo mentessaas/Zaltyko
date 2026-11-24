@@ -154,7 +154,7 @@ describe("OwnerStripeConnectCard", () => {
     stubFetch({ kind: "unavailable", reason: "paid_plan_required" });
     render(<OwnerStripeConnectCard organizationId={ORGANIZATION_ID} navigate={vi.fn()} />);
 
-    expect(await screen.findByText("El cobro automático está incluido en Starter y Growth.")).toBeInTheDocument();
+    expect(await screen.findByText("Cuando se active, el cobro automático estará incluido en Club sin coste adicional.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver planes" }).getAttribute("href")).toMatch(/^\/owner\/subscription/);
     expect(screen.queryByRole("button")).toBeNull();
   });
@@ -251,7 +251,7 @@ describe("OwnerStripeConnectCard", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Conectar Stripe" }));
 
-    expect(await screen.findByText("El cobro automático está incluido en Starter y Growth.")).toBeInTheDocument();
+    expect(await screen.findByText("Cuando se active, el cobro automático estará incluido en Club sin coste adicional.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver planes" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Conectar Stripe" })).toBeNull();
     expect(navigate).not.toHaveBeenCalled();

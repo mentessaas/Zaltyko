@@ -62,12 +62,12 @@
     },
     {
       "feature": "Trial sin tarjeta",
-      "zaltyko": "7 días de Starter, sin tarjeta",
+      "zaltyko": "30 días de Club, sin tarjeta",
       "competitor": "Demo comercial guiada, no trial auto-servicio"
     },
     {
       "feature": "Plan gratis",
-      "zaltyko": "Sí, hasta 30 gimnastas y 1 academia",
+      "zaltyko": "Gratis, hasta 30 gimnastas",
       "competitor": "No publica plan free sostenido"
     },
     {
@@ -78,7 +78,7 @@
   ],
   "zaltykoPros": [
     "Especialización en gimnasia: niveles, aparatos, federaciones hispanas.",
-    "Plan Free útil (hasta 30 gimnastas) y trial sin tarjeta.",
+    "Plan Gratis hasta 30 gimnastas y prueba Club sin tarjeta.",
     "Soporte, copy y documentación en español."
   ],
   "zaltykoContras": [
@@ -99,7 +99,7 @@
   "idealForZaltyko": [
     "Academias de gimnasia artística o rítmica con grupos fijos.",
     "Clubes que trabajan con federaciones hispanas.",
-    "Operaciones con trial sin tarjeta y plan Free útil."
+    "Operaciones con prueba de Club sin tarjeta y plan Gratis útil."
   ],
   "idealForCompetitor": [
     "Estudios de fitness con modelo de reservas (clase suelta).",
@@ -113,7 +113,7 @@
     },
     {
       "q": "¿Cuál es más barato?",
-      "a": "Zaltyko tiene plan Free hasta 30 gimnastas y Starter desde 19 €/mes. Glofox no publica plan free y su pricing suele ser superior para academias pequeñas. Para academias medianas o grandes conviene comparar el coste total con el número de plazas."
+      "a": "Zaltyko tiene un plan Gratis hasta 30 gimnastas y Club por 29 €/mes o 290 €/año, IVA incluido. Glofox no publica plan gratis y su precio puede ser superior para academias pequeñas. Para academias medianas o grandes conviene comparar el coste total."
     },
     {
       "q": "¿Puedo migrar de Glofox a Zaltyko?",

@@ -43,37 +43,43 @@ describe("Go-live product guardrails", () => {
     }
   });
 
-  it("keeps Starter and Growth single-academy for v1", () => {
-    expect(PRODUCT_PLAN_BY_CODE.pro.publicName).toBe("Starter");
-    expect(PRODUCT_PLAN_BY_CODE.pro.academyLimit).toBe(1);
-    expect(PRODUCT_PLAN_BY_CODE.pro.features.join(" ")).not.toMatch(/academias ilimitadas/i);
-    expect(PRODUCT_PLAN_BY_CODE.premium.publicName).toBe("Growth");
-    expect(PRODUCT_PLAN_BY_CODE.premium.academyLimit).toBe(1);
-    expect(PRODUCT_PLAN_BY_CODE.premium.features.join(" ")).not.toMatch(/academias ilimitadas/i);
-  });
-
-  it("positions Network as accompanied multi-site, not self-serve unlimited", () => {
-    expect(PRODUCT_PLAN_BY_CODE.network.publicName).toBe("Network");
-    expect(PRODUCT_PLAN_BY_CODE.network.cta).toMatch(/hablar con zaltyko/i);
-    expect(PRODUCT_PLAN_BY_CODE.network.academyLimit).toBeNull();
-    expect(PRODUCT_PLAN_BY_CODE.network.checkoutMode).toBe("sales-assisted");
-  });
-
-  it("enforces pricing v3 capacity limits in executable go-live coverage", () => {
+  it("publishes Gratis and Club while retaining legacy access at its old price", () => {
+    expect(PRODUCT_PLAN_BY_CODE.free.publicName).toBe("Gratis");
     expect(PRODUCT_PLAN_BY_CODE.free.athleteLimit).toBe(30);
-    expect(PRODUCT_PLAN_BY_CODE.pro.athleteLimit).toBe(75);
-    expect(PRODUCT_PLAN_BY_CODE.premium.athleteLimit).toBe(200);
-    expect(PRODUCT_PLAN_BY_CODE.network.athleteLimit).toBeNull();
+    expect(PRODUCT_PLAN_BY_CODE.free.teamMemberLimit).toBe(2);
+    expect(PRODUCT_PLAN_BY_CODE.club.publicName).toBe("Club");
+    expect(PRODUCT_PLAN_BY_CODE.club.priceEurCents).toBe(2397);
+    expect(PRODUCT_PLAN_BY_CODE.club.annualPriceEurCents).toBe(23967);
+    expect(PRODUCT_PLAN_BY_CODE.pro.publicName).toBe("Club (heredado)");
+    expect(PRODUCT_PLAN_BY_CODE.pro.academyLimit).toBe(1);
+    expect(PRODUCT_PLAN_BY_CODE.pro.priceEurCents).toBe(1900);
+    expect(PRODUCT_PLAN_BY_CODE.pro.athleteLimit).toBeNull();
+    expect(PRODUCT_PLAN_BY_CODE.premium.publicName).toBe("Club (heredado)");
+    expect(PRODUCT_PLAN_BY_CODE.premium.academyLimit).toBe(1);
+    expect(PRODUCT_PLAN_BY_CODE.premium.priceEurCents).toBe(4900);
+  });
+
+  it("hides Network from new sales and keeps its old code only for existing accounts", () => {
+    expect(PRODUCT_PLAN_BY_CODE.network.publicName).toBe("Club (heredado)");
+    expect(PRODUCT_PLAN_BY_CODE.network.checkoutMode).toBe("included");
+    expect(PRODUCT_PLAN_BY_CODE.network.features.join(" ")).toMatch(/histórico oculto/i);
+  });
+
+  it("enforces Gratis limits and points upgrades to Club", () => {
+    expect(PRODUCT_PLAN_BY_CODE.free.athleteLimit).toBe(30);
+    expect(PRODUCT_PLAN_BY_CODE.free.groupLimit).toBeNull();
+    expect(PRODUCT_PLAN_BY_CODE.free.classLimit).toBeNull();
 
     expect(evaluateLimit("free", 30, 30, "athletes")).toMatchObject({
       exceeded: true,
-      upgradeTo: "pro",
+      upgradeTo: "club",
     });
-    expect(evaluateLimit("pro", 200, 199, "athletes").exceeded).toBe(false);
-    expect(evaluateLimit("premium", null, 5000, "athletes").exceeded).toBe(false);
+    expect(evaluateLimit("free", null, 1000, "groups").exceeded).toBe(false);
+    expect(evaluateLimit("club", null, 5000, "athletes").exceeded).toBe(false);
 
     const freeUpgrade = getUpgradeInfo("free");
-    expect(freeUpgrade.nextPlan).toBe("pro");
+    expect(freeUpgrade.nextPlan).toBe("club");
+    expect(freeUpgrade.price).toBe("29€/mes IVA incluido");
     expect(freeUpgrade.benefits.join(" ")).not.toMatch(/academias ilimitadas/i);
   });
 });

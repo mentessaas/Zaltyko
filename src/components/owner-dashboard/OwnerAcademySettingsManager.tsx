@@ -218,6 +218,31 @@ export function OwnerAcademySettingsManager({ organizationId }: { organizationId
     }
   }
 
+  async function deactivateLocation(locationId: string, locationLabel: string) {
+    if (!settings || locationBusy || capacity.activeLocations <= 1) return;
+    if (!window.confirm(`¿Quieres desactivar la sede «${locationLabel}»? Se conservará su historial y dejará de contar para el precio.`)) return;
+    setLocationBusy(true);
+    setLocationMessage(null);
+    try {
+      const response = await fetch(`${SETTINGS_ENDPOINT}/locations`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json", "idempotency-key": newKey() },
+        body: JSON.stringify({ organizationId, locationId }),
+      });
+      if (!response.ok) {
+        setLocationMessage({ ok: false, text: (await problemOf(response, "No hemos podido desactivar la sede.")).text });
+        await load(true);
+        return;
+      }
+      setLocationMessage({ ok: true, text: "Sede desactivada. El importe se ha actualizado según las sedes activas." });
+      await load(true);
+    } catch {
+      setLocationMessage({ ok: false, text: "No hemos podido desactivar la sede. Comprueba la conexión e inténtalo de nuevo." });
+    } finally {
+      setLocationBusy(false);
+    }
+  }
+
   if (loadError) {
     return (
       <div className={ownerUi.noticeError} role="alert">
@@ -302,6 +327,12 @@ export function OwnerAcademySettingsManager({ organizationId }: { organizationId
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-semibold text-z-ink">{location.name}</span>
                 {location.isActive ? null : <span className={ownerUi.chipAttention}>Inactiva</span>}
+                {location.isActive && capacity.activeLocations > 1 ? (
+                  <button type="button" className={ownerUi.textLink} disabled={locationBusy}
+                    onClick={() => void deactivateLocation(location.id, location.name)}>
+                    Desactivar sede
+                  </button>
+                ) : null}
               </div>
               <p className={`mt-1 ${ownerUi.help}`}>Zona horaria: {location.timezone}</p>
             </li>
@@ -336,7 +367,7 @@ export function OwnerAcademySettingsManager({ organizationId }: { organizationId
             ) : (
               <p>
                 {capacity.locationLimit === 1
-                  ? "Tu plan incluye 1 sede. Para añadir otra necesitas el plan Network, que incluye varias sedes."
+                  ? "El plan Gratis incluye 1 sede. Cambia a Club para añadir sedes adicionales."
                   : `Tu plan incluye ${capacity.locationLimit} sedes y ya las tienes todas.`}
               </p>
             )}

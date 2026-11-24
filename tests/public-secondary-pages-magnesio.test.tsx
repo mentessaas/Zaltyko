@@ -151,8 +151,8 @@ describe("textos de conversión de /faq y /features", () => {
     const features = read("src/app/features/page.tsx");
     expect(features).toContain('lede="Gimnastas, clases, asistencia y cuotas en un solo sitio, con tu equipo dentro."');
     expect(features).toContain('note="Gratis hasta 30 gimnastas · Sin tarjeta"');
-    // La línea dice lo mismo que el JSON-LD del plan Free.
-    expect(features).toContain("Plan Free: hasta 30 gimnastas");
+    // La oferta pública usa el nombre vigente del plan.
+    expect(features).toContain("Plan Gratis: hasta 30 gimnastas");
   });
 });
 

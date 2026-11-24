@@ -20,7 +20,7 @@ type Integration = { name: string; description: string; icon: typeof CreditCard;
 const integrations: Integration[] = [
   {
     name: "Suscripción de Zaltyko (Stripe)",
-    description: "Stripe gestiona el pago del plan Starter o Growth de la academia. Esta integración no activa el cobro automático de las cuotas de sus familias.",
+    description: "Stripe gestiona el pago del plan Club de la academia. Esta integración no activa el cobro automático de las cuotas de sus familias.",
     icon: CreditCard,
     features: ["Suscripción mensual o anual", "Gestión del plan de Zaltyko", "Estado de facturación"],
     status: "available",

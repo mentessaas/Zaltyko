@@ -30,7 +30,7 @@ const sections = [
   {
     title: "3. Planes, pagos y suscripción",
     paragraphs: [
-      "El catálogo incluye Free, Starter y Growth. Starter tiene un precio base de 19 €/mes o 190 €/año; Growth, de 49 €/mes o 490 €/año. Estos precios no incluyen IVA. El impuesto aplicable y el importe final deberán mostrarse antes de confirmar la contratación.",
+      "El plan Gratis cuesta 0 €. Club cuesta 29 €/mes o 290 €/año, IVA incluido. Incluye una sede; cada sede adicional cuesta 20 €/mes o 200 €/año, IVA incluido. El código de fundador, cuando esté disponible, reduce Club mensual a 24,90 €/mes durante 12 meses para los 10 primeros clubes de Málaga.",
       "La suscripción SaaS de la academia es independiente de las cuotas de sus familias, cuyos pagos se registran manualmente. Las pruebas de contratación en sandbox no son compras reales.",
       "Puedes cancelar o cambiar de plan en cualquier momento desde el portal de suscripción. Si solicitas la baja, el plan continuará activo hasta el final del periodo en curso.",
     ],

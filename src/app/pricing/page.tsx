@@ -14,14 +14,14 @@ const baseUrl = getPublicSiteUrl();
 export const metadata: Metadata = {
   title: "Planes y Precios para Academias de Gimnasia",
   description:
-    "Compara los planes Free, Starter y Growth para tu academia de gimnasia artística o rítmica. Prueba 7 días Starter sin tarjeta y sin compromiso.",
+    "Compara Gratis y Club para tu academia de gimnasia artística o rítmica. Prueba Club durante 30 días sin tarjeta.",
   alternates: {
     canonical: `${baseUrl}/pricing`,
   },
   openGraph: {
     title: "Precios",
     description:
-      "Compara planes Free, Starter y Growth para academias de gimnasia artística y rítmica. 7 días Starter sin tarjeta.",
+      "Compara Gratis y Club para academias de gimnasia artística y rítmica. Prueba Club 30 días sin tarjeta.",
     url: `${baseUrl}/pricing`,
     siteName: "Zaltyko",
     type: "website",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Planes para Academias de Gimnasia",
     description:
-      "Planes Zaltyko por etapa y tamaño de academia. Free, Starter y Growth.",
+      "Planes Zaltyko por etapa y tamaño de academia: Gratis y Club.",
   },
 };
 
@@ -45,7 +45,7 @@ const pricingSchema = {
     itemListElement: [
       {
         "@type": "Offer",
-        name: "Free",
+        name: "Gratis",
         price: String(PRODUCT_PLAN_BY_CODE.free.priceEurCents / 100),
         priceCurrency: "EUR",
         priceSpecification: {
@@ -56,19 +56,8 @@ const pricingSchema = {
       },
       {
         "@type": "Offer",
-        name: "Starter",
-        price: String(quoteSpanishVat(PRODUCT_PLAN_BY_CODE.pro.priceEurCents).totalCents / 100),
-        priceCurrency: "EUR",
-        priceSpecification: {
-          "@type": "UnitPriceSpecification",
-          priceCurrency: "EUR",
-          valueAddedTaxIncluded: true,
-        },
-      },
-      {
-        "@type": "Offer",
-        name: "Growth",
-        price: String(quoteSpanishVat(PRODUCT_PLAN_BY_CODE.premium.priceEurCents).totalCents / 100),
+        name: "Club",
+        price: String(quoteSpanishVat(PRODUCT_PLAN_BY_CODE.club.priceEurCents).totalCents / 100),
         priceCurrency: "EUR",
         priceSpecification: {
           "@type": "UnitPriceSpecification",

@@ -279,8 +279,8 @@ export async function notifyTrialOwner(params: {
   const isReminder = params.kind === "day_five";
   const title = isReminder ? "Tu prueba termina en 2 días" : "Tu prueba ha terminado";
   const message = isReminder
-    ? `Aprovecha los últimos días de Starter en ${params.academyName}. Después volverás al plan Free.`
-    : `${params.academyName} ha vuelto al plan Free. Tus datos siguen guardados y puedes contratar Starter cuando quieras.`;
+    ? `Aprovecha los últimos días de la prueba de Club en ${params.academyName}. Después volverás al plan Gratis.`
+    : `${params.academyName} ha vuelto al plan Gratis. Tus datos siguen guardados y puedes contratar Club cuando quieras.`;
 
   await createNotification({
     tenantId: params.tenantId,

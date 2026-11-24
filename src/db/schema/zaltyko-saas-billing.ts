@@ -136,6 +136,7 @@ export const organizationSaasCheckoutOperations = zaltyko.table(
     requestHash: text("request_hash").notNull(),
     planCode: saasPlanCode("plan_code").notNull(),
     billingInterval: saasBillingInterval("billing_interval").notNull(),
+    extraLocationQuantity: integer("extra_location_quantity").notNull().default(0),
     status: text("status").notNull().default("requested"),
     stripeIdempotencyKey: text("stripe_idempotency_key").notNull(),
     checkoutSessionReference: text("checkout_session_reference"),
@@ -252,7 +253,7 @@ export const organizationSaasCheckoutOperations = zaltyko.table(
   ]
 );
 
-/** One explicitly activated seven-day Starter trial per cooldown window. */
+/** One explicitly activated 30-day Club trial per cooldown window. */
 export const organizationSaasTrials = zaltyko.table(
   "organization_saas_trials",
   {
