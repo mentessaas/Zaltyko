@@ -40,6 +40,7 @@ export {
   isElementLibraryStorageInstalled,
 } from "./storage";
 export type {
+  CardLocalVocabulary,
   CatalogElementCard,
   CatalogElementSummary,
   CatalogLinkStatus,

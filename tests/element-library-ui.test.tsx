@@ -80,6 +80,7 @@ function card(summary: CatalogElementSummary, overrides: Partial<CatalogElementC
     shortName: summary.shortName,
     discipline: "artistic_female",
     description: null,
+    localVocabulary: null,
     edition,
     attribution: edition.attribution,
     note: null,
@@ -235,6 +236,46 @@ describe("pantalla de la biblioteca", () => {
     // Sin referencia del Código no se muestra la fila.
     expect(within(dialog).queryByText("Referencia FIG")).toBeNull();
     expect(within(dialog).getByText("D")).toBeTruthy();
+  });
+
+  it("con vocabulario del país, la ficha enseña «Así se dice en México» (ADR-0030)", async () => {
+    routeFetch({
+      cards: {
+        [VAULT]: card(vault, {
+          localVocabulary: {
+            country: "MX",
+            countryName: "México",
+            terms: [
+              { key: "rondada", es: "rondada", local: ["redondilla"], note: null },
+              { key: "kippe", es: "kippe", local: ["kip", "alemana"], note: "«Kip» en las rutinas obligatorias." },
+            ],
+          },
+        }),
+      },
+    });
+    renderBrowser();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Yurchenko agrupado/ }));
+    const dialog = await screen.findByRole("dialog");
+    const heading = await within(dialog).findByRole("heading", { name: "Así se dice en México" });
+    const box = heading.closest("section");
+    expect(box).toBeTruthy();
+    const terms = within(box!).getAllByRole("term").map((node) => node.textContent);
+    expect(terms).toEqual(["En España, rondada", "En España, kippe"]);
+    const definitions = within(box!).getAllByRole("definition").map((node) => node.textContent);
+    expect(definitions[0]).toBe("en México, → redondilla");
+    expect(definitions[1]).toContain("kip o alemana");
+    expect(definitions[1]).toContain("«Kip» en las rutinas obligatorias.");
+  });
+
+  it("sin vocabulario del país no hay recuadro", async () => {
+    routeFetch({ cards: { [VAULT]: card(vault) } });
+    renderBrowser();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Yurchenko agrupado/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByText("Nombre corto")).toBeTruthy();
+    expect(within(dialog).queryByText(/Así se dice en/)).toBeNull();
   });
 
   it("guardar nota envía la revisión que se vio", async () => {

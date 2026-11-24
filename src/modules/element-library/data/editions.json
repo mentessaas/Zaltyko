@@ -15,6 +15,78 @@
         { "key": "3", "label": "Tsukahara: paloma con 1/4–1/2 giro y mortal atrás" },
         { "key": "4", "label": "Yurchenko: rondada y mortal atrás" },
         { "key": "5", "label": "Rondada con 1/2 giro y mortal adelante" }
+      ],
+      "uneven_bars": [
+        { "key": "1", "label": "Entradas" },
+        { "key": "2", "label": "Impulsos y vueltas libres" },
+        { "key": "3", "label": "Gigantes" },
+        { "key": "4", "label": "Stalder" },
+        { "key": "5", "label": "Vueltas carpadas" },
+        { "key": "6", "label": "Salidas" }
+      ],
+      "beam": [
+        { "key": "1", "label": "Entradas" },
+        { "key": "2", "label": "Saltos" },
+        { "key": "3", "label": "Giros" },
+        { "key": "4", "label": "Posiciones y acrobacia sin vuelo" },
+        { "key": "5", "label": "Acrobacia con vuelo" },
+        { "key": "6", "label": "Salidas" }
+      ],
+      "floor": [
+        { "key": "1", "label": "Saltos" },
+        { "key": "2", "label": "Giros" },
+        { "key": "3", "label": "Elementos con apoyo de manos" },
+        { "key": "4", "label": "Mortales adelante" },
+        { "key": "5", "label": "Mortales atrás" }
+      ]
+    }
+  },
+  {
+    "code": "fig-mag-2025-2028",
+    "discipline": "artistic_male",
+    "cycleStart": 2025,
+    "cycleEnd": 2028,
+    "title": "Código de Puntuación de Gimnasia Artística Masculina 2025-2028",
+    "documentUrl": "https://www.gymnastics.sport/publicdir/rules/files/en_1.1%20-%20MAG%20Code%20of%20Points%202025-2028.pdf",
+    "coverDate": "2026-11-16",
+    "status": "published",
+    "groups": {
+      "floor": [
+        { "key": "I", "label": "Elementos sin acrobacia" },
+        { "key": "II", "label": "Acrobacia adelante" },
+        { "key": "III", "label": "Acrobacia atrás" },
+        { "key": "IV", "label": "Mortal simple adelante o atrás con pirueta" }
+      ],
+      "pommel_horse": [
+        { "key": "I", "label": "Balanceos de una pierna y tijeras" },
+        { "key": "II", "label": "Molinos y flairs" },
+        { "key": "III", "label": "Desplazamientos" },
+        { "key": "IV", "label": "Salidas" }
+      ],
+      "rings": [
+        { "key": "I", "label": "Kippe, balanceos y vuelos al pino" },
+        { "key": "II", "label": "Fuerza y posiciones mantenidas" },
+        { "key": "III", "label": "Balanceo a posición de fuerza" },
+        { "key": "IV", "label": "Salidas" }
+      ],
+      "vault": [
+        { "key": "I", "label": "Paloma y mortal adelante con pirueta compleja" },
+        { "key": "II", "label": "Paloma y mortal, con o sin pirueta simple, y dobles mortales adelante" },
+        { "key": "III", "label": "Paloma lateral y Tsukahara, y dobles mortales atrás" },
+        { "key": "IV", "label": "Entrada en rondada y mortal con pirueta compleja" },
+        { "key": "V", "label": "Entrada en rondada con o sin pirueta simple, y dobles mortales" }
+      ],
+      "parallel_bars": [
+        { "key": "I", "label": "Elementos desde apoyo braquial" },
+        { "key": "II", "label": "Elementos en apoyo o pasando por el apoyo en las dos barras" },
+        { "key": "III", "label": "Balanceos largos en suspensión y balanceos por debajo" },
+        { "key": "IV", "label": "Salidas" }
+      ],
+      "high_bar": [
+        { "key": "I", "label": "Balanceos largos en suspensión y giros" },
+        { "key": "II", "label": "Elementos de vuelo" },
+        { "key": "III", "label": "Elementos en barra y Adler" },
+        { "key": "IV", "label": "Salidas" }
       ]
     }
   }

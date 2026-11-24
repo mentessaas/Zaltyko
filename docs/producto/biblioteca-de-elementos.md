@@ -6,11 +6,13 @@ Fecha: 19 de noviembre de 2026. Origen: ADR-0029 (`docs/architecture/adr/0029-bi
 
 1. Las candidatas SQL `20261119120000_element_library_candidate.sql` y `20261119120500_element_library_notes_candidate.sql`, y al menos una semilla de tanda, en `docs/deployment/candidates/`. Cada una **requiere autorización de Elvis** por entorno (staging y producción).
 2. La bandera de servidor `ZALTYKO_ELEMENT_LIBRARY_ENABLED=true`, junto con `ZALTYKO_SKILL_LEVELS_ENABLED=true` (las dos, por defecto `false` en `.env.example`).
-3. Elementos **revisados por Elvis** en una edición publicada. La tanda 1 (51 saltos) está revisada desde el 19-11-2026; las academias la ven cuando se aplica su semilla revisada.
+3. Elementos **revisados** (por Elvis o, por delegación suya desde el 23-11-2026, por Claude; ADR-0029 §1.7) en una edición publicada. La tanda 1 (51 saltos) está revisada desde el 19-11-2026; las academias la ven cuando se aplica su semilla revisada.
 
 Si falta la bandera o las tablas: la página da 404, las API responden 503 con el motivo `element_library_unavailable` y el botón «Añadir desde la biblioteca» no aparece. Niveles, guiones y la exportación de la academia siguen funcionando igual, con o sin las tablas nuevas.
 
 Las descripciones van aparte, con su propia bandera: `ZALTYKO_ELEMENT_LIBRARY_DESCRIPTIONS_ENABLED=true` (por defecto `false`). Apagada, la ficha muestra nombre, aparato, grupo y valor, sin descripción.
+
+El vocabulario de sala por país también va aparte (ADR-0030): `ZALTYKO_ELEMENT_LIBRARY_LOCAL_VOCABULARY_ENABLED=true` (por defecto `false`). Encendida, una academia de un país con archivo revisado (`src/modules/element-library/data/vocabulario/<país>.json`, primero México) ve en la ficha el recuadro «Así se dice en México» con las palabras de esa ficha que cambian («rondada → redondilla»), y puede buscar con sus palabras («redondilla» encuentra «rondada»). Los textos del catálogo no cambian y siguen en vocabulario de España. Solo se ven las entradas revisadas; `mx.json` sale con todas en borrador.
 
 ## Qué resuelve
 
@@ -57,7 +59,7 @@ Los datos que ya existen no se tocan: las columnas de enlace nacen vacías, sin 
 
 - **Todos los planes, Free incluido** (decisión 10 de Elvis): no hay comprobación de plan. Con el plan en solo lectura se consulta todo, pero no se guardan notas.
 - Todo se comprueba en el servidor dentro de la transacción de cada operación: bandera y tablas, miembro activo del equipo técnico, sede de su alcance y activa, y plan fuera de solo lectura en escrituras. El catálogo es global y de solo lectura (RLS `ENABLE` + `FORCE` y `REVOKE` a `anon` y `authenticated`): solo lo escriben las semillas y la acción «Retirar».
-- **Qué ven las academias:** solo elementos revisados por Elvis, de una edición publicada y sin retirar. Los borradores solo los ve el superadministrador.
+- **Qué ven las academias:** solo elementos revisados, de una edición publicada y sin retirar. Los borradores solo los ve el superadministrador.
 
 ## De dónde salen los datos
 
@@ -81,7 +83,161 @@ Las tandas son de unos 50 elementos. Orden (decisión 12 de Elvis): toda la art�
 - Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/1.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,4; ningún elemento se volvió a redactar. Muestra manual: 6 elementos, sin resultado registrado.
 - Semilla: `docs/deployment/candidates/20261119121000_element_catalog_seed_fig-wag-2025-2028_1.sql`, regenerada con la revisión. En staging está aplicada la versión anterior, en borrador; la revisada, pendiente. Sin aplicar en producción.
 
-**Cuando Elvis la revisa,** se marca cada elemento como revisado con su fecha en el archivo de datos, se completa el registro de la tanda y se vuelve a generar la semilla. Una semilla nunca devuelve un elemento revisado a borrador, nunca deshace una retirada y aborta si un elemento revisado cambia sin una fecha de revisión posterior.
+**Cuando se revisa** (Elvis o, por delegación suya, una sesión de Claude distinta de la que redacta, con el Código oficial delante), se marca cada elemento como revisado con su fecha en el archivo de datos, se completa el registro de la tanda y se vuelve a generar la semilla. Una semilla nunca devuelve un elemento revisado a borrador, nunca deshace una retirada y aborta si un elemento revisado cambia sin una fecha de revisión posterior.
+
+### Segunda tanda
+
+- Edición `fig-wag-2025-2028`, salto, grupos 4 y 5: **32 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Con ella el salto queda completo (83 elementos).
+- Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/2.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; un elemento se volvió a redactar por parecido. Hacia dónde cae la gimnasta en los 7 saltos con tres cuartos de giro (270°) lo dedujo, como dato, quien lee el PDF. Muestra manual: 5 elementos, pendiente de Elvis.
+- Semilla: `docs/deployment/candidates/20261119123000_element_catalog_seed_fig-wag-2025-2028_2.sql`, sin aplicar.
+
+### Tercera tanda
+
+- Edición `fig-wag-2025-2028`, paralelas asimétricas, grupos 1 (entradas) y 2 (impulsos y vueltas libres): **51 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Va en una rama aparte de la segunda tanda: no depende de ella.
+- Cada número del Código es una ficha. Si un mismo número agrupa más de una forma o más de un epónimo (por ejemplo «Jentsch / González»), la ficha los nombra a todos.
+- Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/3.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,5; se volvieron a redactar 18 elementos (9 por parecido y 9 por errores técnicos en los hechos, ya corregidos). Muestra manual: 6 elementos, pendiente de Elvis.
+- Semilla: `docs/deployment/candidates/20261120003000_element_catalog_seed_fig-wag-2025-2028_3.sql`, sin aplicar.
+
+### Cuarta tanda
+
+- Edición `fig-wag-2025-2028`, paralelas asimétricas, grupos 3 (gigantes, 28) y 4 (Stalder, 30): **58 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Va encima de la tercera tanda, porque comparte el archivo de asimétricas.
+- Los nombres comunes que el Código cita sin ser epónimo oficial (Tkatchev, Deltchev, Gienger, Jaeger) se usan en el nombre; el epónimo de una forma alternativa va entre paréntesis en el nombre corto.
+- Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/4.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,5; se volvieron a redactar 15 elementos (10 por parecido y 5 por errores técnicos). Muestra manual: 6 elementos, pendiente de Elvis.
+- Semilla: `docs/deployment/candidates/20261120013000_element_catalog_seed_fig-wag-2025-2028_4.sql`, sin aplicar.
+
+### Quinta tanda
+
+- Edición `fig-wag-2025-2028`, paralelas asimétricas, grupos 5 (vueltas carpadas, 30) y 6 (salidas, 39): **69 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Con ella quedan completas las asimétricas. Va encima de la cuarta tanda, porque comparte el archivo de asimétricas.
+- Las salidas de balanceo no fijan barra en el Código; el texto dice «normalmente desde la barra alta» o no nombra barra. Cuando el momento de la pirueta no consta, solo se dan los grados.
+- Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/5.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; se volvieron a redactar 24 elementos (15 por parecido y 9 por errores técnicos, varios de ellos en los hechos). Muestra manual: 7 elementos, pendiente de Elvis.
+- Semilla: `docs/deployment/candidates/20261120023000_element_catalog_seed_fig-wag-2025-2028_5.sql`, sin aplicar.
+
+### Sexta tanda
+
+- Edición `fig-wag-2025-2028`, barra de equilibrio, grupo 1 (entradas): **51 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Es la primera tanda de barra; añade `beam.json` y no depende de las tandas de asimétricas.
+- Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/6.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; se volvieron a redactar 16 elementos (8 por parecido y 8 por errores técnicos, uno de ellos en los hechos). Muestra manual: 6 elementos, pendiente de Elvis.
+- Semilla: `docs/deployment/candidates/20261120033000_element_catalog_seed_fig-wag-2025-2028_6.sql`, sin aplicar.
+
+### Séptima tanda
+
+- Edición `fig-wag-2025-2028`, barra de equilibrio, grupos 2 (saltos, 37) y 3 (giros, 21): **58 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Va encima de la sexta tanda, porque comparte `beam.json`.
+- Los saltos a un pie caen en el mismo pie o en los dos, según la definición general del Código; donde la casilla no dice cómo cae, la ficha no lo dice.
+- Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/7.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; se volvieron a redactar 27 elementos (12 por parecido y 15 por errores técnicos, la mayoría en los hechos). Muestra manual: 6 elementos, pendiente de Elvis.
+- Semilla: `docs/deployment/candidates/20261120043000_element_catalog_seed_fig-wag-2025-2028_7.sql`, sin aplicar.
+
+### Octava tanda
+
+- Edición `fig-wag-2025-2028`, barra de equilibrio, grupos 4 (posiciones y acrobacia sin vuelo, 22) y 6 (salidas, 31): **53 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Va encima de la séptima tanda, porque comparte `beam.json`. El grupo 5 (acrobacia con vuelo) queda para la tanda siguiente.
+- Incluye la salida Biles (6.805), de valor H.
+- Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/8.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,5; se volvieron a redactar 23 elementos (15 por parecido y 8 por errores técnicos o por mencionar el dibujo del Código, que la ficha no tiene). Muestra manual: 6 elementos, pendiente de Elvis.
+- Semilla: `docs/deployment/candidates/20261120053000_element_catalog_seed_fig-wag-2025-2028_8.sql`, sin aplicar.
+
+### Novena tanda
+
+- Edición `fig-wag-2025-2028`, barra de equilibrio, grupo 5 (acrobacia con vuelo): **36 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Con ella queda completa la barra. Va encima de la octava tanda, porque comparte `beam.json`.
+- Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/9.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; se volvieron a redactar 18 elementos (13 por parecido, 3 por errores técnicos y 2 más para que su nombre corto no coincida con otros de barra). Muestra manual: 4 elementos, pendiente de Elvis.
+- Semilla: `docs/deployment/candidates/20261120063000_element_catalog_seed_fig-wag-2025-2028_9.sql`, sin aplicar.
+
+### Décima tanda
+
+- Edición `fig-wag-2025-2028`, suelo, grupo 1 (saltos): **42 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Es la primera tanda de suelo; añade `floor.json` y no depende de las tandas de asimétricas ni de barra.
+- En los saltos con giro, la ficha no fija en qué momento del giro se ve la forma: con medio giro puede verse al principio o al final, y con giro completo o más también a mitad, según la regla general del Código. Los saltos a un pie caen en el mismo pie o en los dos.
+- Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/10.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; se volvieron a redactar 25 elementos (10 por parecido y 15 por datos que el Código no exige, como el momento del giro o el pie de caída). Muestra manual: 5 elementos, pendiente de Elvis.
+- Semilla: `docs/deployment/candidates/20261120073000_element_catalog_seed_fig-wag-2025-2028_10.sql`, sin aplicar.
+
+### Undécima tanda
+
+- Edición `fig-wag-2025-2028`, suelo, grupos 2 (giros, 18), 3 (elementos con apoyo de manos, 11), 4 (mortales adelante, 16) y 5 (mortales atrás, 18): **63 elementos, revisados el 23-11-2026** (revisión delegada en Claude). Con ella quedan completos el suelo y el Código femenino (las tandas 1 a 11). Va encima de la décima tanda, porque comparte `floor.json`.
+- Incluye valores hasta J (5.1002). Solo se dice «se cuenta una vez» en las casillas con asterisco; en el resto, las formas con distinta posición del cuerpo o pirueta son elementos distintos con el mismo valor.
+- Registro: `src/modules/element-library/data/fig-wag-2025-2028/tandas/11.json`. Comprobación entre idiomas con umbral 0,5 y máximo final 0,45; se volvieron a redactar 31 elementos (15 por parecido y 16 por errores técnicos, varios en los hechos: regla de contar una vez, epónimos Kim y Mukhina, datos solo del dibujo). Muestra manual: 7 elementos, pendiente de Elvis.
+- Semilla: `docs/deployment/candidates/20261120083000_element_catalog_seed_fig-wag-2025-2028_11.sql`, sin aplicar.
+
+### Primera tanda de la masculina
+
+- Edición `fig-mag-2025-2028` (Código de Puntuación de Gimnasia Artística Masculina 2025-2028, PDF oficial de la FIG del 16-11-2026). Las tandas se numeran por edición: esta es la tanda 1 de la masculina.
+- Suelo, grupo I (elementos sin acrobacia: fuerza, pinos, planchas, spagat, balanzas, mariposas, molinos y molinos rusos): **45 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 21-11-2026 con el vocabulario del programa técnico GAM 2026 de la RFEG.
+- `sourcePage` es la página del PDF, no el número impreso al pie, que en las tablas va una por detrás.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/1.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 13 elementos se volvieron a redactar. Muestra manual: 5 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261121120000_element_catalog_seed_fig-mag-2025-2028_1.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
+
+### Segunda tanda de la masculina
+
+- Suelo, grupos II (acrobacia adelante), III (acrobacia atrás) y IV (mortal simple con pirueta): **51 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 21-11-2026. Con ella el suelo masculino queda completo (96 elementos).
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/2.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,4; 6 elementos se volvieron a redactar. Muestra manual: 6 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261121130000_element_catalog_seed_fig-mag-2025-2028_2.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
+
+### Tercera tanda de la masculina
+
+- Caballo con arcos, grupo I (balanceos de una pierna y tijeras), primeras casillas del grupo II (molinos y flairs, casillas 1 a 44) y grupo IV (salidas): **47 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Es el primer aparato masculino después del suelo.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/3.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 16 elementos se volvieron a redactar. Muestra manual: 6 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122120000_element_catalog_seed_fig-mag-2025-2028_3.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
+
+### Cuarta tanda de la masculina
+
+- Caballo con arcos, resto del grupo II (molinos y flairs, casillas 51 a 113) y comienzo del grupo III (desplazamientos, casillas 1 a 46): **52 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Con ella el grupo II queda completo.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/4.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 19 elementos se volvieron a redactar. Muestra manual: 6 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122130000_element_catalog_seed_fig-mag-2025-2028_4.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
+
+### Quinta tanda de la masculina
+
+- Caballo con arcos, resto del grupo III (desplazamientos, casillas 52 a 76), y anillas, grupo I (kippe, balanceos y vuelos al pino): **37 elementos, revisados el 23-11-2026** (revisión delegada en Claude) (9 de caballo y 28 de anillas), redactados el 22-11-2026. Con ella el caballo con arcos queda completo (108 elementos) y empiezan las anillas.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/5.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 16 elementos se volvieron a redactar. Muestra manual: 5 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122140000_element_catalog_seed_fig-mag-2025-2028_5.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
+
+### Sexta tanda de la masculina
+
+- Anillas, grupo II (fuerza y posiciones mantenidas): **57 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Con ella las anillas llevan 85 elementos.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/6.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 29 elementos se volvieron a redactar. Muestra manual: 6 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122150000_element_catalog_seed_fig-mag-2025-2028_6.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
+
+### Séptima tanda de la masculina
+
+- Anillas, grupos III (balanceo a posición de fuerza) y IV (salidas): **54 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Con ella las anillas quedan completas (139 elementos).
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/7.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 21 elementos se volvieron a redactar. Muestra manual: 6 elementos, comprobada el 23-11-2026.
+- Las fichas describen el movimiento; las reglas generales de ejecución de las anillas (parada de 2 s, desviaciones, brazos, límites por grupo) no se repiten en cada una.
+- Semilla: `docs/deployment/candidates/20261122160000_element_catalog_seed_fig-mag-2025-2028_7.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
+
+### Octava tanda de la masculina
+
+- Salto, grupos I (paloma y mortal adelante con pirueta compleja), II (paloma y mortal con o sin pirueta simple, y dobles mortales adelante) y III (paloma lateral y Tsukahara, y dobles mortales atrás): **48 saltos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. El valor va en puntos, como en el salto femenino.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/8.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,3; 6 saltos se retocaron. Muestra manual: 6 saltos.
+- Semilla: `docs/deployment/candidates/20261122170000_element_catalog_seed_fig-mag-2025-2028_8.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
+
+### Novena tanda de la masculina
+
+- Salto, grupos IV (entrada en rondada y mortal con pirueta compleja) y V (entrada en rondada con o sin pirueta simple, y dobles mortales): **35 saltos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Con ella el salto masculino queda completo (83 saltos).
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/9.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,3; 3 saltos se retocaron. Muestra manual: 6 saltos.
+- Semilla: `docs/deployment/candidates/20261122180000_element_catalog_seed_fig-mag-2025-2028_9.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
+
+### Décima tanda de la masculina
+
+- Paralelas, grupo II (elementos en apoyo o pasando por el apoyo en las dos barras): **57 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Es el primer grupo de paralelas.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/10.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 9 elementos se volvieron a redactar. Muestra manual: 6 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122190000_element_catalog_seed_fig-mag-2025-2028_10.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
+
+### Undécima tanda de la masculina
+
+- Paralelas, grupos I (elementos desde apoyo braquial) y IV (salidas): **58 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Con ella las paralelas llevan 115 elementos; falta el grupo III.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/11.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 7 elementos se volvieron a redactar. Muestra manual: 6 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122200000_element_catalog_seed_fig-mag-2025-2028_11.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
+
+### Duodécima tanda de la masculina
+
+- Paralelas, grupo III (balanceos largos en suspensión y balanceos por debajo): **65 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Con ella las paralelas quedan completas (180 elementos).
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/12.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 14 elementos se volvieron a redactar. Muestra manual: 7 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122210000_element_catalog_seed_fig-mag-2025-2028_12.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
+
+### Decimotercera tanda de la masculina
+
+- Barra fija, grupos I (balanceos largos en suspensión y giros) y III (elementos en barra y Adler): **59 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Es el primer bloque de barra fija; faltan los vuelos y las salidas.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/13.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 37 elementos se volvieron a redactar. Muestra manual: 6 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122220000_element_catalog_seed_fig-mag-2025-2028_13.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
+
+### Decimocuarta tanda de la masculina
+
+- Barra fija, grupos II (elementos de vuelo) y IV (salidas): **72 elementos, revisados el 23-11-2026** (revisión delegada en Claude), redactados el 22-11-2026. Con ella la barra fija queda completa (131 elementos) y **la biblioteca masculina queda completa: 737 elementos en los seis aparatos**, revisados por delegación de Elvis.
+- Registro: `src/modules/element-library/data/fig-mag-2025-2028/tandas/14.json`. Comprobación entre idiomas con umbral 0,5 y máximo 0,45; 28 elementos se volvieron a redactar. Muestra manual: 8 elementos, comprobada el 23-11-2026.
+- Semilla: `docs/deployment/candidates/20261122230000_element_catalog_seed_fig-mag-2025-2028_14.sql`, regenerada con la revisión y sin aplicar en ningún entorno.
 
 ## Retiradas y avisos sobre contenido
 
@@ -119,6 +275,7 @@ Con la migración en todos los entornos, una PR posterior quitará el conjunto a
 |---|---|---|---|
 | C | `ZALTYKO_ELEMENT_LIBRARY_ENABLED` (con `ZALTYKO_SKILL_LEVELS_ENABLED`) | Biblioteca con nombre, grupo y valor; nota de la academia; «Añadir desde la biblioteca»; enlace en el guion | Revisar las tandas; permiso para cada candidata y semilla por entorno; encender la bandera; aprobar el formulario de avisos |
 | C | `ZALTYKO_ELEMENT_LIBRARY_DESCRIPTIONS_ENABLED` | Descripciones propias | Revisar cada tanda; permiso para encenderla (no espera a L10) |
+| C | `ZALTYKO_ELEMENT_LIBRARY_LOCAL_VOCABULARY_ENABLED` | Palabras del país de la academia en la ficha y la búsqueda (ADR-0030) | Revisar `mx.json` (o que lo revise una entrenadora mexicana); permiso para encenderla |
 | D | `ZALTYKO_FEDERATION_LEVEL_TEMPLATES_ENABLED` | Importar plantillas de niveles de la RFEG | Solo hechos, sin licencia; revisar cada plantilla contra el PDF; permiso para el perfil `rfeg-2027` y la bandera |
 | E | Ninguna aquí | Modelo por país | Su propio ADR |
 
