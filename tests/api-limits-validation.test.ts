@@ -11,16 +11,17 @@ describe("API limits and feature contracts", () => {
   it("blocks the next athlete when Free is at its limit", () => {
     expect(evaluateLimit("free", 30, 30, "athletes")).toMatchObject({
       exceeded: true,
-      upgradeTo: "pro",
+      upgradeTo: "club",
     });
   });
 
-  it("allows the final Starter athlete below the limit", () => {
-    expect(evaluateLimit("pro", 75, 74, "athletes").exceeded).toBe(false);
+  it("allows athletes without a cap in Club", () => {
+    expect(evaluateLimit("club", null, 1000, "athletes").exceeded).toBe(false);
   });
 
-  it("blocks Growth once the configured athlete limit is reached", () => {
-    expect(evaluateLimit("premium", 200, 200, "athletes").exceeded).toBe(true);
+  it("keeps existing paid plans at Club rights", () => {
+    expect(evaluateLimit("pro", null, 1000, "athletes").exceeded).toBe(false);
+    expect(evaluateLimit("premium", null, 1000, "athletes").exceeded).toBe(false);
   });
 
   it("keeps Network unlimited only where the catalog says null", () => {
@@ -29,20 +30,24 @@ describe("API limits and feature contracts", () => {
   });
 
   it("uses the approved pricing v3 plan mapping", () => {
-    expect(PRODUCT_PLAN_BY_CODE.free.publicName).toBe("Free");
+    expect(PRODUCT_PLAN_BY_CODE.free.publicName).toBe("Gratis");
+    expect(PRODUCT_PLAN_BY_CODE.club.publicName).toBe("Club");
+    expect(PRODUCT_PLAN_BY_CODE.club.priceEurCents).toBe(2397);
     expect(PRODUCT_PLAN_BY_CODE.pro).toMatchObject({
-      publicName: "Starter",
+      publicName: "Club (heredado)",
       priceEurCents: 1900,
+      athleteLimit: null,
     });
     expect(PRODUCT_PLAN_BY_CODE.premium).toMatchObject({
-      publicName: "Growth",
+      publicName: "Club (heredado)",
       priceEurCents: 4900,
+      athleteLimit: null,
     });
   });
 
-  it("does not promise unlimited academies in the Free upgrade", () => {
+  it("does not promise unlimited academies in the Gratis upgrade", () => {
     const upgrade = getUpgradeInfo("free");
-    expect(upgrade.nextPlan).toBe("pro");
+    expect(upgrade.nextPlan).toBe("club");
     expect(upgrade.benefits.join(" ")).not.toMatch(/academias ilimitadas/i);
   });
 

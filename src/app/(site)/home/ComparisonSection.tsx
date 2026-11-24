@@ -61,7 +61,7 @@ const comparisonFeatures = [
     generic: "Limitado",
   },
   {
-    feature: "7 días de Starter sin tarjeta",
+    feature: "Prueba Club durante 30 días sin tarjeta",
     zaltyko: true,
     spreadsheets: false,
     generic: false,

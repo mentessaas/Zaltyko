@@ -133,12 +133,10 @@ test.describe("L6 — JSON-LD / sitemap accuracy", () => {
     }>;
     const map = Object.fromEntries(offers.map((o) => [o.name, o]));
 
-    expect(map.Free?.price).toBe("0");
-    expect(map.Free?.priceCurrency).toBe("EUR");
-    expect(map.Starter?.price).toBe("19");
-    expect(map.Starter?.priceCurrency).toBe("EUR");
-    expect(map.Growth?.price).toBe("49");
-    expect(map.Growth?.priceCurrency).toBe("EUR");
+    expect(map.Gratis?.price).toBe("0");
+    expect(map.Gratis?.priceCurrency).toBe("EUR");
+    expect(map.Club?.price).toBe("29");
+    expect(map.Club?.priceCurrency).toBe("EUR");
     // Network no es una oferta pública (sin checkout ni producto multi-sede).
     expect(map.Network).toBeUndefined();
   });
@@ -159,9 +157,8 @@ test.describe("L6 — JSON-LD / sitemap accuracy", () => {
   test("Pricing cards renderizan precios formateados", async ({ page }) => {
     await gotoPublic(page, "/pricing");
     await expect(page.getByText("Incluido", { exact: true })).toBeVisible();
-    await expect(page.getByText(/19\s+€\/mes/)).toBeVisible();
-    await expect(page.getByText(/49\s+€\/mes/)).toBeVisible();
-    await expect(page.getByText(/99\s+€\/mes/)).toBeVisible();
+    await expect(page.getByText(/29\s+€\/mes/)).toBeVisible();
+    await expect(page.getByText(/20\s+€\/mes/)).toBeVisible();
   });
 
   test("Pricing permite comparar facturación mensual y anual", async ({ page }) => {
@@ -169,12 +166,11 @@ test.describe("L6 — JSON-LD / sitemap accuracy", () => {
     const interval = page.getByRole("group", { name: "Periodicidad de precios" });
     // Selector de periodicidad como grupo de radios nativos (Magnesio, 2026-11-09).
     await expect(interval.getByRole("radio", { name: "Mensual", exact: true })).toBeChecked();
-    await expect(page.getByText("Durante la apertura, las academias fundadoras usan Starter o Growth sin coste. La contratación con pago se abrirá al cerrar la facturación, con estos precios.", { exact: true })).toBeVisible();
+    await expect(page.getByText(/Prueba Club durante 30 días, sin tarjeta/i)).toBeVisible();
     await interval.getByText("Anual · ahorra 2 meses", { exact: true }).click();
     await expect(interval.getByRole("radio", { name: "Anual · ahorra 2 meses" })).toBeChecked();
-    await expect(page.getByText(/190\s*€\/año/)).toBeVisible();
-    await expect(page.getByText(/490\s*€\/año/)).toBeVisible();
-    await expect(page.getByText("Durante la apertura, las academias fundadoras usan Starter o Growth sin coste. La contratación con pago se abrirá al cerrar la facturación, con estos precios.", { exact: true })).toBeVisible();
+    await expect(page.getByText(/290\s*€\/año/)).toBeVisible();
+    await expect(page.getByText(/200\s*€\/año/)).toBeVisible();
     await expect(page.getByText(/próximamente/i)).toHaveCount(0);
   });
 

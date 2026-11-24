@@ -57,8 +57,8 @@ export interface SaasContractConfirmation {
 export type ContractConfirmationDelivery = "sent" | "skipped" | "failed";
 
 const PLAN_LABELS: Record<SelfServePlanCode, string> = {
-  starter: "Starter",
-  growth: "Growth",
+  starter: "Club",
+  growth: "Club",
 };
 
 const INTERVAL_LABELS: Record<SaasBillingInterval, string> = {

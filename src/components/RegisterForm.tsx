@@ -654,7 +654,7 @@ export function RegisterForm({
 
       {(role === "owner" || directoryRegistration) && (
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          {directoryRegistration ? "Consultar y reclamar fichas es gratis. No activa ninguna suscripción." : "7 días de Starter sin tarjeta · Sin permanencia"}
+          {directoryRegistration ? "Consultar y reclamar fichas es gratis. No activa ninguna suscripción." : "Prueba Club durante 30 días · Sin tarjeta"}
         </p>
       )}
     </AuthPageShell>

@@ -67,7 +67,7 @@ describe("lateral Magnesio de /owner", () => {
     const academyLink = within(aside).getByRole("link", { name: academyName, hidden: true });
     expect(academyLink).toHaveAttribute("href", `/owner?organizationId=${organizationId}&locationId=${locationId}`);
     expect(academyLink.closest("div")).toHaveClass("border-b-[3px]", "border-white");
-    expect(within(aside).getByText("Plan Free")).toHaveClass("floor-label", "text-mat-lane");
+    expect(within(aside).getByText("Plan Gratis")).toHaveClass("floor-label", "text-mat-lane");
 
     const addAthlete = within(aside).getByRole("link", { name: "Añadir gimnasta", hidden: true });
     expect(addAthlete).toHaveAttribute("href", `/owner/athletes?organizationId=${organizationId}#new-athlete-heading`);

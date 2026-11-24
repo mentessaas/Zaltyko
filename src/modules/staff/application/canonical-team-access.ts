@@ -177,6 +177,34 @@ async function assertPlanWritable(tx: Tx, organizationId: string, forInvitee = f
   }
 }
 
+/** Gratis permits the owner plus one other team member; open invitations reserve seats. */
+async function assertFreeTeamSeatAvailable(
+  tx: Tx,
+  organizationId: string,
+  excludeInvitationId: string | null
+): Promise<void> {
+  const entitlement = await tx.execute(sql`select plan_code::text as plan_code
+    from zaltyko.organization_entitlements where organization_id=${organizationId}::uuid for update`);
+  const planCode = entitlement.rows[0]?.plan_code;
+  if (planCode && planCode !== "free") return;
+
+  const seats = await tx.execute(sql`select
+    (select count(*) from zaltyko.organization_members
+      where organization_id=${organizationId}::uuid and status in ('active','invited'))
+    + (select count(*) from zaltyko.organization_member_invitations
+      where organization_id=${organizationId}::uuid and status='pending'
+        and expires_at>clock_timestamp()
+        and (${excludeInvitationId}::uuid is null or id<>
+          ${excludeInvitationId}::uuid)) as used`);
+  if (Number(seats.rows[0]?.used ?? 0) >= 2) {
+    throw new OperationalError(
+      "CAPACITY_FULL",
+      "El plan Gratis incluye 2 personas en el equipo, incluida la dirección. Para invitar a otra persona, cambia a Club.",
+      402
+    );
+  }
+}
+
 /**
  * An existing team profile can be the target of one pending invitation at a
  * time, must be active and not linked to an account yet. The row lock keeps a
@@ -390,6 +418,7 @@ export async function createCanonicalTeamInvitation(input: CommandInput & { emai
     assertCanManage(authority, { role: parsed.role, locationIds: parsed.locationIds, existingProfile: target.kind === "existing" });
     await assertOperationalOrganization(tx, input.organizationId);
     await assertPlanWritable(tx, input.organizationId);
+    await assertFreeTeamSeatAvailable(tx, input.organizationId, null);
     await explicitLocations(tx, input.organizationId, parsed.locationIds);
     if (target.kind === "existing") await assertLinkableProfile(tx, input.organizationId, target.staffProfileId, null);
     const duplicate = await tx.execute(sql`select id from zaltyko.organization_member_invitations
@@ -568,6 +597,7 @@ export async function acceptCanonicalTeamInvitation(input: { userId: string; tok
     assertPendingIdentity(row, email);
     await assertOperationalOrganization(tx, row.organization_id);
     await assertPlanWritable(tx, row.organization_id, true);
+    await assertFreeTeamSeatAvailable(tx, row.organization_id, row.id);
     const scopes = await locationsFor(tx, row, true);
     await assertInviter(tx, row, scopes.map(item => item.id));
     const existing = await tx.execute(sql`select id from zaltyko.organization_members

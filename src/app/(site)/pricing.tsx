@@ -13,6 +13,7 @@ import {
   SPANISH_VAT_GENERAL_RATE_PERCENT,
 } from "@/modules/saas-billing/domain/spanish-vat";
 import { cn } from "@/lib/utils";
+import { SAAS_LOCATION_PRICE_EUR_CENTS } from "@/modules/saas-billing/domain/saas-pricing";
 
 /**
  * Precios «Magnesio sobre tapiz»: cabecera en tapiz, y debajo una tabla
@@ -23,7 +24,7 @@ import { cn } from "@/lib/utils";
 
 const plans = PUBLIC_PRODUCT_PLANS.map((plan) => ({
   ...plan,
-  planCode: (plan.code === "pro" ? "starter" : plan.code === "premium" ? "growth" : plan.code) as CommercialPlanSlug,
+  planCode: (plan.code === "club" ? "starter" : plan.code) as CommercialPlanSlug,
 }));
 
 const euroExact = new Intl.NumberFormat("es-ES", {
@@ -37,7 +38,8 @@ const LIMIT_ROWS: { label: string; get: (p: (typeof plans)[number]) => string }[
   { label: "Gimnastas", get: (p) => (p.athleteLimit === null ? "Ilimitadas" : `Hasta ${p.athleteLimit}`) },
   { label: "Grupos", get: (p) => (p.groupLimit === null ? "Ilimitados" : String(p.groupLimit)) },
   { label: "Clases activas", get: (p) => (p.classLimit === null ? "Ilimitadas" : String(p.classLimit)) },
-  { label: "Academias", get: (p) => (p.academyLimit === null ? "Sin límite" : String(p.academyLimit)) },
+  { label: "Sedes incluidas", get: () => "1" },
+  { label: "Personas en el equipo", get: (p) => (p.teamMemberLimit === null ? "Sin límite" : `Hasta ${p.teamMemberLimit}`) },
 ];
 
 const PROMISES = [
@@ -66,13 +68,12 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
             <div>
             <p className="max-w-2xl text-lg leading-relaxed text-white/85">
               Organiza gimnastas, grupos, asistencia y cuotas con registro manual de pagos para gimnasia
-              artística y rítmica. Empieza gratis y configura tu academia. Desde Facturación puedes activar
-              7 días de Starter sin tarjeta (una activación por academia cada 12 meses).{" "}
+              artística y rítmica. Empieza gratis y configura tu academia. Prueba Club durante 30 días, sin tarjeta. {" "}
               {paidCheckoutOpen
-                ? "Después puedes elegir Starter o Growth con pago mensual o anual."
-                : "Durante la apertura, las academias fundadoras usan Starter o Growth sin coste; la contratación con pago llegará después."}{" "}
+                ? "Después puedes elegir Club con pago mensual o anual."
+                : "La contratación de pago todavía no está disponible."}{" "}
               La prueba no genera cargos automáticos. Precios finales con IVA ({SPANISH_VAT_GENERAL_RATE_PERCENT} %) para
-              Península y Baleares, con la base sin IVA debajo; en Canarias, Ceuta y Melilla todavía no hay contratación de pago.
+              Península y Baleares; el importe mostrado ya incluye el IVA. México todavía no publica precio.
             </p>
             <p className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-base text-white/85">
               ¿Prefieres verlo antes de elegir?
@@ -99,7 +100,7 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
                 {(
                   [
                     ["month", "Mensual"],
-                    ["year", "Anual · ahorra 2 meses"],
+                    ["year", "Anual"],
                   ] as const
                 ).map(([value, label]) => (
                   <label
@@ -164,7 +165,7 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
                       </p>
                       {plan.priceEurCents === 0 ? null : (
                         <p className={cn("tabular mt-1.5 text-xs", plan.highlight ? "text-white/80" : "text-ramp-600")}>
-                          IVA ({SPANISH_VAT_GENERAL_RATE_PERCENT} %) incluido · {formatPlanAmount(yearly ? plan.annualPriceEurCents! : plan.priceEurCents)} + IVA
+                          IVA ({SPANISH_VAT_GENERAL_RATE_PERCENT} %) incluido · base antes de IVA: {formatPlanAmount(yearly ? plan.annualPriceEurCents! : plan.priceEurCents)}
                         </p>
                       )}
                       <p className={cn("mt-2 text-sm", plan.highlight ? "text-white/85" : "text-ramp-600")}>
@@ -217,11 +218,17 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
 
           <p className="mt-5 text-sm text-ramp-600">
             {!paidCheckoutOpen
-              ? "Durante la apertura, las academias fundadoras usan Starter o Growth sin coste. La contratación con pago se abrirá al cerrar la facturación, con estos precios."
+              ? "Prueba Club durante 30 días sin tarjeta. Después, 29 €/mes o 290 €/año, IVA incluido."
               : interval === "year"
                 ? "Importe anual cobrado de una vez. Elige esta modalidad al contratar desde Facturación."
                 : "Sin permanencia. Puedes cambiar a pago anual desde Facturación."}
           </p>
+
+          <div className="mt-8 rounded-lg border border-chalk-line bg-white p-6">
+            <h2 className="font-display text-2xl font-extrabold uppercase text-mat-night">Sedes adicionales</h2>
+            <p className="mt-2 text-ramp-600">La primera sede está incluida en Club. Cada sede adicional cuesta {formatEuroCentsExact(quoteSpanishVat(SAAS_LOCATION_PRICE_EUR_CENTS.month).totalCents)}/mes o {formatEuroCentsExact(quoteSpanishVat(SAAS_LOCATION_PRICE_EUR_CENTS.year).totalCents)}/año, IVA incluido. La cantidad se ajusta al número de sedes activas.</p>
+            <p className="mt-2 text-sm text-ramp-600">Los 10 primeros clubes de Málaga pueden usar el código de fundador en Club mensual: 24,90 €/mes durante 12 meses.</p>
+          </div>
 
           <div className="mt-16 grid gap-10 border-t-[3px] border-mat-night pt-8 md:grid-cols-3">
             {PROMISES.map((p) => (
@@ -234,10 +241,10 @@ export default function PricingSection({ paidCheckoutOpen = false }: { paidCheck
 
           <div className="mt-16 flex flex-col gap-6 rounded-lg bg-mat-night p-8 text-white sm:p-10 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="font-display text-3xl font-black uppercase">¿Migrar datos o coordinar varias sedes?</h2>
+              <h2 className="font-display text-3xl font-black uppercase">¿Necesitas ayuda para migrar datos?</h2>
               <p className="mt-2 max-w-2xl text-white/80">
                 Empieza por tu cuenta: importa tus gimnastas desde Excel o CSV con vista previa. Si necesitas
-                traer otros datos (cuotas, pagos o historial) o coordinar varias sedes, te orientamos por email.
+                traer otros datos (cuotas, pagos o histórico), te orientamos por email.
               </p>
             </div>
             <Link

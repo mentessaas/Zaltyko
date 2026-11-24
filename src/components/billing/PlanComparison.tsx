@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { BILLABLE_PRODUCT_PLANS } from "@/lib/plans/catalog";
+import { PUBLIC_PRODUCT_PLANS } from "@/lib/plans/catalog";
 import type { PlanCode } from "@/types/billing";
 
 interface Plan {
@@ -27,17 +27,19 @@ interface Plan {
 
 const PLAN_DECOR: Record<PlanCode, { icon: typeof Sparkles; color: string }> = {
     free: { icon: Sparkles, color: "from-gray-500 to-gray-600" },
+    club: { icon: Zap, color: "from-zaltyko-primary to-zaltyko-accent-teal" },
     pro: { icon: Zap, color: "from-zaltyko-primary to-zaltyko-accent-teal" },
     premium: { icon: Crown, color: "from-zaltyko-accent-coral to-zaltyko-accent-amber" },
 };
 
-const PLANS: Plan[] = BILLABLE_PRODUCT_PLANS.map((plan) => {
-    const decor = PLAN_DECOR[plan.code];
+const PLANS: Plan[] = PUBLIC_PRODUCT_PLANS.map((plan) => {
+    const code = plan.code as PlanCode;
+    const decor = PLAN_DECOR[code];
     return {
-        id: plan.code,
+        id: code,
         name: plan.publicName,
-        code: plan.code,
-        price: plan.priceEurCents / 100,
+        code,
+        price: Math.round(plan.priceEurCents * 1.21) / 100,
         interval: "month",
         description: plan.description,
         icon: decor.icon,
@@ -59,7 +61,7 @@ interface PlanComparisonProps {
 
 export function PlanComparison({ currentPlan = "free", onSelectPlan, loading = false }: PlanComparisonProps) {
     const isCurrentPlan = (planCode: string) => planCode === currentPlan;
-    const planOrder: Record<PlanCode, number> = { free: 0, pro: 1, premium: 2 };
+    const planOrder: Record<PlanCode, number> = { free: 0, club: 1, pro: 1, premium: 1 };
     const canUpgrade = (planCode: string) => {
         const order = planOrder[planCode as PlanCode];
         return typeof order === "number" && order > planOrder[currentPlan];
@@ -141,7 +143,7 @@ export function PlanComparison({ currentPlan = "free", onSelectPlan, loading = f
                                 </div>
                                 {plan.price > 0 && (
                                     <p className="text-xs text-zaltyko-text-light mt-1">
-                                        Facturado mensualmente
+                                        {plan.interval === "month" ? "Facturado mensualmente" : "Pago anual"} · IVA incluido
                                     </p>
                                 )}
                             </div>

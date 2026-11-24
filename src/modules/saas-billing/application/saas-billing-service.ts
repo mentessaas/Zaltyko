@@ -49,6 +49,7 @@ import {
   createSaasStripeClient,
   getSaasStripeConfig,
   priceForPlan,
+  priceForLocation,
   type SaasBillingInterval,
   type SelfServePlanCode,
 } from "./saas-billing-config";
@@ -343,6 +344,10 @@ export async function recoverOwnerSaasCheckout(input: {
     config, operation, customerReference,
     priceReference: priceForPlan(config, operation.planCode as SelfServePlanCode, operation.billingInterval),
     requireOpen: true,
+    vatQuote: config.environment === "live" && config.taxRates?.esVatGeneral
+      ? quoteSpanishVat(expectedUnitAmount(operation.planCode as SelfServePlanCode, operation.billingInterval) +
+        (operation.extraLocationQuantity ?? 0) * (operation.billingInterval === "month" ? 1653 : 16529))
+      : null,
   });
   if (expiresAt.getTime() !== operation.sessionExpiresAt!.getTime()) return null;
   // A webhook or permission change during the provider read must fail closed.
@@ -353,9 +358,6 @@ export async function recoverOwnerSaasCheckout(input: {
     current.operation.requestHash !== operation.requestHash ||
     current.operation.sessionExpiresAt?.getTime() !== expiresAt.getTime()) return null;
   // Live solo entrega un enlace de pago que cobra base + IVA del 21 %.
-  if (config.environment === "live" && !checkoutSessionMatchesSpanishVat(session,
-    quoteSpanishVat(expectedUnitAmount(operation.planCode as SelfServePlanCode,
-      operation.billingInterval as SaasBillingInterval)))) return null;
   return { operationId: operation.id, checkoutUrl: validateCheckoutUrl(session.url),
     expiresAt, status: "pending" as const };
 }
@@ -487,7 +489,7 @@ export async function startOwnerSaasTrial(input: {
       );
     }
 
-    const endsAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const endsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const cooldownEndsAt = addUtcCalendarMonthsClamped(now, 12);
     const [trial] = await tx
       .insert(organizationSaasTrials)
@@ -607,6 +609,11 @@ export async function createOwnerSaasCheckout(input: {
       input.planCode,
       input.billingInterval
     );
+    const activeLocationResult = await tx.execute(sql`select count(*)::int as count
+      from zaltyko.locations where organization_id=${scope.organizationId}::uuid and is_active`);
+    const activeLocations = Number(activeLocationResult.rows[0]?.count ?? 0);
+    if (!Number.isSafeInteger(activeLocations) || activeLocations < 1) throw providerUnavailable();
+    const extraLocationQuantity = Math.max(activeLocations - 1, 0);
     const checkoutIdentityPayload = {
       organizationId: scope.organizationId,
       planCode: input.planCode,
@@ -614,13 +621,15 @@ export async function createOwnerSaasCheckout(input: {
       environment: config.environment,
       providerAccountReference: config.providerAccountReference,
       priceReference,
+      extraLocationQuantity,
     };
     // v4: los datos de factura los recoge Zaltyko (validados) y Checkout ya no
     // pide NIF ni razón social. v3 y v2 siguen aceptándose para recuperar
     // operaciones anteriores con su cuerpo exacto.
-    const requestHash = checkoutRequestHash(checkoutIdentityPayload, billingDetails ? 4 : 3);
+    const requestHash = checkoutRequestHash(checkoutIdentityPayload, 5);
+    const { extraLocationQuantity: _extraLocationQuantity, ...previousIdentity } = checkoutIdentityPayload;
     const acceptedHashes = [4, 3, 2].map((version) =>
-      checkoutRequestHash(checkoutIdentityPayload, version as CheckoutRequestVersion));
+      checkoutRequestHash(previousIdentity, version as CheckoutRequestVersion));
 
     const [existing] = await tx
       .select()
@@ -649,7 +658,7 @@ export async function createOwnerSaasCheckout(input: {
       });
       const matchesRequest = qaEnvelope
         ? existing.requestHash === qaEnvelope.requestHash
-        : acceptedHashes.includes(existing.requestHash);
+        : existing.requestHash === requestHash || acceptedHashes.includes(existing.requestHash);
       if (!matchesRequest) {
         throw new OperationalError(
           "IDEMPOTENCY_CONFLICT",
@@ -833,6 +842,7 @@ export async function createOwnerSaasCheckout(input: {
         requestHash: qaEnvelope?.requestHash ?? requestHash,
         planCode: input.planCode,
         billingInterval: input.billingInterval,
+        extraLocationQuantity,
         status: "creating_customer",
         stripeIdempotencyKey: qaEnvelope
           ? shortPaidStripeIdempotencyKey(operationId, qaEnvelope.requestHash)
@@ -867,23 +877,27 @@ export async function createOwnerSaasCheckout(input: {
   const vatTaxRate = !qaEnvelope && taxPlan.kind === "es_vat_general"
     ? taxPlan.taxRateReference : null;
   const vatQuote = vatTaxRate
-    ? quoteSpanishVat(expectedUnitAmount(input.planCode, input.billingInterval))
+    ? quoteSpanishVat(expectedUnitAmount(input.planCode, input.billingInterval) +
+      (operation.extraLocationQuantity ?? 0) * (input.billingInterval === "month" ? 1653 : 16529))
     : null;
   // A Stripe idempotency key must always retain its original request body.
   // Only v3/v4 normal operations opt out of dashboard currency localization;
   // persisted v2 recoveries and the frozen short-paid QA envelope stay exact.
-  const operationIdentity = {
+    const operationIdentity = {
     organizationId: operation.organizationId,
     planCode: input.planCode,
     billingInterval: input.billingInterval,
     environment: config.environment,
     providerAccountReference: config.providerAccountReference,
     priceReference: reservation.priceReference,
+    extraLocationQuantity: operation.extraLocationQuantity ?? 0,
   };
-  const zaltykoBillingDetails = !qaEnvelope &&
-    operation.requestHash === checkoutRequestHash(operationIdentity, 4);
-  const fixedCurrency = !qaEnvelope && (zaltykoBillingDetails ||
-    operation.requestHash === checkoutRequestHash(operationIdentity, 3));
+  const newClubCheckout = operation.requestHash === checkoutRequestHash(operationIdentity, 5);
+  const { extraLocationQuantity: _legacyExtraLocationQuantity, ...legacyOperationIdentity } = operationIdentity;
+  const zaltykoBillingDetails = !qaEnvelope && (newClubCheckout ||
+    operation.requestHash === checkoutRequestHash(legacyOperationIdentity, 4));
+  const fixedCurrency = !qaEnvelope && (newClubCheckout || zaltykoBillingDetails ||
+    operation.requestHash === checkoutRequestHash(legacyOperationIdentity, 3));
   const assertQaCreationAllowed = () => assertShortPaidCheckoutCreationAllowed(getQaEnvelope());
   const customerKey = `zaltyko-saas-customer-${operation.organizationId}-${config.environment}-${createHash("sha256").update(config.providerAccountReference).digest("hex").slice(0, 8)}`;
   const customerHash = hashPayload({
@@ -983,7 +997,8 @@ export async function createOwnerSaasCheckout(input: {
       config,
       input.planCode,
       input.billingInterval,
-      reservation.priceReference
+      reservation.priceReference,
+      Boolean(qaEnvelope)
     );
     if (vatTaxRate) await validateConfiguredSpanishVatRate(stripe, config, vatTaxRate);
 
@@ -1172,12 +1187,18 @@ export async function createOwnerSaasCheckout(input: {
         mode: "subscription",
         ...(fixedCurrency ? { adaptive_pricing: { enabled: false } } : {}),
         customer: customerReference,
+        allow_promotion_codes: newClubCheckout && input.billingInterval === "month",
         line_items: [
           {
             price: reservation.priceReference,
             quantity: 1,
             ...(vatTaxRate ? { tax_rates: [vatTaxRate] } : {}),
           },
+          ...((operation.extraLocationQuantity ?? 0) > 0 ? [{
+            price: priceForLocation(config, input.billingInterval),
+            quantity: operation.extraLocationQuantity,
+            ...(vatTaxRate ? { tax_rates: [vatTaxRate] } : {}),
+          }] : []),
         ],
         // Siempre factura completa (art. 6 RD 1619/2012), emitida fuera de
         // Stripe en FacturaDirecta (serie ZA) a partir de `invoice.paid`.
@@ -1401,7 +1422,7 @@ function addUtcCalendarMonthsClamped(date: Date, months: number): Date {
   return result;
 }
 
-type CheckoutRequestVersion = 2 | 3 | 4;
+type CheckoutRequestVersion = 2 | 3 | 4 | 5;
 
 function checkoutRequestHash(input: {
   organizationId: string;
@@ -1410,6 +1431,7 @@ function checkoutRequestHash(input: {
   environment: "test" | "live";
   providerAccountReference: string;
   priceReference: string;
+  extraLocationQuantity?: number;
 }, requestVersion: CheckoutRequestVersion): string {
   return hashPayload({ ...input, requestVersion });
 }
@@ -1449,7 +1471,8 @@ async function validateConfiguredPrice(
   config: NonNullable<ReturnType<typeof getSaasStripeConfig>>,
   planCode: SelfServePlanCode,
   billingInterval: SaasBillingInterval,
-  priceReference: string
+  priceReference: string,
+  allowLegacyAmount = false
 ): Promise<void> {
   const price = await stripe.prices.retrieve(priceReference);
   validatePriceShape(price as unknown as Record<string, unknown>, {
@@ -1457,6 +1480,7 @@ async function validateConfiguredPrice(
     planCode,
     billingInterval,
     priceReference,
+    allowLegacyAmount,
   });
 }
 
@@ -1643,7 +1667,9 @@ function validateCheckoutSession(
 
   const lineItems = session.line_items?.data as
     Array<Record<string, unknown>> | undefined;
-  if (!lineItems || lineItems.length !== 1 || lineItems[0]?.quantity !== 1) {
+  const extraLocationQuantity = operation.extraLocationQuantity ?? 0;
+  const expectedLineCount = extraLocationQuantity > 0 ? 2 : 1;
+  if (!lineItems || lineItems.length !== expectedLineCount || lineItems[0]?.quantity !== 1) {
     throw providerUnavailable();
   }
   const price = lineItems[0]?.price;
@@ -1655,8 +1681,25 @@ function validateCheckoutSession(
     planCode: operation.planCode as SelfServePlanCode,
     billingInterval: operation.billingInterval as SaasBillingInterval,
     priceReference,
+    allowLegacyAmount: Boolean(input.qaEnvelope),
   });
-  if (input.vatQuote && !checkoutSessionMatchesSpanishVat(session, input.vatQuote)) {
+  if (operation.extraLocationQuantity > 0) {
+    const locationPrice = lineItems[1]?.price;
+    if (typeof locationPrice !== "object" || locationPrice === null ||
+        lineItems[1]?.quantity !== extraLocationQuantity) throw providerUnavailable();
+    const recurring = (locationPrice as Record<string, unknown>).recurring as { interval?: unknown; interval_count?: unknown } | null | undefined;
+    if ((locationPrice as Record<string, unknown>).id !== priceForLocation(config, operation.billingInterval) ||
+        (locationPrice as Record<string, unknown>).unit_amount !==
+          (operation.billingInterval === "month" ? 1653 : 16529) ||
+        recurring?.interval !== operation.billingInterval || recurring.interval_count !== 1 ||
+        (locationPrice as Record<string, unknown>).currency !== "eur" ||
+        (locationPrice as Record<string, unknown>).active !== true ||
+        (locationPrice as Record<string, unknown>).livemode !== (config.environment === "live")) {
+      throw providerUnavailable();
+    }
+  }
+  const allowedDiscounts = operation.planCode === "starter" && operation.billingInterval === "month" ? [339] : [];
+  if (input.vatQuote && !checkoutSessionMatchesSpanishVat(session, input.vatQuote, allowedDiscounts)) {
     throw providerUnavailable();
   }
   return expiresAt;
@@ -1669,6 +1712,7 @@ function validatePriceShape(
     planCode: SelfServePlanCode;
     billingInterval: SaasBillingInterval;
     priceReference: string;
+    allowLegacyAmount?: boolean;
   }
 ): void {
   const recurring = price.recurring as
@@ -1681,8 +1725,9 @@ function validatePriceShape(
     price.type !== "recurring" ||
     recurring?.interval !== input.billingInterval ||
     recurring.interval_count !== 1 ||
-    price.unit_amount !==
-      expectedUnitAmount(input.planCode, input.billingInterval)
+    price.unit_amount !== (input.allowLegacyAmount && input.planCode === "starter"
+      ? input.billingInterval === "month" ? 1900 : 19000
+      : expectedUnitAmount(input.planCode, input.billingInterval))
   ) {
     throw providerUnavailable();
   }
@@ -1692,7 +1737,7 @@ function expectedUnitAmount(
   planCode: SelfServePlanCode,
   billingInterval: SaasBillingInterval
 ): number {
-  if (planCode === "starter") return billingInterval === "month" ? 1900 : 19000;
+  if (planCode === "starter") return billingInterval === "month" ? 2397 : 23967;
   return billingInterval === "month" ? 4900 : 49000;
 }
 

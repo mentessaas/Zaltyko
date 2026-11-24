@@ -624,6 +624,7 @@ const staticallyGuarded: Record<string, { guard: string; via?: string }> = {
   "GET owner/academy-settings/route.ts": { guard: "resolveOwnerScope" },
   "PATCH owner/academy-settings/route.ts": { guard: "resolveOwnerScope" },
   "POST owner/academy-settings/locations/route.ts": { guard: "resolveOwnerScope" },
+  "DELETE owner/academy-settings/locations/route.ts": { guard: "resolveOwnerScope" },
   "GET owner/academy-settings/logo/route.ts": { guard: "resolveOwnerScope" },
   "POST owner/academy-settings/logo/route.ts": { guard: "resolveOwnerScope" },
   "DELETE owner/academy-settings/logo/route.ts": { guard: "resolveOwnerScope" },

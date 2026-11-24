@@ -10,6 +10,10 @@ const PLAN_COPY: Record<string, { title: string; description: string }> = {
     title: PRODUCT_PLAN_BY_CODE.free.publicName,
     description: PRODUCT_PLAN_BY_CODE.free.shortDescription,
   },
+  club: {
+    title: PRODUCT_PLAN_BY_CODE.club.publicName,
+    description: PRODUCT_PLAN_BY_CODE.club.shortDescription,
+  },
   pro: {
     title: PRODUCT_PLAN_BY_CODE.pro.publicName,
     description: PRODUCT_PLAN_BY_CODE.pro.shortDescription,
@@ -46,6 +50,7 @@ interface PlanSelectorProps {
   onSelectPlan: (planCode: PlanCode, billingInterval?: BillingInterval) => void;
   loadingAction: PlanCode | null;
   disabled: boolean;
+  onOpenClubBilling?: () => void;
 }
 
 export function PlanSelector({
@@ -55,6 +60,7 @@ export function PlanSelector({
   onSelectPlan,
   loadingAction,
   disabled,
+  onOpenClubBilling,
 }: PlanSelectorProps) {
   const [billingInterval, setBillingInterval] = useState<BillingInterval>("month");
   const annualAvailable = plans.some((plan) => Boolean(plan.stripeAnnualPriceId && plan.annualPriceEur));
@@ -116,6 +122,7 @@ export function PlanSelector({
                     </span>
                   ) : null}
                 </p>
+                <p className="text-xs text-muted-foreground">IVA incluido en España peninsular y Baleares</p>
               </div>
               <div className="mt-4 flex flex-1 flex-col justify-end space-y-2">
                 {plan.athleteLimit != null && (
@@ -126,12 +133,14 @@ export function PlanSelector({
                 <button
                   className="mt-4 w-full rounded-md bg-primary px-4 py-2 text-white disabled:opacity-50"
                   disabled={isFree || isCurrent || loadingAction === code || disabled || (isAnnual && !annualReady)}
-                  onClick={() => onSelectPlan(code, billingInterval)}
+                  onClick={() => plan.code === "club" ? onOpenClubBilling?.() : onSelectPlan(code, billingInterval)}
                 >
                   {isCurrent
                     ? "Plan actual"
                     : isFree
                     ? "Incluido"
+                    : plan.code === "club"
+                    ? "Ver Club y sus precios"
                     : loadingAction === code
                     ? "Redirigiendo…"
                     : "Seleccionar"}

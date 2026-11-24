@@ -255,7 +255,7 @@ function CardBody({
     case "unavailable":
       return state.reason === "paid_plan_required" ? (
         <>
-          <p className={ownerUi.muted}>El cobro automático está incluido en Starter y Growth.</p>
+          <p className={ownerUi.muted}>Cuando se active, el cobro automático estará incluido en Club sin coste adicional.</p>
           <div>
             <Link href={`/owner/subscription?organizationId=${encodeURIComponent(organizationId)}`} className={ownerUi.secondaryButton}>
               Ver planes

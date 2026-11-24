@@ -101,9 +101,10 @@ const config: SaasStripeConfig = {
   providerAccountReference: ACCOUNT,
   portalEnabled: false,
   prices: {
-    starter: { month: PRICE, year: "price_ci_starter_year" },
+    starter: { month: "price_ci_club_month", year: "price_ci_club_year" },
     growth: { month: "price_ci_growth_month", year: "price_ci_growth_year" },
   },
+  legacyPrices: { starter: { month: PRICE, year: "price_ci_starter_year" } },
 };
 
 const stripe = {

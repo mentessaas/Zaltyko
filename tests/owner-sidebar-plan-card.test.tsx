@@ -22,7 +22,7 @@ describe("OwnerSidebarPlanCard", () => {
     const { rerender } = render(
       <OwnerSidebarPlanCard organizationId={organizationId} subscriptionHref={`/owner/subscription?organizationId=${organizationId}`} />
     );
-    expect(screen.getByText("Plan Free")).toBeInTheDocument();
+    expect(screen.getByText("Plan Gratis")).toBeInTheDocument();
     expect(screen.getByText(/Solo lectura/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver planes" })).toHaveAttribute(
       "href",

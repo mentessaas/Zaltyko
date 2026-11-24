@@ -51,11 +51,11 @@ export async function GET() {
     const canCreateMore = academyLimit === null || academyCount < academyLimit;
 
     // Determinar plan de upgrade sugerido
-    let upgradeTo: "network" | undefined = undefined;
+    let upgradeTo: "club" | undefined = undefined;
     if (!canCreateMore) {
-      // Los tres planes autoservicio tienen una academia. Más academias no se
-      // contratan por cuenta propia: el enlace lleva al formulario de contacto.
-      upgradeTo = "network";
+      // Club es la única opción de pago; sedes adicionales pertenecen a la
+      // misma organización y no crean otra academia en esta ruta.
+      upgradeTo = "club";
     }
 
     return apiSuccess({

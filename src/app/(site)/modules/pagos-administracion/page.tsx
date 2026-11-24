@@ -110,7 +110,7 @@ export default function PagosAdministracionPage() {
               "@type": "Offer",
               price: "0",
               priceCurrency: "EUR",
-              description: "Plan Free: prueba 7 días de Starter sin tarjeta",
+              description: "Plan Gratis: prueba 30 días de Club sin tarjeta",
             },
           }),
         }}

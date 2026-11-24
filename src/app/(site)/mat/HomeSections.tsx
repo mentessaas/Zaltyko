@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { ChalkTally } from "@/components/mat/ChalkTally";
 import { DisclosureAccordion } from "@/components/ui/disclosure-accordion";
 import { PUBLIC_PRODUCT_PLANS, formatPlanAmount } from "@/lib/plans/catalog";
+import { quoteSpanishVat } from "@/modules/saas-billing/domain/spanish-vat";
 import { cn } from "@/lib/utils";
 
 import {
@@ -306,7 +307,7 @@ export function PlansLine() {
             >
               <p className="font-display text-2xl font-extrabold uppercase text-mat-night">{plan.publicName}</p>
               <p className="font-display tabular mt-2 text-4xl font-black text-mat">
-                {plan.priceEurCents === 0 ? "0 €" : formatPlanAmount(plan.priceEurCents)}
+                {plan.priceEurCents === 0 ? "0 €" : formatPlanAmount(quoteSpanishVat(plan.priceEurCents).totalCents)}
                 <span className="text-base font-bold text-ramp-500">{plan.priceEurCents === 0 ? "" : "/mes"}</span>
               </p>
               <p className="mt-2 text-sm font-medium text-ramp-600">{plan.shortDescription}</p>
@@ -314,7 +315,7 @@ export function PlansLine() {
           ))}
         </ul>
         <p className="mt-6 text-sm text-ramp-600">
-          Precios sin IVA. 7 días de Starter sin tarjeta, una activación por academia cada 12 meses.
+          Precios con IVA incluido. Prueba Club durante 30 días, sin tarjeta.
         </p>
       </div>
     </section>

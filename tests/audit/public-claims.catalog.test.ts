@@ -46,76 +46,65 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 describe("L2 — plans catalog matches published copy", () => {
-  it("Free plan: 0€, 30 atletas, 1 academia, 3 grupos, 10 clases", () => {
+  it("Gratis: 0€, 30 gimnastas, dos personas y grupos y clases sin tope", () => {
     const free = PRODUCT_PLAN_BY_CODE.free;
     expect(free.priceEurCents).toBe(0);
     expect(free.athleteLimit).toBe(30);
     expect(free.academyLimit).toBe(1);
-    expect(free.groupLimit).toBe(3);
-    expect(free.classLimit).toBe(10);
+    expect(free.groupLimit).toBeNull();
+    expect(free.classLimit).toBeNull();
+    expect(free.teamMemberLimit).toBe(2);
     expect(free.checkoutMode).toBe("included");
     expect(free.ctaHref).toBe("/auth/register?role=owner");
   });
 
-  it("Starter (pro): 19€, 75 atletas, 1 academia, 5 grupos, 20 clases", () => {
-    const pro = PRODUCT_PLAN_BY_CODE.pro;
-    expect(pro.priceEurCents).toBe(1900);
-    expect(pro.athleteLimit).toBe(75);
-    expect(pro.academyLimit).toBe(1);
-    expect(pro.groupLimit).toBe(5);
-    expect(pro.classLimit).toBe(20);
-    expect(pro.publicName).toBe("Starter");
-    expect(pro.cta).toBe("Crear academia gratis");
-    // Starter is the low-touch self-serve entry: create the account and
-    // configure the academy first, then activate the trial/paid plan from
-    // Billing once the academy exists.
-    expect(pro.ctaHref).toBe("/auth/register?role=owner");
-    expect(pro.checkoutMode).toBe("self-serve");
+  it("Club: 29€/mes y 290€/año con capacidad ilimitada", () => {
+    const club = PRODUCT_PLAN_BY_CODE.club;
+    expect(club.priceEurCents).toBe(2397);
+    expect(club.annualPriceEurCents).toBe(23967);
+    expect(club.athleteLimit).toBeNull();
+    expect(club.academyLimit).toBe(1);
+    expect(club.groupLimit).toBeNull();
+    expect(club.classLimit).toBeNull();
+    expect(club.teamMemberLimit).toBeNull();
+    expect(club.publicName).toBe("Club");
+    expect(club.checkoutMode).toBe("self-serve");
   });
 
-  it("Growth (premium): 49€, 200 atletas, 1 academia, 10 grupos, 40 clases", () => {
-    const premium = PRODUCT_PLAN_BY_CODE.premium;
-    expect(premium.priceEurCents).toBe(4900);
-    expect(premium.athleteLimit).toBe(200);
-    expect(premium.academyLimit).toBe(1);
-    expect(premium.groupLimit).toBe(10);
-    expect(premium.classLimit).toBe(40);
-    expect(premium.publicName).toBe("Growth");
-    expect(premium.cta).toBe("Crear academia gratis");
-    expect(premium.ctaHref).toBe("/auth/register?role=owner");
-    expect(premium.highlight).toBe(true);
-    expect(premium.checkoutMode).toBe("self-serve");
+  it("los planes heredados conservan su importe y reciben derechos de Club", () => {
+    expect(PRODUCT_PLAN_BY_CODE.pro.priceEurCents).toBe(1900);
+    expect(PRODUCT_PLAN_BY_CODE.premium.priceEurCents).toBe(4900);
+    for (const plan of [PRODUCT_PLAN_BY_CODE.pro, PRODUCT_PLAN_BY_CODE.premium]) {
+      expect(plan.athleteLimit).toBeNull();
+      expect(plan.groupLimit).toBeNull();
+      expect(plan.classLimit).toBeNull();
+      expect(plan.publicName).toBe("Club (heredado)");
+    }
   });
 
-  it("Network: 99€, ilimitado, sales-assisted (no self-serve checkout)", () => {
+  it("Network se conserva solo como plan heredado", () => {
     const network = PRODUCT_PLAN_BY_CODE.network;
-    expect(network.priceEurCents).toBe(9900);
-    expect(network.athleteLimit).toBeNull();
-    expect(network.academyLimit).toBeNull();
-    expect(network.groupLimit).toBeNull();
-    expect(network.classLimit).toBeNull();
-    expect(network.cta).toBe("Hablar con Zaltyko");
-    expect(network.ctaHref).toBe("/contact?type=network");
-    expect(network.checkoutMode).toBe("sales-assisted");
+    expect(network.publicName).toBe("Club (heredado)");
+    expect(network.description).not.toMatch(/99 ?€/i);
   });
 
-  it("BILLABLE_PRODUCT_PLANS excluye network (sin Stripe self-checkout)", () => {
+  it("BILLABLE_PRODUCT_PLANS excluye Network para nuevas contrataciones", () => {
     expect(BILLABLE_PRODUCT_PLANS.map((p) => p.code)).not.toContain("network");
     expect(BILLABLE_PRODUCT_PLANS.length).toBe(PRODUCT_PLANS.length - 1);
   });
 
-  it("PUBLIC_PRODUCT_PLANS no ofrece Network ni promete multi-sede en la web", () => {
-    expect(PUBLIC_PRODUCT_PLANS.map((p) => p.code)).toEqual(["free", "pro", "premium"]);
+  it("PUBLIC_PRODUCT_PLANS solo ofrece Gratis y Club", () => {
+    expect(PUBLIC_PRODUCT_PLANS.map((p) => p.code)).toEqual(["free", "club"]);
     expect(readSiteFile("src/app/(site)/pricing.tsx")).toContain("PUBLIC_PRODUCT_PLANS.map");
     expect(readSiteFile("src/app/(site)/mat/HomeSections.tsx")).toContain("PUBLIC_PRODUCT_PLANS.map");
     const network = PRODUCT_PLAN_BY_CODE.network;
-    expect([network.description, network.shortDescription, ...network.features].join(" ")).not.toMatch(/multi-?sede|por sede/i);
+    expect([network.description, network.shortDescription, ...network.features].join(" ")).not.toMatch(/Network 99|99 ?€|contacto/i);
   });
 });
 
 describe("L3 — trial policy constants y funciones puras", () => {
   it("Duración y cooldown coinciden con copy pública", () => {
-    expect(TRIAL_DURATION_DAYS).toBe(7);
+    expect(TRIAL_DURATION_DAYS).toBe(30);
     expect(TRIAL_COOLDOWN_DAYS).toBe(365);
   });
 
@@ -205,7 +194,7 @@ describe("L2 — copy pública presente en componentes", () => {
     expect(seoExtended).toContain("Pagos registrados y pendientes a la vista");
     expect(help).toContain("No en este lanzamiento");
     expect(llmsFull).toContain("Zaltyko no inicia cargos automáticos a las familias");
-    expect(planCatalog).toContain("Asistencia y cuotas mensuales con registro manual de pagos");
+    expect(planCatalog).toContain("Gestión diaria, asistencia y cuotas a mano");
     expect(homeModules).not.toContain("avisos automáticos a familias");
     expect(seoExtended).not.toContain("Cobros automáticos y recordatorios programados");
   });
@@ -240,7 +229,7 @@ describe("L2 — copy pública presente en componentes", () => {
     }
     // El alta de la dirección no pide tarjeta: el formulario solo pide nombre, correo, contraseña y aceptación.
     expect(readSiteFile("src/components/RegisterForm.tsx")).not.toMatch(/cardNumber|CardElement|PaymentElement|@stripe/i);
-    expect(ESSENTIAL_FAQS[0].answer).toContain("no te pedimos tarjeta");
+    expect(ESSENTIAL_FAQS[0].answer).toContain("sin tarjeta");
     // Las cuotas a las familias nunca se cobran solas.
     expect(ESSENTIAL_FAQS.find(item => item.question === "¿Zaltyko cobra a las familias?")?.answer).toMatch(/^No\./);
   });
@@ -263,15 +252,15 @@ describe("L2 — copy pública presente en componentes", () => {
   it("la FAQ de cancelación distingue Free de los planes de pago", () => {
     const faqPage = readSiteFile("src/app/(site)/faq/page.tsx");
     expect(faqPage).toContain("ESSENTIAL_FAQS");
-    expect(ESSENTIAL_FAQS.map(item => item.answer).join(" ")).toContain("Al finalizar el periodo de acceso, la academia vuelve a Free");
+    expect(ESSENTIAL_FAQS.map(item => item.answer).join(" ")).toContain("Al terminar, la academia vuelve a Gratis");
   });
 
   it("PricingSection comunica prueba explícita y comparación mensual/anual", () => {
     const copy = pricing.replace(/\s+/g, " ");
     expect(copy).toContain("Precios finales con IVA");
-    expect(copy).toContain("+ IVA");
-    expect(copy).toContain("7 días de Starter sin tarjeta");
-    expect(copy).toContain("una activación por academia cada 12 meses");
+    expect(copy).toContain("base antes de IVA");
+    expect(copy).toContain("Prueba Club durante 30 días, sin tarjeta");
+    expect(copy).toContain("Los 10 primeros clubes de Málaga");
     expect(copy).toContain("Empieza gratis y configura tu academia");
     expect(copy).toContain("Aislamiento por academia");
     expect(copy).toContain("Puesta en marcha guiada");
@@ -402,14 +391,16 @@ describe("L2 — claims de módulos alineados con capacidades verificadas", () =
     expect(features).not.toContain("bg-primary-dark");
   });
 
-  it("las pantallas de planes no prometen un portal familiar fuera del lanzamiento", () => {
+  it("el catálogo incluye el portal familiar en Club y no en Gratis", () => {
     for (const file of [
       "src/app/dashboard/account-form.tsx", "src/components/billing/BillingSummary.tsx", "src/components/profiles/OptimizedOwnerProfile.tsx",
-      "src/lib/limits.ts", "src/lib/plans/catalog.ts",
     ]) {
       const copy = readSiteFile(file).toLowerCase();
       expect(copy).not.toMatch(/portal familiar|portal familias|portal de familias/);
     }
+    expect(PRODUCT_PLAN_BY_CODE.club.features.join(" ")).toMatch(/portal familiar/i);
+    expect(PRODUCT_PLAN_BY_CODE.free.features.join(" ")).not.toMatch(/portal familiar/i);
+    expect(readSiteFile("src/lib/limits.ts")).toContain("Portal familiar y avisos");
     expect(readSiteFile("src/components/onboarding/LimitIndicator.tsx")).toContain("benefits: plan.features");
   });
 

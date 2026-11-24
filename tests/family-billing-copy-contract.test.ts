@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { PRODUCT_PLANS } from "@/lib/plans/catalog";
+import { PRODUCT_PLANS, PUBLIC_PRODUCT_PLANS } from "@/lib/plans/catalog";
 
 const switchCopy = readFileSync(
   "src/components/owner-dashboard/OwnerFamilyPaymentMethodsPanel.tsx",
@@ -26,17 +26,13 @@ describe("family billing copy contract", () => {
     expect(switchCopy).not.toMatch(/PaymentIntent|off-session|webhook|Connect\b/);
   });
 
-  it("keeps Free and Starter manual and discloses no family autopay in Growth", () => {
+  it("keeps family payments manual today and scopes future automation to Club", () => {
     const free = PRODUCT_PLANS.find((plan) => plan.code === "free");
-    const starter = PRODUCT_PLANS.find((plan) => plan.code === "pro");
-    const growth = PRODUCT_PLANS.find((plan) => plan.code === "premium");
+    const club = PRODUCT_PLANS.find((plan) => plan.code === "club");
 
-    expect(free?.features.join(" ")).toMatch(/registro manual/i);
-    expect(starter?.features.join(" ")).toMatch(/registro manual/i);
-    expect(growth?.features.join(" ")).toMatch(/registro manual/i);
-    for (const plan of [free, starter, growth]) {
-      expect(plan?.features.join(" ")).not.toMatch(/pagos automáticos|cobro automático/i);
-    }
+    expect(free?.features.join(" ")).toMatch(/cuotas a mano/i);
+    expect(club?.features.join(" ")).toMatch(/cobro automático.*cuando se active/i);
+    expect(PUBLIC_PRODUCT_PLANS.map((plan) => plan.code)).toEqual(["free", "club"]);
   });
 
   it("separates general automation advice from Zaltyko's current capability", () => {
