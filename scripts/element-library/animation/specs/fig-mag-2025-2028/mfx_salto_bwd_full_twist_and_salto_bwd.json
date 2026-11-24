@@ -7,7 +7,7 @@
   {
    "contact": {
     "joint": "tof",
-    "at": "floor@703.6",
+    "at": "floor@702.39",
     "keys": [
      {
       "dt": 0,
@@ -164,14 +164,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@514.55"
+     "at": "floor@513.34"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@514.55",
+    "at": "floor@513.34",
     "keys": [
      {
       "dt": 0,
@@ -371,7 +371,7 @@
   {
    "contact": {
     "joint": "haf",
-    "at": "floor@423.49",
+    "at": "floor@422.28",
     "keys": [
      {
       "dt": 0,
@@ -475,7 +475,7 @@
   {
    "contact": {
     "joint": "han",
-    "at": "floor@411.49",
+    "at": "floor@410.28",
     "keys": [
      {
       "dt": 0,
@@ -735,14 +735,14 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@260.4"
+     "at": "floor@259.19"
     }
    }
   },
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@260.4",
+    "at": "floor@259.19",
     "keys": [
      {
       "dt": 0,
@@ -1450,7 +1450,7 @@
     ],
     "land": {
      "joint": "ton",
-     "at": "floor@30.78"
+     "at": "floor@29.57"
     },
     "twist": 360,
     "twistWindow": [
@@ -1462,7 +1462,7 @@
   {
    "contact": {
     "joint": "ton",
-    "at": "floor@30.78",
+    "at": "floor@29.57",
     "keys": [
      {
       "dt": 0,
@@ -1491,24 +1491,24 @@
      {
       "dt": 0.16,
       "pose": {
-       "torso": -1095.0,
+       "torso": -1091.0,
        "head": 0,
        "facing": 1,
        "arm_n": [
-        -655.0,
-        -665.0
+        -651.0,
+        -661.0
        ],
        "arm_f": [
-        -655.0,
-        -665.0
+        -651.0,
+        -661.0
        ],
        "leg_n": [
-        -955.0,
-        -855.0
+        -929.5,
+        -874.5
        ],
        "leg_f": [
-        -955.0,
-        -855.0
+        -929.5,
+        -874.5
        ]
       }
      },
@@ -1519,12 +1519,12 @@
        "head": 0,
        "facing": 1,
        "arm_n": [
-        -715,
-        -715
+        -690,
+        -690
        ],
        "arm_f": [
-        -715,
-        -715
+        -690,
+        -690
        ],
        "leg_n": [
         -900,
