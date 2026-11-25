@@ -4,18 +4,28 @@ from engine2 import PX_PER_M as M
 from volumen import APP_D, APP_L, NAVY, metal
 
 W = 360
+VIEW_RULES = {
+    'rings': {'lateral_arms': 'front', 'longitudinal_swing': 'side'},
+}
 def _floor(y, w=W): return f'<line x1="14" y1="{y}" x2="{w-14}" y2="{y}" stroke="{APP_L}" stroke-width="2" stroke-linecap="round"/>'
 
 class Scene:
-    def __init__(self, kind, h, floor_y, anchors, bars=(), draw=None, w=W, solids=(), surfaces=()):
-        self.kind, self.h, self.floor_y, self.anchors, self.bars, self._draw, self.w = kind, h, floor_y, anchors, bars, draw, w
-        self.solids = list(solids)   # (x0, y0, x1, y1) boxes the body may touch from outside but never enter
-        self.surfaces = list(surfaces)
+    def __init__(self, kind, h, floor_y, anchors, bars=(), draw=None, w=W, solids=(), surfaces=(), x_offset=0):
+        self.kind, self.h, self.floor_y, self.bars, self.w = kind, h, floor_y, list(bars), w
+        self.x_offset = x_offset
+        self.view_rules = VIEW_RULES.get(kind, {})
+        self.anchors = {name: (point[0] + x_offset, point[1]) for name, point in anchors.items()}
+        self._draw = draw
+        self.solids = [(x0 + x_offset, y0, x1 + x_offset, y1) for x0, y0, x1, y1 in solids]
+        self.surfaces = [dict(surface, x0=surface['x0'] + x_offset, x1=surface['x1'] + x_offset)
+                         for surface in surfaces]
     def at(self, name):
         if '@' in name:
-            base, x = name.split('@'); return (float(x), self.anchors[base][1])
+            base, x = name.split('@'); return (float(x) + self.x_offset, self.anchors[base][1])
         return self.anchors[name]
-    def draw(self, uid): return self._draw(uid)
+    def draw(self, uid):
+        drawing = self._draw(uid)
+        return f'<g transform="translate({self.x_offset},0)">{drawing}</g>' if self.x_offset else drawing
 
 def floor():
     fy = 268
@@ -121,9 +131,11 @@ def rings():
     fy = 352; ring = (180, fy - round(2.75 * M))
     def d(u, hands=None):
         return _floor(fy)
-    return Scene('rings', 362, fy, {'rings': ring}, draw=d, surfaces=[
+    return Scene('rings', 362, fy, {
+        'rings': ring, 'ring_far': (ring[0]-21, ring[1]), 'ring_near': (ring[0]+21, ring[1]),
+    }, draw=d, surfaces=[
         {'name': 'rings', 'x0': ring[0]-25, 'x1': ring[0]+25, 'top': ring[1],
-         'accepts': lambda p: math.dist(p, ring) <= 5},
+         'accepts': lambda p: ring[0]-25 <= p[0] <= ring[0]+25 and abs(p[1]-ring[1]) <= 5},
         {'name': 'floor', 'x0': 0, 'x1': W, 'top': None,
          'accepts': lambda p: 0 <= p[0] <= W and abs(p[1]-fy) <= 4}])
 
@@ -157,14 +169,14 @@ def pommel():
          'accepts': lambda p: 0 <= p[0] <= W and abs(p[1]-fy) <= 4}])
 
 def vault():
-    """Wide scene (7.5 m): runway with room for the hurdle/round-off, board, table, landing mat."""
-    fy = 330; top = fy - round(1.25 * M); w = 640
+    """Wide scene with a left safety margin before the runway, board, table, and landing mat."""
+    fy = 330; top = fy - round(1.25 * M); w = 680; x_offset = 40
     def d(u):
-        return (_floor(fy, w) + f'<polygon points="236,{fy} 300,{fy} 300,{fy-14}" fill="{metal(u)}"/>'
+        return (_floor(fy, w - x_offset) + f'<polygon points="236,{fy} 300,{fy} 300,{fy-14}" fill="{metal(u)}"/>'
                 f'<path d="M406 {fy} l5 -{fy-top-12} h10 l5 {fy-top-12} z" fill="{APP_L}"/><rect x="370" y="{top}" width="92" height="14" rx="7" fill="{metal(u)}"/>'
                 f'<rect x="478" y="{fy-8}" width="150" height="8" rx="3" fill="{APP_L}"/>')
     board = (280, fy-10); mat = (0, fy-8)
-    return Scene('vault', 340, fy, {'board': board, 'table': (0, top), 'floor': (0, fy), 'mat': mat}, draw=d, w=w, surfaces=[
+    return Scene('vault', 340, fy, {'board': board, 'table': (0, top), 'floor': (0, fy), 'mat': mat}, draw=d, w=w, x_offset=x_offset, surfaces=[
         {'name': 'board', 'x0': 236, 'x1': 300, 'top': None,
          'accepts': lambda p: 236 <= p[0] <= 300 and abs(p[1]-board[1]) <= 8},
         {'name': 'table', 'x0': 370, 'x1': 462, 'top': top,

@@ -44,7 +44,8 @@ class Pose:
         neck = add(mid, v(ut, L['torso'] / 2))
         j = {'pelvis': pelvis, 'mid': mid, 'neck': neck}
         j['head'] = add(neck, v(ut + self.head, L['neck'] + L['head']))
-        side = (lambda a, d: v(a + 90, d)) if self.front else (lambda a, d: (0, 0))
+        front_amount = max(0.0, min(1.0, float(self.front)))
+        side = lambda a, d: tuple(component * front_amount for component in v(a + 90, d))
         for tag, sh_off, arm in (('n', side(ut, 10), self.arm_n), ('f', side(ut, -10), self.arm_f)):
             s = add(neck, sh_off)
             e = add(s, v(arm[0], L['ua'])); h = add(e, v(arm[1], L['fa']))
@@ -72,8 +73,9 @@ def draw(pose, pelvis, op=1.0, ghost=False):
     # far side first
     out += [seg(j['shf'], j['elf'], 6.5, far, op), seg(j['elf'], j['haf'], 6, far, op)]
     out += [seg(j['hipf'], j['knf'], 7.5, far, op), seg(j['knf'], j['anf'], 7, far, op), seg(j['anf'], j['tof'], 5, far, op)]
-    if pose.front:
-        out.append(seg(j['shf'], j['shn'], 9, ink, op)); out.append(seg(j['hipf'], j['hipn'], 9, ink, op))
+    front_amount = max(0.0, min(1.0, float(pose.front)))
+    if front_amount > 0:
+        out.append(seg(j['shf'], j['shn'], 9, ink, op * front_amount)); out.append(seg(j['hipf'], j['hipn'], 9, ink, op * front_amount))
     out.append(seg(j['pelvis'], j['neck'], 11, ink, op))
     out.append(f'<circle cx="{j["head"][0]:.1f}" cy="{j["head"][1]:.1f}" r="{L["head"]}" fill="{ink}" opacity="{op}"/>')
     out += [seg(j['hipn'], j['knn'], 7.5, ink, op), seg(j['knn'], j['ann'], 7, ink, op), seg(j['ann'], j['ton'], 5, ink, op)]

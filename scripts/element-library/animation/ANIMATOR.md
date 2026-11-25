@@ -39,14 +39,14 @@ in `work/` to generate families of specs (e.g. "back salto with N twists") inste
   `lb` 1.70 m at x 390, `hb` 2.50 m at x 520, a second board `board_hb` at x≈650 outside the high bar for mounts
   from that side, `floor@X`; room for the run/round-off and for swings outside the bars), `rings` (`rings`, 2.75 m; rings and straps are drawn at the hands),
   `parallel_bars` (`rail@X`, 2.0 m), `pommel_horse` (`pommel_l`, `pommel_r`, `horse@X`),
-  `vault` (wider canvas, 640 px ≈ 7.5 m: runway from x≈20 for the hurdle/round-off, `board` at x≈280, `table@X` top 1.25 m with the table between x 370 and 462, `floor@X`, `mat@X` between x 478 and 628).
+  `vault` (wider canvas, 680 px with a 40 px left safety margin: runway from x≈60 for the hurdle/round-off, `board` at x≈320, `table@X` top 1.25 m, `floor@X`, `mat@X`; apparatus spacing is unchanged).
   Use x between ~30 and ~330. The canvas grows upward automatically.
 
 ### Apparatus contact and body clearance
 
 Pose angles are absolute screen-space directions (`0` up, `90` right, `180` down, `270` left). In particular, a leg angle of `180` points the leg down through the screen; it does not mean “the supporting leg” or “standing.” Pinning a hand or foot fixes only that joint; it does not move or protect the rest of the body. For beam and bar-top support, keep every joint that is horizontally over the apparatus above its top surface. A limb beside the apparatus can hang below the top only when it is outside the apparatus span.
 
-For an intentional hang or under-bar swing on rings, high bar, or uneven bars, mark that contact phase with `"underBar": true`. Do not use the flag for a handstand or a support on top of the apparatus. Contacts must land on the named apparatus surface or grip point (within a few pixels); an anchor name alone does not make a misplaced contact valid. Ring contact keeps both hands on the rendered ring grip points, and the straps terminate at those hands.
+For an intentional hang or under-bar swing on rings, high bar, or uneven bars, mark that contact phase with `"underBar": true`. Do not use the flag for a handstand or a support on top of the apparatus. Contacts must land on the named apparatus surface or grip point (within a few pixels); an anchor name alone does not make a misplaced contact valid. Ring contact keeps both hands on the rendered ring grip points, and the straps terminate at those hands. The near ring and strap are drawn in front of the gymnast; the validator rejects a wrist hidden by the torso or away from its visible ring grip.
 
 ## Spec
 ```json
@@ -75,7 +75,8 @@ For an intentional hang or under-bar swing on rings, high bar, or uneven bars, m
 - Holds (strength): show a short, plausible entry (0.5–1 s) and then hold the pose with `dt: 2.0`.
 - Twisting frames skip the side-view joint limits (the 2D figure mirrors during a twist), so tucked and
   piked twists are allowed; keep the shape anatomically plausible anyway.
-- Front-view elements (cross on rings): `"view": "front"` and `"front": true` in the poses.
+- Choose the view from the defining fact of each phase. On rings, any phase whose defining fact is lateral arms (cross, inverted cross, L-cross, swallow and inverted swallow) uses the front view; longitudinal swings and positions whose defining fact is not lateral arms use the side view. The rule is exposed as `rings().view_rules` in `scenes.py` (`lateral_arms: front`, `longitudinal_swing: side`). Declare the phase on its contact object, for example `{"contact":{"view":"front", ...}}`; it overrides pose `front` values for that phase. In front view anchor the near hand at `ring_near` and the far hand at `ring_far`. For a side-view swing followed by a lateral-arm position, set the swing phase to `"view":"side"` and the next phase to `"view":"front","at":"ring_near","cameraTransitionS":0.3`. The projection and near-hand grip move smoothly over that duration. On the first phase, add `"cameraFrom":"side"` when transition from the side is needed. Do not change the top-level `view` just to control one phase.
+- Declare a support element's defining vertical position with top-level `"definingPosition":"handstand"` (or `"vertical"`) and mark the relevant contact phase `"verticalSupport":true`. On parallel bars the validator then rejects a marked support frame whose trunk is more than 45° from vertical. Entry and flight phases are unaffected.
 - Rotation about a vertical axis (pommel horse circles/flairs, travels; pirouettes): add `"yaw"` (deg)
   and `"yawPivot"` (joint, default `han`) to poses. The body is drawn in its own plane and turned about
   a vertical axis through the pivot: horizontal offsets shrink with cos(yaw) and the body is drawn

@@ -41,7 +41,7 @@ def lerp_shape(a, b, u):
     l = lambda x, y: x + (y - x) * u   # follow the direction written in the spec (validator catches impossible paths)
     pr = lambda p, q: (l(p[0], q[0]), l(p[1], q[1]))
     return Shape(pr(a.arm_n, b.arm_n), pr(a.arm_f, b.arm_f), pr(a.leg_n, b.leg_n), pr(a.leg_f, b.leg_f), l(a.head, b.head),
-                 a.facing if u < 0.5 else b.facing, l(a.yaw, b.yaw), a.yaw_pivot, a.front if u < 0.5 else b.front, l(a.arch, b.arch))
+                 a.facing if u < 0.5 else b.facing, l(a.yaw, b.yaw), a.yaw_pivot, l(float(a.front), float(b.front)), l(a.arch, b.arch))
 
 # ---------- mechanics ----------
 def com(p, pelvis=(0, 0)):
@@ -223,12 +223,13 @@ def joint_angles(p):
     return out
 
 def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=(),
-             surfaces=(), canvas=None, canvas_shift=0, rings=None):
+             surfaces=(), canvas=None, canvas_shift=0, rings=None, vertical_support=False):
     problems = []
     prev = None; prev_meta = {}
     for i, (p, pel, meta) in enumerate(tl.frames):
         # face-on frames and frames in the middle of a twist (the 2D figure mirrors) skip side-view joint limits
-        if not front and not getattr(p, 'front', False) and not meta.get('twist'):
+        pose_front = float(getattr(p, 'front', False)) >= 0.5
+        if not front and not pose_front and not meta.get('twist'):
             for name, val in joint_angles(p).items():
                 lo, hi = LIMITS[name.split('_')[0]]
                 if not lo <= val <= hi:
@@ -287,6 +288,13 @@ def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=(),
                 for name, target in zip(('haf', 'han'), targets):
                     if math.dist(j[name], target) > 5:
                         problems.append(f'frame {i}: {name} is not at a ring grip point')
+                    if _point_segment_distance(j[name], j['pelvis'], j['neck']) < 8.5:
+                        problems.append(f'frame {i}: {name} is covered by the torso at the ring grip')
+            if vertical_support and meta.get('verticalSupport'):
+                trunk = p.upper_torso() if hasattr(p, 'upper_torso') else p.torso
+                off_vertical = min(abs(_wrap(trunk)), abs(_wrap(trunk - 180)))
+                if off_vertical > 45:
+                    problems.append(f'frame {i}: vertical support trunk leans {off_vertical:.0f}° from vertical')
         if prev is not None:
             # per-segment speed limits (deg per frame at 30 fps), from biomechanics:
             # trunk ~840 deg/s, leg kicks ~1050 deg/s, arm swings ~1200 deg/s
@@ -305,6 +313,14 @@ def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=(),
                     if abs(d) > limit[attr]: problems.append(f'frame {i}: {attr} jumps {abs(d):.0f}°'); break
         prev, prev_meta = p, meta
     return problems
+
+def _point_segment_distance(point, start, end):
+    dx, dy = end[0] - start[0], end[1] - start[1]
+    length_sq = dx * dx + dy * dy
+    if length_sq == 0:
+        return math.dist(point, start)
+    t = max(0.0, min(1.0, ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / length_sq))
+    return math.dist(point, (start[0] + t * dx, start[1] + t * dy))
 
 
 def momentum_warnings(tl, takeoff=1.5, spike=3.5):

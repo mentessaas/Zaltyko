@@ -3,12 +3,13 @@ import unittest
 from types import SimpleNamespace
 
 from engine2 import Timeline, validate
-from run_spec import overlay
+from figure import Pose
+from run_spec import V, build, frame_svg, overlay
 from scenes import rings as rings_scene
 
 
-def frame(joints, **meta):
-    pose = SimpleNamespace(front=True, yaw=0, torso=0, arch=0)
+def frame(joints, *, torso=0, **meta):
+    pose = SimpleNamespace(front=True, yaw=0, torso=torso, arch=0)
     pose.joints = lambda _pelvis: joints
     timeline = Timeline()
     timeline.add(pose, (0, 0), **meta)
@@ -60,10 +61,85 @@ class GeometryValidatorTests(unittest.TestCase):
         markup = overlay(rings_scene(), pose, (0, 0), {})
         self.assertIn('x2="180.0" y2="91.0"', markup)
 
+    def test_near_ring_and_strap_are_layered_in_front_of_the_body(self):
+        scene = rings_scene()
+        pose = Pose(torso=0, arm_n=(90, 90), arm_f=(270, 270), leg_n=(180, 180), leg_f=(180, 180))
+        pose.facing = 1; pose.yaw = 0; pose.yaw_pivot = 'han'; pose.arch = 0
+        pelvis = (180, 150)
+        timeline = Timeline()
+        timeline.add(pose, pelvis)
+        markup = frame_svg(scene, timeline, 0, trails=False)
+        body = V.fig('a', pose, pelvis)
+        near_ring = overlay(scene, pose, pelvis, {}, ring_layer='near')
+        self.assertLess(markup.find(body), markup.find(near_ring))
+
     def test_body_point_outside_canvas_fails(self):
         tl = frame(joints(ton=(361, 80)))
         problems = validate(tl, canvas=(360, 340))
         self.assertTrue(any('ton outside canvas' in problem for problem in problems))
+
+    def test_first_frame_body_point_outside_canvas_fails(self):
+        tl = frame(joints(ton=(-1, 80)))
+        problems = validate(tl, canvas=(360, 340))
+        self.assertTrue(any('frame 0: ton outside canvas' in problem for problem in problems))
+
+    def test_ring_hand_hidden_by_torso_fails(self):
+        points = joints(pelvis=(180, 80), neck=(180, 80), han=(180, 80), haf=(180, 80))
+        tl = frame(points, contact=('han', (180, 80)))
+        problems = validate(tl, rings=[(180, 80), (180, 80)])
+        self.assertTrue(any('han is covered' in problem for problem in problems))
+
+    def test_declared_rings_phase_uses_front_view(self):
+        pose = {
+            'torso': 0, 'arm_n': [90, 90], 'arm_f': [270, 270],
+            'leg_n': [180, 180], 'leg_f': [180, 180],
+        }
+        spec = {'scene': 'rings', 'timeline': [{
+            'contact': {'joint': 'han', 'at': 'rings', 'view': 'front', 'keys': [
+                {'dt': 0, 'pose': pose}, {'dt': 0.1, 'pose': pose},
+            ]},
+        }]}
+        _, timeline, _ = build(spec)
+        self.assertTrue(all(p.front for p, _, _ in timeline.frames))
+
+    def test_ring_surface_accepts_side_grip_and_split_front_grips(self):
+        scene = rings_scene()
+        ring_surface = next(surface for surface in scene.surfaces if surface['name'] == 'rings')
+        self.assertTrue(ring_surface['accepts'](scene.at('rings')))
+        self.assertTrue(ring_surface['accepts'](scene.at('ring_near')))
+        self.assertTrue(ring_surface['accepts'](scene.at('ring_far')))
+
+    def test_ring_swing_can_transition_from_side_to_front(self):
+        pose = {
+            'torso': 0, 'arm_n': [90, 90], 'arm_f': [270, 270],
+            'leg_n': [180, 180], 'leg_f': [180, 180],
+        }
+        spec = {'scene': 'rings', 'timeline': [
+            {'contact': {'joint': 'han', 'at': 'rings', 'view': 'side', 'keys': [
+                {'dt': 0, 'pose': pose}, {'dt': 0.2, 'pose': pose},
+            ]}},
+            {'contact': {'joint': 'han', 'at': 'ring_near', 'view': 'front', 'cameraTransitionS': 0.2,
+                         'keys': [{'dt': 0, 'pose': pose}, {'dt': 0.2, 'pose': pose}]}},
+        ]}
+        _, timeline, _ = build(spec)
+        camera_values = [float(p.front) for p, _, _ in timeline.frames]
+        self.assertTrue(any(0 < value < 1 for value in camera_values))
+        self.assertEqual(camera_values[-1], 1)
+        hand_x = [p.joints(pel)['han'][0] for p, pel, _ in timeline.frames]
+        self.assertTrue(any(180 < x < 201 for x in hand_x))
+        self.assertEqual(hand_x[-1], 201)
+
+    def test_vault_runway_starts_inside_canvas_with_margin(self):
+        from scenes import vault
+        scene = vault()
+        self.assertGreaterEqual(scene.at('floor@70')[0], 40)
+        self.assertGreater(scene.w, 640)
+
+    def test_declared_parallel_bars_handstand_rejects_leaned_support(self):
+        tl = frame(joints(pelvis=(180, 100), neck=(205, 75), han=(180, 100)), torso=60,
+                   contact=('han', (180, 100)), contact_phase=0, verticalSupport=True)
+        problems = validate(tl, vertical_support=True)
+        self.assertTrue(any('vertical support trunk leans' in problem for problem in problems))
 
 
 if __name__ == '__main__':
