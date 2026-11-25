@@ -260,11 +260,21 @@ días, por lotes de 100. Sin la tabla de avisos responde `enabled: false` y no
 hace nada. En staging se programa con `call_cron_staging` y el mismo nombre de
 ruta.
 
-## Conservación de solicitudes de contacto (sin aplicar)
+## Conservación de solicitudes de contacto (aplicado solo en staging)
 
 `candidates/lead-retention.sql` programa el trabajo
 `zaltyko-lead-retention`, que llama a `/api/cron/lead-retention`. **No está
-aplicado en ningún entorno** y aplicarlo necesita autorización expresa de Elvis.
+aplicado en producción**; aplicarlo allí necesita autorización expresa de Elvis.
+
+**Staging, 25-11-2026 (autorizado por Elvis):** en la base de staging se
+activaron `pg_cron` y `pg_net`, se creó `zaltyko_scheduler.call_cron_staging`
+(el bloque de la sección «Cobro automático de cuotas → Staging», sin la línea
+de `collect-family-fees`), se guardó en Vault un `CRON_SECRET` nuevo, solo de
+staging (también cambiado en Vercel `zaltyko-staging`), y se programó
+`zaltyko-lead-retention` a las `15 3 * * *` con `call_cron_staging`. Prueba:
+una solicitud de 7 meses se borró y una de 1 mes se conservó (respuesta 200,
+`erasedLeads: 1`). Vuelta atrás en staging:
+`select cron.unschedule('zaltyko-lead-retention');`.
 
 La ruta conserva un lead si tiene `tenant_id` o `academy_id`, si alguna fila
 vinculada de `academy_trials` tiene `converted_at`, o si un resultado enlazado
