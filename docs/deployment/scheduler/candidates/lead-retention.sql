@@ -1,5 +1,6 @@
--- NO APLICADO en ningún entorno. Aplicarlo, en producción o en staging,
--- requiere autorización expresa de Elvis.
+-- NO APLICADO en producción; aplicarlo requiere autorización expresa de
+-- Elvis. En staging se programó el 25-11-2026 con call_cron_staging (ver
+-- docs/deployment/scheduler/README.md).
 --
 -- Trabajo de retención de solicitudes de contacto: una vez al día, a las
 -- 03:15 UTC (04:15 en Madrid en invierno, 05:15 en verano; 21:15 del día

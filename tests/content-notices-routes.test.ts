@@ -549,7 +549,7 @@ describe("cron de conservación de solicitudes de contacto", () => {
       join(process.cwd(), "docs/deployment/scheduler/candidates/lead-retention.sql"),
       "utf8"
     );
-    expect(candidate).toContain("NO APLICADO en ningún entorno");
+    expect(candidate).toContain("NO APLICADO en producción");
     expect(candidate).toContain(
       "select cron.schedule('zaltyko-lead-retention', '15 3 * * *', $$select zaltyko_scheduler.call_cron('lead-retention')$$);"
     );
