@@ -8,6 +8,14 @@ source:
 
 # Decisiones
 
+## 2026-11-24 — Borrar solicitudes de contacto no convertidas a los seis meses (decisión de Elvis)
+
+- Las solicitudes de contacto que no llegan a ser clientes se borran seis meses después de su última actividad.
+- Se considera convertido un lead con `tenant_id` o `academy_id`, con `academy_trials.converted_at` informado, o con un resultado enlazado `lead_trial_outcomes.outcome` cuyo valor normalizado sea `converted`.
+- La limpieza programada elimina los datos vinculados con relación verificable; las claves de idempotencia por `submission_id` permiten identificar los eventos y logs de correo de ese envío. No se eliminan eventos ni correos sin esa relación exacta.
+- La constante del plazo cita la decisión de 2026-11-24. El cron y su candidata SQL quedan sin aplicar a cualquier base.
+- El esquema no enumera `lead_trial_outcomes.outcome` ni ofrece un escritor canónico; hasta que eso cambie, la señal de conversión admitida es exactamente `converted`, normalizada en mayúsculas y espacios.
+
 ## 2026-11-24 — Nueva oferta Gratis/Club, sedes y planes heredados (decisión de Elvis)
 
 - Sustituir Free/Starter/Growth/Network en la oferta por Gratis (0 €) y Club (29 €/mes o 290 €/año, IVA incluido en España peninsular y Baleares). Gratis admite 30 gimnastas y dos miembros de equipo contando a la dueña; grupos y clases sin límite. Club no limita gimnastas, equipo, grupos ni clases e incluye una sede.

@@ -7,6 +7,13 @@ source:
   - ../docs/architecture/zaltyko-domain-model.md
 ---
 
+## 2026-11-24 — Retención de solicitudes de contacto no convertidas
+
+- El cron `lead-retention` borra tras seis meses sin actividad los leads sin propiedad, prueba de academia convertida ni resultado `converted` de prueba.
+- Por lotes transaccionales, elimina la solicitud, interacciones, pruebas/outcomes y entrevistas ligadas; desvincula las pruebas de academia no convertidas. Solo elimina eventos y logs de correo ligados por el `submission_id` exacto.
+- La candidata `docs/deployment/scheduler/candidates/lead-retention.sql` y su programación no se aplicaron; no se cambió `vercel.json` ni el formulario o correo de contacto.
+- La política de privacidad ahora declara el plazo. El valor de conversión es texto libre en el esquema; la implementación reconoce `converted` tras normalizar mayúsculas y espacios.
+
 ## 2026-11-24 — Oferta Gratis/Club y sedes adicionales
 
 - Se implementa localmente el catálogo Gratis/Club, el tope de dos personas en Gratis, la prueba de 30 días, checkout mensual/anual y el concepto de sedes con prorrateo. Se ocultan los planes heredados sin cambiar suscripciones ni importes existentes.
