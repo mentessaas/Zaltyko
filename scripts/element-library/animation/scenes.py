@@ -138,7 +138,8 @@ def rings():
     return Scene('rings', 362, fy, {
         'rings': ring, 'ring_far': (ring[0]-21, ring[1]), 'ring_near': (ring[0]+21, ring[1]),
     }, draw=d, surfaces=[
-        {'name': 'rings', 'x0': ring[0]-25, 'x1': ring[0]+25, 'top': ring[1],
+        # rings are hand-held loops, not a top surface: hangs below them are normal
+        {'name': 'rings', 'x0': ring[0]-25, 'x1': ring[0]+25, 'top': None,
          'accepts': lambda p: ring[0]-25 <= p[0] <= ring[0]+25 and abs(p[1]-ring[1]) <= 5},
         {'name': 'floor', 'x0': 0, 'x1': W, 'top': None,
          'accepts': lambda p: 0 <= p[0] <= W and abs(p[1]-fy) <= 4}])

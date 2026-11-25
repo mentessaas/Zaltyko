@@ -281,13 +281,28 @@ def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=(),
                     else:
                         continue
                     break
-            if rings is not None:
+            if rings is not None and jn in ('han', 'haf'):
                 # Both hands need a visible ring at their actual grip points. Side
                 # view projects the pair to the same point; front view separates them.
+                # Foot contacts (dismount landings on the mat) are not ring grips.
                 targets = rings(p) if callable(rings) else rings
+                camera = float(getattr(p, 'front', 0))
+                mid_x = (targets[0][0] + targets[1][0]) / 2
                 for name, target in zip(('haf', 'han'), targets):
-                    if math.dist(j[name], target) > 5:
+                    # Seen from the front, a straight-arm cross/swallow pulls each
+                    # strap outward: the ring stays at grip height on its own side
+                    # but moves sideways with the hand (straps drawn to the hand).
+                    hx, hy = j[name]
+                    strap_follows = (camera > 0 and abs(hy - target[1]) <= 5
+                                     and (hx - mid_x) * (target[0] - mid_x) > 0
+                                     and abs(hx - mid_x) <= 70)
+                    if math.dist(j[name], target) > 5 and not strap_follows:
                         problems.append(f'frame {i}: {name} is not at a ring grip point')
+                    # Only a full front view can hide a grip behind the trunk: in side
+                    # view the near ring is drawn over the body, and mid camera turn the
+                    # projection briefly crosses the hand behind the trunk.
+                    if camera < 1:
+                        continue
                     if _point_segment_distance(j[name], j['pelvis'], j['neck']) < 8.5:
                         problems.append(f'frame {i}: {name} is covered by the torso at the ring grip')
             if vertical_support and meta.get('verticalSupport'):

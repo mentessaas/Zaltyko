@@ -145,6 +145,19 @@ class GeometryValidatorTests(unittest.TestCase):
         self.assertFalse(board['accepts']((250, scene.at('board')[1])))   # 250 drawn = 210 unshifted: before the board
         self.assertEqual(scene.at([300, 316]), scene.at('board@300')[:1] + (316.0,))
 
+    def test_ring_grip_rules_skip_foot_landings(self):
+        points = joints(pelvis=(180, 80), neck=(180, 80), han=(180, 80), haf=(180, 80), ton=(300, 330))
+        tl = frame(points, contact=('ton', (300, 330)))
+        problems = validate(tl, rings=[(180, 0), (180, 0)])
+        self.assertFalse(any('ring grip' in problem for problem in problems))
+
+    def test_torso_cover_is_checked_only_in_full_front_view(self):
+        points = joints(pelvis=(180, 80), neck=(180, 80), han=(180, 80), haf=(180, 80))
+        tl = frame(points, contact=('han', (180, 80)))
+        tl.frames[0][0].front = 0.5
+        problems = validate(tl, rings=[(180, 80), (180, 80)])
+        self.assertFalse(any('is covered' in problem for problem in problems))
+
     def test_declared_parallel_bars_handstand_rejects_leaned_support(self):
         tl = frame(joints(pelvis=(180, 100), neck=(205, 75), han=(180, 100)), torso=60,
                    contact=('han', (180, 100)), contact_phase=0, verticalSupport=True)
