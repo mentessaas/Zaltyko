@@ -222,7 +222,8 @@ def joint_angles(p):
     out['arch'] = getattr(p, 'arch', 0)
     return out
 
-def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=()):
+def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=(),
+             surfaces=(), canvas=None, canvas_shift=0, rings=None):
     problems = []
     prev = None; prev_meta = {}
     for i, (p, pel, meta) in enumerate(tl.frames):
@@ -233,15 +234,21 @@ def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=()):
                 if not lo <= val <= hi:
                     problems.append(f'frame {i}: {name} {val:.0f}° outside {lo}..{hi}')
         j = p.joints(pel)
+        if canvas is not None:
+            width, height = canvas
+            for name, (x, y) in j.items():
+                y += canvas_shift
+                if x < 0 or x > width or y < 0 or y > height:
+                    problems.append(f'frame {i}: {name} outside canvas ({x:.1f}, {y:.1f})')
         if floor_y is not None:
             # physical heights: the raised camera of yaw-turned frames moves points on screen, not in space
             jf = p._joints_flat(pel) if getattr(p, 'yaw', 0) else j
             low = max(y for k, (x, y) in jf.items() if k != 'head')
             if low > floor_y + 2: problems.append(f'frame {i}: below the floor by {low - floor_y:.1f}px')
         for (x0, y0, x1, y1) in solids:
-            # side view is depth-ambiguous: head, hands and legs may hang BESIDE a beam; only the trunk
-            # (pelvis, neck) can never be inside the apparatus
-            for k, (x, y) in ((k, j[k]) for k in ('pelvis', 'neck')):
+            # Treat every articulated point like a possible collision; the old trunk-only
+            # check let a support leg pass through the beam unnoticed.
+            for k, (x, y) in j.items():
                 if x0 + 1 < x < x1 - 1 and y0 + 1.5 < y < y1 - 0.5:
                     problems.append(f'frame {i}: {k} inside the apparatus'); break
         for b in bars:
@@ -252,6 +259,34 @@ def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=()):
         if meta.get('contact'):
             jn, pt = meta['contact']
             if math.dist(j[jn], pt) > 1.0: problems.append(f'frame {i}: contact {jn} slipped')
+            if surfaces and not any(surface['accepts'](pt) for surface in surfaces):
+                problems.append(f'frame {i}: contact {jn} is not on an apparatus surface')
+            # On beam/bar tops, no body point may cross below the top while it is
+            # horizontally over the apparatus. A real hang is allowed only when
+            # the contact phase explicitly declares underBar.
+            if not meta.get('underBar'):
+                supporting_tops = [surface for surface in surfaces
+                                   if surface.get('top') is not None and surface['accepts'](pt)]
+                for surface in supporting_tops:
+                    if surface.get('top') is None:
+                        continue
+                    x0, x1, top = surface['x0'], surface['x1'], surface['top']
+                    for name in ('ton', 'tof', 'ann', 'anf', 'knn', 'knf', 'hipn', 'hipf',
+                                 'pelvis', 'neck', 'head', 'han', 'haf'):
+                        x, y = j[name]
+                        if x0 <= x <= x1 and y > top + 4:
+                            problems.append(f'frame {i}: {name} below apparatus top while over it')
+                            break
+                    else:
+                        continue
+                    break
+            if rings is not None:
+                # Both hands need a visible ring at their actual grip points. Side
+                # view projects the pair to the same point; front view separates them.
+                targets = rings(p) if callable(rings) else rings
+                for name, target in zip(('haf', 'han'), targets):
+                    if math.dist(j[name], target) > 5:
+                        problems.append(f'frame {i}: {name} is not at a ring grip point')
         if prev is not None:
             # per-segment speed limits (deg per frame at 30 fps), from biomechanics:
             # trunk ~840 deg/s, leg kicks ~1050 deg/s, arm swings ~1200 deg/s

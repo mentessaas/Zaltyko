@@ -19,6 +19,18 @@ def pose_of(d):
 def shape_of(d):
     p = pose_of(d); return Shape.of(p, p.facing)
 
+def validate_timeline(spec, sc, tl):
+    front = spec.get('view') == 'front'
+    shift = headroom(tl)
+    rings = None
+    if sc.kind == 'rings':
+        center = sc.at('rings')
+        rings = lambda p: ([(center[0]-21, center[1]), (center[0]+21, center[1])]
+                           if front or p.front else [center, center])
+    return validate(tl, floor_y=sc.floor_y, bars=sc.bars, front=front,
+                    solids=getattr(sc, 'solids', ()), surfaces=getattr(sc, 'surfaces', ()),
+                    canvas=(sc.w, sc.h + shift), canvas_shift=shift, rings=rings)
+
 def planned_flight_velocity(p0, pel0, phase, sc):
     """Return the exact ballistic launch velocity implied by this flight's landing/apex."""
     f = phase['flight']; land = f['land']
@@ -74,14 +86,14 @@ def build(spec):
                 # Burt et al. report up to 8.46 BW at the ankles in floor round-offs; use as a linked-acro envelope.
                 # https://www.fsp.uni-lj.si/mma/SCGYM_2_3_2010_article1/2010093009140391/?m=1285830843
                 elastic_accel = (8.46 - 1.0) * 9.81
-            existing = set(validate(tl, floor_y=sc.floor_y, bars=sc.bars,
-                                    front=spec.get('view') == 'front', solids=getattr(sc, 'solids', ())))
+            existing = set(validate_timeline(spec, sc, tl))
             existing_momentum = len(momentum_warnings(tl))
             contact(tl, keys, c['joint'], pt, surface=sc.floor_y, end_velocity=launch_velocity,
                     phase_id=phase_index, elastic_accel=elastic_accel)   # front view is set per pose
+            for _, _, meta in tl.frames[start:]:
+                meta['underBar'] = bool(c.get('underBar'))
             if launch_velocity is not None:
-                candidate_problems = validate(tl, floor_y=sc.floor_y, bars=sc.bars,
-                                              front=spec.get('view') == 'front', solids=getattr(sc, 'solids', ()))
+                candidate_problems = validate_timeline(spec, sc, tl)
                 if set(candidate_problems) - existing:
                     # Reduce the launch tangent only as much as needed to preserve every validator rule.
                     low, high, best = 0.0, 1.0, None
@@ -90,8 +102,9 @@ def build(spec):
                         tl.frames = tl.frames[:start]
                         contact(tl, keys, c['joint'], pt, surface=sc.floor_y, end_velocity=launch_velocity,
                                 phase_id=phase_index, elastic_accel=elastic_accel, tangent_scale=scale)
-                        revised = validate(tl, floor_y=sc.floor_y, bars=sc.bars,
-                                           front=spec.get('view') == 'front', solids=getattr(sc, 'solids', ()))
+                        for _, _, meta in tl.frames[start:]:
+                            meta['underBar'] = bool(c.get('underBar'))
+                        revised = validate_timeline(spec, sc, tl)
                         if set(revised) - existing or len(momentum_warnings(tl)) > existing_momentum:
                             high = scale
                         else:
@@ -100,6 +113,8 @@ def build(spec):
                         tl.frames = tl.frames[:start]
                         contact(tl, keys, c['joint'], pt, surface=sc.floor_y, phase_id=phase_index,
                                 elastic_accel=elastic_accel)
+                        for _, _, meta in tl.frames[start:]:
+                            meta['underBar'] = bool(c.get('underBar'))
                     else:
                         tl.frames = best
             if c.get('twist'):
@@ -131,8 +146,7 @@ def build(spec):
     return sc, tl, flights
 
 def validate_spec(spec, sc, tl):
-    front = spec.get('view') == 'front'
-    return validate(tl, floor_y=sc.floor_y, bars=sc.bars, front=front, solids=getattr(sc, 'solids', ()))
+    return validate_timeline(spec, sc, tl)
 
 def turns_label(deg):
     """720 -> '2', 540 -> '1½', 180 -> '½', 270 -> '¾'."""
@@ -171,6 +185,8 @@ def floor_band(sc, tl):
 
 def headroom(tl, margin=22):
     """Pixels to shift the scene down so the highest point of any frame stays inside the canvas."""
+    if not tl.frames:
+        return 0
     top = min(min(y for k, (x, y) in p.joints(pel).items()) - 12 for p, pel, _ in tl.frames)
     return max(0, round(margin - top))
 

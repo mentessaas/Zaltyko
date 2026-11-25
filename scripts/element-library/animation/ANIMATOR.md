@@ -42,6 +42,12 @@ in `work/` to generate families of specs (e.g. "back salto with N twists") inste
   `vault` (wider canvas, 640 px ≈ 7.5 m: runway from x≈20 for the hurdle/round-off, `board` at x≈280, `table@X` top 1.25 m with the table between x 370 and 462, `floor@X`, `mat@X` between x 478 and 628).
   Use x between ~30 and ~330. The canvas grows upward automatically.
 
+### Apparatus contact and body clearance
+
+Pose angles are absolute screen-space directions (`0` up, `90` right, `180` down, `270` left). In particular, a leg angle of `180` points the leg down through the screen; it does not mean “the supporting leg” or “standing.” Pinning a hand or foot fixes only that joint; it does not move or protect the rest of the body. For beam and bar-top support, keep every joint that is horizontally over the apparatus above its top surface. A limb beside the apparatus can hang below the top only when it is outside the apparatus span.
+
+For an intentional hang or under-bar swing on rings, high bar, or uneven bars, mark that contact phase with `"underBar": true`. Do not use the flag for a handstand or a support on top of the apparatus. Contacts must land on the named apparatus surface or grip point (within a few pixels); an anchor name alone does not make a misplaced contact valid. Ring contact keeps both hands on the rendered ring grip points, and the straps terminate at those hands.
+
 ## Spec
 ```json
 {"elementKey": "...", "scene": "floor", "view": "side", "holdS": 0.5,
