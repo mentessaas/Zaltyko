@@ -17,9 +17,13 @@ class Scene:
         self.anchors = {name: (point[0] + x_offset, point[1]) for name, point in anchors.items()}
         self._draw = draw
         self.solids = [(x0 + x_offset, y0, x1 + x_offset, y1) for x0, y0, x1, y1 in solids]
-        self.surfaces = [dict(surface, x0=surface['x0'] + x_offset, x1=surface['x1'] + x_offset)
+        # accepts() predicates are written in unshifted scene coordinates; shift the point back before testing
+        self.surfaces = [dict(surface, x0=surface['x0'] + x_offset, x1=surface['x1'] + x_offset,
+                              accepts=(lambda p, test=surface['accepts']: test((p[0] - x_offset, p[1]))))
                          for surface in surfaces]
     def at(self, name):
+        if not isinstance(name, str):   # raw [x, y] from a spec, in unshifted scene coordinates
+            return (float(name[0]) + self.x_offset, float(name[1]))
         if '@' in name:
             base, x = name.split('@'); return (float(x) + self.x_offset, self.anchors[base][1])
         return self.anchors[name]

@@ -55,7 +55,7 @@ def _apply_camera_transition(tl, start, source, target, frames, joint, source_po
 def planned_flight_velocity(p0, pel0, phase, sc):
     """Return the exact ballistic launch velocity implied by this flight's landing/apex."""
     f = phase['flight']; land = f['land']
-    point = sc.at(land['at']) if isinstance(land['at'], str) else tuple(land['at'])
+    point = sc.at(land['at'])
     end_pose = f['shapes'][-1]['pose']
     end_shape = shape_of(end_pose)
     end_pose = end_shape.pose(p0.torso + f['rotation'])
@@ -79,7 +79,7 @@ def build(spec):
     sc = SCENES[spec['scene']](); tl = Timeline(); flights = []
     for phase_index, ph in enumerate(spec['timeline']):
         if 'contact' in ph:
-            c = ph['contact']; pt = sc.at(c['at']) if isinstance(c['at'], str) else tuple(c['at'])
+            c = ph['contact']; pt = sc.at(c['at'])
             keys = [(k.get('dt', 0), k['pose']['torso'], shape_of(k['pose'])) for k in c['keys']]
             declared_view = c.get('view', 'front' if spec.get('view') == 'front' else None)
             if declared_view is not None:
@@ -178,7 +178,7 @@ def build(spec):
                 for i in range(start, len(tl.frames)):
                     tl.frames[i][2]['twistShow'] = True; tl.frames[i][2]['twistTotal'] = abs(c['twist']['total'])
         else:
-            f = ph['flight']; land = f['land']; pt = sc.at(land['at']) if isinstance(land['at'], str) else tuple(land['at'])
+            f = ph['flight']; land = f['land']; pt = sc.at(land['at'])
             p0, pel0, _ = tl.last; c0y = pel0[1] + com(p0)[1]
             apex = c0y - f['riseM'] * PX_PER_M if 'riseM' in f else None
             if 'apexAbove' in f:   # e.g. {"at": "bar", "m": 0.8}: COM peak this high above an anchor

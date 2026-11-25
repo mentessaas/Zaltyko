@@ -135,6 +135,16 @@ class GeometryValidatorTests(unittest.TestCase):
         self.assertGreaterEqual(scene.at('floor@70')[0], 40)
         self.assertGreater(scene.w, 640)
 
+    def test_vault_offset_shifts_surfaces_and_raw_points_together(self):
+        from scenes import vault
+        scene = vault()
+        board = next(s for s in scene.surfaces if s['name'] == 'board')
+        table = next(s for s in scene.surfaces if s['name'] == 'table')
+        self.assertTrue(board['accepts'](scene.at('board@280')))
+        self.assertTrue(table['accepts'](scene.at('table@420')))
+        self.assertFalse(board['accepts']((250, scene.at('board')[1])))   # 250 drawn = 210 unshifted: before the board
+        self.assertEqual(scene.at([300, 316]), scene.at('board@300')[:1] + (316.0,))
+
     def test_declared_parallel_bars_handstand_rejects_leaned_support(self):
         tl = frame(joints(pelvis=(180, 100), neck=(205, 75), han=(180, 100)), torso=60,
                    contact=('han', (180, 100)), contact_phase=0, verticalSupport=True)
