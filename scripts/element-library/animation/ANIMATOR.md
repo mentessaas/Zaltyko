@@ -155,3 +155,16 @@ Bars, rings, parallel bars, beam, and ordinary floor support keep the 1.5 m/s ta
 within-support limits. Review the remaining warnings: they usually indicate a one-frame final key
 interval, a launch pose whose pinned-contact COM path cannot reach the ballistic velocity within the
 existing segment-speed limits, or an internal stop-and-go between authored keys.
+
+## Reference specs (copy the pattern, not the poses blindly)
+
+`specs/reference/` holds specs that pass the canonical engine with zero problems and zero momentum
+warnings and that Claude checked frame by frame. When an element has the same kind of movement, start from
+the matching reference and change only what the element's facts require.
+
+| Movement | Reference | What to copy |
+|---|---|---|
+| Tucked salto (any apparatus) | `ref_mhb_dm_double_salto_fwd_tuck.json` | Flight shape `leg_n: [50, 170]` relative to the trunk: thigh-trunk 50°, knee flexed 120° (heel near the seat). Open to `[180, 180]` only after the last quarter turn. |
+| Roll on the beam | `ref_bb_roll_fwd.json` | Contact changes joint as the body rolls: `ton` (squat) → `neck` (hips above the neck, head tucked with `head` ~110) → `pelvis` (sit). The last key of one phase equals the first key of the next, and the next phase's `at` is where that joint already is. Arms stay with `shoulder` ≤ 60° so the hands never go into the beam. |
+| Parallel bars salto landing in handstand | `ref_mpb_sp_salto_bwd_to_handstand.json` | Swing back, swing forward (arms stay near vertical, `underBar` true), short last key (0.3 s) so take-off speed matches, `rotation` chosen so the landing torso is exactly 180 (mod 360): the body arrives already inverted, then a `verticalSupport` phase holds the handstand. |
+| Rings strength (cross, swallow, L-cross) | `ref_mrg_kip_to_cross.json` | Swing phases in side view on `rings`; the strength hold in `view: 'front'` on `ring_far` with `cameraTransitionS`, so the far hand stays on its ring and joint limits are not measured in a side view. |
