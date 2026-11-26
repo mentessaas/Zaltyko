@@ -164,6 +164,21 @@ class GeometryValidatorTests(unittest.TestCase):
         problems = validate(tl, vertical_support=True)
         self.assertTrue(any('vertical support trunk leans' in problem for problem in problems))
 
+    def test_flight_catch_frame_inherits_declared_under_bar(self):
+        straight = {'torso': 0, 'arm_n': [180, 180], 'arm_f': [180, 180], 'leg_n': [180, 180], 'leg_f': [180, 180]}
+        spec = {'scene': 'parallel_bars', 'timeline': [
+            {'contact': {'joint': 'han', 'at': [180, 153], 'underBar': True,
+                         'keys': [{'dt': 0, 'pose': straight}, {'dt': 0.3, 'pose': dict(straight, torso=30)}]}},
+            {'flight': {'rotation': 0, 'durationS': 0.4, 'land': {'joint': 'han', 'at': [190, 153], 'underBar': True},
+                        'shapes': [{'u': 1.0, 'pose': straight}]}},
+            {'contact': {'joint': 'han', 'at': [190, 153], 'underBar': True,
+                         'keys': [{'dt': 0, 'pose': dict(straight, torso=30)}, {'dt': 0.3, 'pose': straight}]}},
+        ]}
+        _, timeline, _ = build(spec)
+        catch = [meta for _, _, meta in timeline.frames if meta.get('contact') and 'contact_phase' not in meta]
+        self.assertTrue(catch)
+        self.assertTrue(all(meta.get('underBar') for meta in catch))
+
 
 if __name__ == '__main__':
     unittest.main()

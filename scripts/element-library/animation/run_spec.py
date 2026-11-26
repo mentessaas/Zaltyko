@@ -197,6 +197,9 @@ def build(spec):
                     if 0 < done < abs(twist): tl.frames[i][2]['twistTotal'] = abs(twist)
                     if round(done / 180) % 2 == 1:
                         p = tl.frames[i][0]; p.facing = -getattr(p, 'facing', 1)
+            if land.get('underBar') and len(tl.frames) > start:
+                # the catch frame belongs to the next contact (a hang or upper-arm catch between the rails)
+                tl.frames[-1][2]['underBar'] = True
             info['twist'] = twist; flights.append(info)
     return sc, tl, flights
 
