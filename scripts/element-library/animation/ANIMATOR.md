@@ -169,3 +169,11 @@ the matching reference and change only what the element's facts require.
 | Parallel bars salto landing in handstand | `ref_mpb_sp_salto_bwd_to_handstand.json` | Swing back, swing forward (arms stay near vertical, `underBar` true), short last key (0.3 s) so take-off speed matches, `rotation` chosen so the landing torso is exactly 180 (mod 360): the body arrives already inverted, then a `verticalSupport` phase holds the handstand. |
 | Rings strength (cross, swallow, L-cross) | `ref_mrg_kip_to_cross.json` | Swing phases in side view on `rings`; the strength hold in `view: 'front'` on `ring_far` with `cameraTransitionS`, so the far hand stays on its ring and joint limits are not measured in a side view. |
 | Sole circle / toe-on / pike stand on a bar | `ref_ub_sole_circle_bwd.json` | Hands AND feet on the same bar: the body is a fixed triangle (bar→shoulder 44 px, shoulder→hip 44 px, hip→toes 66 px) rotated around the bar. Keys every 10° of the circle (dt 0.04) keep the toes within 3 px of the bar; `underBar` true; one contact phase on `han`. Built by computing torso, arm and leg angles from that triangle. |
+
+## Twists flip the figure's facing (read before writing any shape after a 1/2, 3/2 ... twist)
+
+After an odd number of half turns the engine flips `facing`, so the figure is drawn mirrored. A flight
+shape written as `leg [50, 170]` (a tuck) then folds BACKWARD (hip ~230°, knee ~-120°) once the twist is done.
+Rules: keep the legs straight (`[180, 180]`) and both legs equal while the twist runs, so the flip does not make
+limbs jump; after an odd half-turn count, write the tuck mirrored as `leg [310, 190]`; after an even count, use
+`[50, 170]`. Close or open a tuck over at least 0.2 of the flight; a faster change makes the limbs jump.
