@@ -24,24 +24,26 @@ def ease(u): return u * u * (3 - 2 * u)
 # ---------- representation ----------
 class Shape:
     """Pose relative to the torso: rel angles for upper/lower of each limb, plus head tilt."""
-    def __init__(self, arm_n, arm_f, leg_n, leg_f, head=0.0, facing=1, yaw=0.0, yaw_pivot='han', front=False, arch=0.0):
+    def __init__(self, arm_n, arm_f, leg_n, leg_f, head=0.0, facing=1, yaw=0.0, yaw_pivot='han', front=False, arch=0.0, spread=0.0):
         self.arm_n, self.arm_f, self.leg_n, self.leg_f, self.arch = arm_n, arm_f, leg_n, leg_f, arch
+        self.spread = spread
         self.head, self.facing, self.yaw, self.yaw_pivot, self.front = head, facing, yaw, yaw_pivot, front
     @staticmethod
     def of(p, facing=1):
         r = lambda pair: (pair[0] - p.torso, pair[1] - p.torso)
-        return Shape(r(p.arm_n), r(p.arm_f), r(p.leg_n), r(p.leg_f), p.head, facing, getattr(p, 'yaw', 0), getattr(p, 'yaw_pivot', 'han'), getattr(p, 'front', False), getattr(p, 'arch', 0))
+        return Shape(r(p.arm_n), r(p.arm_f), r(p.leg_n), r(p.leg_f), p.head, facing, getattr(p, 'yaw', 0), getattr(p, 'yaw_pivot', 'han'), getattr(p, 'front', False), getattr(p, 'arch', 0), getattr(p, 'spread', 0))
     def pose(self, torso):
         a = lambda pair: (pair[0] + torso, pair[1] + torso)
         p = Pose(torso=torso, arm_n=a(self.arm_n), arm_f=a(self.arm_f), leg_n=a(self.leg_n), leg_f=a(self.leg_f), head=self.head)
-        p.facing = self.facing; p.yaw = self.yaw; p.yaw_pivot = self.yaw_pivot; p.front = self.front; p.arch = self.arch
+        p.facing = self.facing; p.yaw = self.yaw; p.yaw_pivot = self.yaw_pivot; p.front = self.front; p.arch = self.arch; p.spread = self.spread
         return p
 
 def lerp_shape(a, b, u):
     l = lambda x, y: x + (y - x) * u   # follow the direction written in the spec (validator catches impossible paths)
     pr = lambda p, q: (l(p[0], q[0]), l(p[1], q[1]))
     return Shape(pr(a.arm_n, b.arm_n), pr(a.arm_f, b.arm_f), pr(a.leg_n, b.leg_n), pr(a.leg_f, b.leg_f), l(a.head, b.head),
-                 a.facing if u < 0.5 else b.facing, l(a.yaw, b.yaw), a.yaw_pivot, l(float(a.front), float(b.front)), l(a.arch, b.arch))
+                 a.facing if u < 0.5 else b.facing, l(a.yaw, b.yaw), a.yaw_pivot, l(float(a.front), float(b.front)), l(a.arch, b.arch),
+                 l(getattr(a, 'spread', 0), getattr(b, 'spread', 0)))
 
 # ---------- mechanics ----------
 def com(p, pelvis=(0, 0)):
@@ -78,10 +80,10 @@ class Timeline:
     @property
     def last(self): return self.frames[-1]
 
-_POSE_FIELDS = ('torso', 'arm_n', 'arm_f', 'leg_n', 'leg_f', 'head', 'arch')
+_POSE_FIELDS = ('torso', 'arm_n', 'arm_f', 'leg_n', 'leg_f', 'head', 'arch', 'spread')
 
 def _pose_values(p):
-    return [p.torso, *p.arm_n, *p.arm_f, *p.leg_n, *p.leg_f, p.head, getattr(p, 'arch', 0.0)]
+    return [p.torso, *p.arm_n, *p.arm_f, *p.leg_n, *p.leg_f, p.head, getattr(p, 'arch', 0.0), getattr(p, 'spread', 0.0)]
 
 def _pose_from_values(values, template):
     torso = values[0]
@@ -90,6 +92,7 @@ def _pose_from_values(values, template):
     p.yaw = getattr(template, 'yaw', 0)
     p.yaw_pivot = getattr(template, 'yaw_pivot', 'han')
     p.arch = values[10]
+    p.spread = values[11] if len(values) > 11 else 0.0
     return p
 
 def _launch_tangent(start, end, joint, point, target_velocity, duration, frames):
@@ -105,7 +108,7 @@ def _launch_tangent(start, end, joint, point, target_velocity, duration, frames)
     desired = (endpoint[0] - target_velocity[0] / FPS,
                endpoint[1] - (target_velocity[1] + 0.5 * G / FPS) / FPS)
     base = [h00*a + h01*b for a, b in zip(q0, q1)]
-    bounds = [798, 1140, 1140, 997.5, 997.5, 997.5, 997.5, 997.5, 997.5, 0, 570]
+    bounds = [798, 1140, 1140, 997.5, 997.5, 997.5, 997.5, 997.5, 997.5, 0, 570, 0]
     rates = [0.0] * n
     for _ in range(120):
         q = [b + factor*r for b, r in zip(base, rates)]
@@ -230,7 +233,12 @@ def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=(),
         # face-on frames and frames in the middle of a twist (the 2D figure mirrors) skip side-view joint limits
         pose_front = float(getattr(p, 'front', False)) >= 0.5
         if not front and not pose_front and not meta.get('twist'):
+            spread = getattr(p, 'spread', 0) >= 0.5
             for name, val in joint_angles(p).items():
+                # arms spread sideways (cross, swallow, inverted cross seen from the side): the
+                # sagittal shoulder angle says nothing about an abducted arm, so it is not checked
+                if spread and name.startswith('shoulder'):
+                    continue
                 lo, hi = LIMITS[name.split('_')[0]]
                 if not lo <= val <= hi:
                     problems.append(f'frame {i}: {name} {val:.0f}° outside {lo}..{hi}')

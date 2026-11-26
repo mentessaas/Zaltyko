@@ -1,4 +1,5 @@
 """Regression coverage for apparatus contact and drawing bounds."""
+import math
 import unittest
 from types import SimpleNamespace
 
@@ -178,6 +179,20 @@ class GeometryValidatorTests(unittest.TestCase):
         catch = [meta for _, _, meta in timeline.frames if meta.get('contact') and 'contact_phase' not in meta]
         self.assertTrue(catch)
         self.assertTrue(all(meta.get('underBar') for meta in catch))
+
+    def test_spread_arms_are_foreshortened_and_skip_the_sagittal_shoulder_limit(self):
+        from engine2 import Timeline as TL
+        pose = Pose(torso=90, arm_n=(0, 0), arm_f=(0, 0), leg_n=(270, 270), leg_f=(270, 270))
+        pose.facing = 1; pose.yaw = 0; pose.yaw_pivot = 'han'; pose.arch = 0; pose.front = 0
+        full = math.dist(pose.joints((0, 0))['shn'], pose.joints((0, 0))['han'])
+        pose.spread = 1.0
+        short = math.dist(pose.joints((0, 0))['shn'], pose.joints((0, 0))['han'])
+        self.assertLess(short, 0.2 * full)
+        timeline = TL(); timeline.add(pose, (180, 200))
+        self.assertFalse(any('shoulder' in problem for problem in validate(timeline)))
+        pose.spread = 0.0
+        timeline = TL(); timeline.add(pose, (180, 200))
+        self.assertTrue(any('shoulder' in problem for problem in validate(timeline)))
 
 
 if __name__ == '__main__':
