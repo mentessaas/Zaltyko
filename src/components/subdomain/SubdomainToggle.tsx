@@ -76,8 +76,7 @@ export function SubdomainToggle({
               Activar <code>{slug}.zaltyko.com</code>
             </h2>
             <p style={{ color: "#5C6782", fontSize: 13, margin: "4px 0 0", lineHeight: 1.4 }}>
-              Disponible en plan Network. Tu academia obtendrá una URL propia
-              con SEO consolidado.
+              Activa una dirección web propia para tu academia.
             </p>
           </div>
           <button

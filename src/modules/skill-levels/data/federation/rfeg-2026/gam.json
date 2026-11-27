@@ -1,0 +1,1962 @@
+{
+  "federation": "RFEG",
+  "edition": "rfeg-2026",
+  "consultedOn": "2026-11-24",
+  "documentDate": "2025-09-26",
+  "sourceDocument": "Programa técnico de Base 2026 (GAM)",
+  "sourceUrl": null,
+  "key": "rfeg_2026_gam_base",
+  "discipline": "artistic_male",
+  "levels": [
+    {
+      "name": "Base 1",
+      "page": 4,
+      "requirements": [
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 4,
+          "fact": "Voltereta adelante lanzada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 4,
+          "fact": "Pino con impulso.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 4,
+          "fact": "Sapo mantenido 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 4,
+          "fact": "Ángulo 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 4,
+          "fact": "Plancha dorsal 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 4,
+          "fact": "Medio giro a plancha facial 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 4,
+          "fact": "Voltereta atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 4,
+          "fact": "Paso por pino.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 4,
+          "fact": "Voltereta adelante desde pino.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 4,
+          "fact": "Rondada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 4,
+          "fact": "Salto arriba.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 4,
+          "fact": "Condición: Pista de 12 × 12 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Seta (caballo con arcos de iniciación)",
+          "page": 5,
+          "fact": "Cuatro molinos en total.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Seta (caballo con arcos de iniciación)",
+          "page": 5,
+          "fact": "Salida alemana.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Seta (caballo con arcos de iniciación)",
+          "page": 5,
+          "fact": "Condición: Seta sin arco: 8 o 12 molinos más salida alemana; con arco: 4, 8 o 12 molinos más salida.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Seta (caballo con arcos de iniciación)",
+          "page": 5,
+          "fact": "Condición: Diámetro 40–70 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Seta (caballo con arcos de iniciación)",
+          "page": 5,
+          "fact": "Condición: Altura 40–60 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Seta (caballo con arcos de iniciación)",
+          "page": 5,
+          "fact": "Condición: Colchoneta 10–20 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 6,
+          "fact": "Vela agrupada mantenida 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 6,
+          "fact": "Vela extendida mantenida 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 6,
+          "fact": "Cuatro vuelos en cada sentido (adelante/atrás).",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 6,
+          "fact": "Salida por detrás con apoyo en las anillas.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 6,
+          "fact": "Condición: Colchoneta adicional de seguridad de 20 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 6,
+          "fact": "Condición: Entrenador presente.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 7,
+          "fact": "Salto a elegir: mortal adelante agrupado, carpado o extendido.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 7,
+          "fact": "Condición: Trampolín doble.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 7,
+          "fact": "Condición: Colchonetas a 60 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 8,
+          "fact": "Subida asistida al apoyo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 8,
+          "fact": "Sentado en bandas 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 8,
+          "fact": "Ángulo 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 8,
+          "fact": "Impulso por delante sobre bandas.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 8,
+          "fact": "Balanceo atrás hasta horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 8,
+          "fact": "Balanceos en ambos sentidos (adelante/atrás) hasta horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 8,
+          "fact": "Balanceos en ambos sentidos (adelante/atrás)",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 8,
+          "fact": "Salida lateral extendida.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 8,
+          "fact": "Condición: Paralelas a 1,50 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 8,
+          "fact": "Condición: Colchoneta de 20 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 8,
+          "fact": "Condición: Entrenador presente.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 9,
+          "fact": "Vuelta atrás con piernas extendidas hasta apoyo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 9,
+          "fact": "Balanceos en ambos sentidos (adelante/atrás) hasta horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 9,
+          "fact": "Dos balanceos por sentido (adelante/atrás)",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 9,
+          "fact": "Balanceo atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 9,
+          "fact": "Salida buscando apoyo en la barra.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 9,
+          "fact": "Condición: Colchoneta adicional de seguridad de 25 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 9,
+          "fact": "Condición: Entrenador presente.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 8,
+          "fact": "Condición: Trampolín doble.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 6,
+          "fact": "Condición: Anillas a altura FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 9,
+          "fact": "Condición: Barra fija a altura FIG.",
+          "elementKey": null
+        }
+      ]
+    },
+    {
+      "name": "Base 2",
+      "page": 10,
+      "requirements": [
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Paloma.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "León.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Paso lateral con giro.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Rueda lateral.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Pino a spagat mantenido 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Medio molino.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Ángulo 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Plancha dorsal pasajera.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Media vuelta a plancha facial pasajera.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Elevación de caderas y piernas hasta la vertical.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Voltereta atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Balanza 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Mortal adelante.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Giro de media vuelta.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Rondada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Flic-flac.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 10,
+          "fact": "Condición: Pista de 12 × 12 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Seta (caballo con arcos de iniciación)",
+          "page": 11,
+          "fact": "Seis molinos en total.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Seta (caballo con arcos de iniciación)",
+          "page": 11,
+          "fact": "Salida alemana.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Seta (caballo con arcos de iniciación)",
+          "page": 11,
+          "fact": "Condición: Seta (caballo con arcos de iniciación): sin arco, 7–10 molinos y salida; con arco, ejercicio básico, cheque o 7–10 molinos y salida.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 12,
+          "fact": "Subida asistida.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 12,
+          "fact": "Ángulo 5 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 12,
+          "fact": "Bajada controlada a vela.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 12,
+          "fact": "Dos vuelos en cada sentido (adelante/atrás).",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 12,
+          "fact": "Vuelos en ambos sentidos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 12,
+          "fact": "Dislocación atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 12,
+          "fact": "Salida extendida atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 12,
+          "fact": "Condición: Anillas a altura FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 12,
+          "fact": "Condición: Colchoneta de seguridad de 20 cm adicional.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 12,
+          "fact": "Condición: Entrenador presente.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 13,
+          "fact": "Salto a elegir: paloma, rondada, mortal adelante extendido o entrada Yurchenko sin mortal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 13,
+          "fact": "Condición: Colchonetas a la altura de la plataforma.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 14,
+          "fact": "Carrera.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 14,
+          "fact": "Subida al apoyo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 14,
+          "fact": "Sentado en bandas 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 14,
+          "fact": "Ángulo 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 14,
+          "fact": "Impulso por delante.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 14,
+          "fact": "Balanceo atrás hasta horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 14,
+          "fact": "Dos balanceos por sentido (adelante/atrás) hasta horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 14,
+          "fact": "Balanceos en ambos sentidos (adelante/atrás)",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 14,
+          "fact": "Salida lateral extendida.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 14,
+          "fact": "Condición: Paralelas a 1,60 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 14,
+          "fact": "Condición: Colchoneta 20 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 14,
+          "fact": "Condición: Trampolín doble.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 15,
+          "fact": "Vuelta atrás con piernas extendidas al apoyo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 15,
+          "fact": "Despegue.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 15,
+          "fact": "Vuelta atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 15,
+          "fact": "Balanceos en ambos sentidos (adelante/atrás) hasta horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 15,
+          "fact": "Dos balanceos por sentido (adelante/atrás)",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 15,
+          "fact": "Balanceo atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 15,
+          "fact": "Mortal de salida agrupado o carpado.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 15,
+          "fact": "Condición: Colchoneta adicional de seguridad de 20 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 14,
+          "fact": "Condición: Entrenador presente.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 15,
+          "fact": "Condición: Entrenador presente.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 13,
+          "fact": "Condición: Caballo de salto a 1,10 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 13,
+          "fact": "Condición: Trampolín doble.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Seta (caballo con arcos de iniciación)",
+          "page": 11,
+          "fact": "Condición: Diámetro de seta de 40–70 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Seta (caballo con arcos de iniciación)",
+          "page": 11,
+          "fact": "Condición: Altura de seta de 40–60 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Seta (caballo con arcos de iniciación)",
+          "page": 11,
+          "fact": "Condición: Colchoneta de 10–20 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 15,
+          "fact": "Condición: Barra fija a altura FIG.",
+          "elementKey": null
+        }
+      ]
+    },
+    {
+      "name": "Base 3",
+      "page": 16,
+      "requirements": [
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 16,
+          "fact": "Paloma.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 16,
+          "fact": "Mortal adelante agrupado.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 16,
+          "fact": "Rueda lateral.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 16,
+          "fact": "Pino 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 16,
+          "fact": "Spagat 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 16,
+          "fact": "Ángulo 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 16,
+          "fact": "Plancha dorsal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 16,
+          "fact": "Facial pasajeras.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 16,
+          "fact": "Elevación a vertical.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 16,
+          "fact": "Quinta.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 16,
+          "fact": "Balanza 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 16,
+          "fact": "Rondada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 16,
+          "fact": "Flic-flac.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 16,
+          "fact": "Mortal atrás agrupado.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Caballo con arcos",
+          "page": 17,
+          "fact": "Ocho molinos rusos en total.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Caballo con arcos",
+          "page": 17,
+          "fact": "Salida alemana.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 18,
+          "fact": "Subida asistida.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 18,
+          "fact": "Ángulo 5 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 18,
+          "fact": "Descenso controlado a vela.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 18,
+          "fact": "Cuatro vuelos en cada sentido (adelante/atrás).",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 18,
+          "fact": "Vuelos en ambos sentidos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 18,
+          "fact": "Dislocación atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 18,
+          "fact": "Salida extendida atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 18,
+          "fact": "Condición: Entrenador presente.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 19,
+          "fact": "Salto FIG con 1,5 puntos añadidos a su valor de dificultad.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 19,
+          "fact": "Condición: Caballo de salto a 1,20 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 20,
+          "fact": "Carrera.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 20,
+          "fact": "Subida al apoyo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 20,
+          "fact": "Sentado en bandas 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 20,
+          "fact": "Ángulo 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 20,
+          "fact": "Impulso por delante.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 20,
+          "fact": "Balanceo atrás hasta horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 20,
+          "fact": "Dos balanceos por sentido (adelante/atrás) hasta horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 20,
+          "fact": "Balanceos en ambos sentidos (adelante/atrás)",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 20,
+          "fact": "Salida lateral extendida.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 20,
+          "fact": "Condición: Paralelas a 1,80 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 20,
+          "fact": "Condición: Colchoneta 20 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 21,
+          "fact": "Vuelta atrás con piernas extendidas al apoyo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 21,
+          "fact": "Despegue.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 21,
+          "fact": "Balanceos en ambos sentidos (adelante/atrás) hasta horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 21,
+          "fact": "Dos balanceos por sentido (adelante/atrás)",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 21,
+          "fact": "Balanceo atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 21,
+          "fact": "Mortal de salida agrupado o carpado.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 21,
+          "fact": "Condición: Colchoneta 20 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 21,
+          "fact": "Condición: Colchoneta de seguridad opcional.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 16,
+          "fact": "Condición: Pista de 12 × 12 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Caballo con arcos",
+          "page": 17,
+          "fact": "Condición: Caballo sin arcos a altura FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Caballo con arcos",
+          "page": 17,
+          "fact": "Condición: Colchoneta de 10 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Caballo con arcos",
+          "page": 17,
+          "fact": "Condición: Hasta dos colchonetas adicionales de 25 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 18,
+          "fact": "Condición: Colchoneta de seguridad de 20 cm opcional.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 19,
+          "fact": "Condición: Trampolín sencillo o doble.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 20,
+          "fact": "Condición: Uso de trampolín opcional.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 21,
+          "fact": "Condición: Longitud de colchoneta 10 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 21,
+          "fact": "Condición: Entrenador presente.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 18,
+          "fact": "Condición: Anillas a altura FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 21,
+          "fact": "Condición: Barra fija a altura FIG.",
+          "elementKey": null
+        }
+      ]
+    },
+    {
+      "name": "Base 4",
+      "page": 22,
+      "requirements": [
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 22,
+          "fact": "Dos mortales adelante agrupados.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 22,
+          "fact": "Rueda lateral.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 22,
+          "fact": "Pino mantenido 2 s.",
+          "elementKey": "mfx_handstand_hold"
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 22,
+          "fact": "Voltereta al frente.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 22,
+          "fact": "Olímpico.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 22,
+          "fact": "Bajada controlada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 22,
+          "fact": "Salto con medio giro.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 22,
+          "fact": "Quinta.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 22,
+          "fact": "Balanza 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 22,
+          "fact": "Rondada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 22,
+          "fact": "Flic-flac.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 22,
+          "fact": "Mortal atrás: opciones agrupada, carpada o extendida.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Caballo con arcos",
+          "page": 23,
+          "fact": "Ocho molinos rusos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Caballo con arcos",
+          "page": 23,
+          "fact": "Ocho klimenkos en el total del ejercicio.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Caballo con arcos",
+          "page": 23,
+          "fact": "Condición: Klimenkos pueden concentrarse en una subida.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 24,
+          "fact": "Ángulo en suspensión 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 24,
+          "fact": "Vela extendida 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 24,
+          "fact": "Balanceos en ambos sentidos (adelante/atrás)",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 24,
+          "fact": "Dislocación adelante.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 24,
+          "fact": "Dislocación atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 24,
+          "fact": "Vuelo adelante.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 24,
+          "fact": "Salida de mortal atrás extendido.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 24,
+          "fact": "Condición: Cuerpo alineado en ángulo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 24,
+          "fact": "Condición: Anillas a altura FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 25,
+          "fact": "Salto libre del Código FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 25,
+          "fact": "Condición: Caballo de salto a 1,25 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 26,
+          "fact": "Salón al apoyo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 26,
+          "fact": "Vuelos atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 26,
+          "fact": "Vuelo adelante.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 26,
+          "fact": "Moy al apoyo braquial.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 26,
+          "fact": "Libre desde apoyo braquial.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 26,
+          "fact": "Ángulo 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 26,
+          "fact": "Balanceo atrás hasta horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 26,
+          "fact": "Balanceos en ambos sentidos (adelante/atrás) hasta horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 26,
+          "fact": "Balanceos en ambos sentidos (adelante/atrás)",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 26,
+          "fact": "Salida en mortal: opciones agrupada o carpada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 26,
+          "fact": "Condición: Paralelas a 1,80 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 26,
+          "fact": "Condición: Colchoneta 20 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 22,
+          "fact": "Condición: Pista de 12 × 12 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Caballo con arcos",
+          "page": 23,
+          "fact": "Condición: Colchoneta de 10 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Caballo con arcos",
+          "page": 23,
+          "fact": "Condición: Se permite una colchoneta adicional de 25 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 25,
+          "fact": "Condición: Trampolín sencillo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 26,
+          "fact": "Condición: Trampolín sencillo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 24,
+          "fact": "Condición: Colchoneta de 20 cm y colchoneta adicional opcional.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 27,
+          "fact": "Libre al apoyo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 27,
+          "fact": "Cuarta a 45° como mínimo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 27,
+          "fact": "Dos molinos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 27,
+          "fact": "Poltrón.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 27,
+          "fact": "Balanceo atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 27,
+          "fact": "Cambio con medio giro.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 27,
+          "fact": "Balanceo adelante y atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 27,
+          "fact": "Salida de mortal agrupada, carpada o extendida.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 27,
+          "fact": "Condición: Colchoneta según FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 27,
+          "fact": "Condición: Protección opcional.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Caballo con arcos",
+          "page": 23,
+          "fact": "Condición: Caballo sin arcos a altura FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 27,
+          "fact": "Condición: Barra fija a altura FIG.",
+          "elementKey": null
+        }
+      ]
+    },
+    {
+      "name": "Base 5",
+      "page": 28,
+      "requirements": [
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 28,
+          "fact": "Mortal adelante extendido.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 28,
+          "fact": "Mortal adelante agrupado.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 28,
+          "fact": "Rueda lateral.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 28,
+          "fact": "Pino mantenido 2 s.",
+          "elementKey": "mfx_handstand_hold"
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 28,
+          "fact": "Voltereta al frente.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 28,
+          "fact": "Olímpico.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 28,
+          "fact": "Bajada controlada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 28,
+          "fact": "Quinta.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 28,
+          "fact": "Balanza 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 28,
+          "fact": "Rondada.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 28,
+          "fact": "Flic-flac.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 28,
+          "fact": "Mortal atrás pirueta en plancha.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Caballo con arcos",
+          "page": 29,
+          "fact": "Dos tijeras adelante.",
+          "elementKey": "mph_double_scissor_fwd"
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Caballo con arcos",
+          "page": 29,
+          "fact": "Dos molinos en los arcos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Caballo con arcos",
+          "page": 29,
+          "fact": "Elemento del grupo 3, de valor A.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Caballo con arcos",
+          "page": 29,
+          "fact": "Dos molinos rusos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Caballo con arcos",
+          "page": 29,
+          "fact": "Salida alemana.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 30,
+          "fact": "Vela 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 30,
+          "fact": "Dislocación adelante.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 30,
+          "fact": "Stalder 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 30,
+          "fact": "Voltereta adelante.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 30,
+          "fact": "Balanceos en ambos sentidos (adelante/atrás)",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 30,
+          "fact": "Dislocación atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 30,
+          "fact": "Doble mortal atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 31,
+          "fact": "Salto libre del código FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 31,
+          "fact": "Condición: Caballo de salto a 1,35 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 32,
+          "fact": "Carrera.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 32,
+          "fact": "Salón al apoyo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 32,
+          "fact": "Vuelo atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 32,
+          "fact": "Moy con piernas rectas o flexionadas.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 32,
+          "fact": "Vuelta a suspensión.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 32,
+          "fact": "Kippe.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 32,
+          "fact": "Ángulo 2 s.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 32,
+          "fact": "Balanceos en ambos sentidos (adelante/atrás)",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 32,
+          "fact": "Mortal de salida.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 32,
+          "fact": "Condición: Paralelas a 1,80 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 32,
+          "fact": "Condición: Colchoneta 20 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 33,
+          "fact": "Libre hasta horizontal.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 33,
+          "fact": "Quinta.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 33,
+          "fact": "Dos molinos.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 33,
+          "fact": "Molino.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 33,
+          "fact": "Poltrón.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 33,
+          "fact": "Vuelo atrás.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 33,
+          "fact": "Cambio por delante.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 33,
+          "fact": "Balanceos en ambos sentidos (adelante/atrás)",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 33,
+          "fact": "Salida en mortal: opciones agrupada, carpada o extendida.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 33,
+          "fact": "Condición: Colchoneta 20 cm.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 33,
+          "fact": "Condición: Protección opcional.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "floor",
+          "sourceApparatus": "Suelo",
+          "page": 28,
+          "fact": "Condición: Pista de 12 × 12 m.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "rings",
+          "sourceApparatus": "Anillas",
+          "page": 30,
+          "fact": "Condición: Altura y colchoneta según FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "vault",
+          "sourceApparatus": "Salto",
+          "page": 31,
+          "fact": "Condición: Trampolín sencillo.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "parallel_bars",
+          "sourceApparatus": "Paralelas",
+          "page": 32,
+          "fact": "Condición: Trampolín opcional.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "pommel_horse",
+          "sourceApparatus": "Caballo con arcos",
+          "page": 29,
+          "fact": "Condición: Caballo con arcos a altura FIG.",
+          "elementKey": null
+        },
+        {
+          "apparatus": "high_bar",
+          "sourceApparatus": "Barra fija",
+          "page": 33,
+          "fact": "Condición: Barra fija a altura FIG.",
+          "elementKey": null
+        }
+      ]
+    }
+  ],
+  "sportProfileVersion": "rfeg-2026-v2",
+  "validThrough": "2026-12-31"
+}

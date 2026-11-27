@@ -109,9 +109,7 @@ const createAthleteHandler = withTenant(async (request, context) => {
     } catch (error: unknown) {
       if (error instanceof LimitError) {
         const upgradeTo = error.payload?.upgradeTo ?? "pro";
-        const currentPlan =
-          upgradeTo === "pro" ? "free" : upgradeTo === "premium" ? "pro" : "premium";
-        const upgradeInfo = getUpgradeInfo(currentPlan);
+        const upgradeInfo = getUpgradeInfo("free");
 
         return NextResponse.json(
           {

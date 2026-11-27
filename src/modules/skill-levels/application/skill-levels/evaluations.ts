@@ -119,7 +119,7 @@ export async function evaluateSkills(input: ActorInput & { command: unknown }): 
     const achievedOn = command.status === "achieved" ? resolveDate(command.achievedOn, today) : null;
 
     // Los elementos son activos y de esa plantilla.
-    // unbounded-read-ok: acotada por los ids recibidos (como mucho 40 elementos).
+    // unbounded-read-ok: acotada por los ids recibidos (como mucho 64 elementos).
     const elements = await tx
       .select({ id: skillElements.id })
       .from(skillElements)
@@ -148,7 +148,7 @@ export async function evaluateSkills(input: ActorInput & { command: unknown }): 
     // fila bloqueada, ambas leerían «no existe» y la segunda chocaría con el único.
     await lockAthleteRows(tx, command.organizationId, command.athleteIds);
 
-    // unbounded-read-ok: acotada por los ids recibidos (60 gimnastas x 40 elementos como mucho).
+    // unbounded-read-ok: acotada por los ids recibidos (60 gimnastas x 64 elementos como mucho).
     const existingRows = await tx
       .select()
       .from(athleteSkillProgress)

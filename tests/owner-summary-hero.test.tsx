@@ -48,8 +48,8 @@ function usagePayload() {
       planCode: "free",
       resources: [
         { resource: "athletes", current: 0, limit: 30, excess: 0 },
-        { resource: "groups", current: 1, limit: 5, excess: 0 },
-        { resource: "classes", current: 3, limit: 10, excess: 0 },
+        { resource: "groups", current: 1, limit: null, excess: 0 },
+        { resource: "classes", current: 3, limit: null, excess: 0 },
       ],
       items: [],
       next: null,
@@ -153,12 +153,12 @@ describe("OwnerSummaryHero", () => {
     expect(within(hero).getByRole("link", { name: "Crear clase" })).toHaveAttribute("href", `/owner/classes?${scopeQuery}`);
     expect(hero.querySelector("time")).not.toBeNull();
 
-    await waitFor(() => expect(within(hero).getByText("0/30 gimnastas · 3/10 clases · 1/5 grupos")).toBeInTheDocument());
+    await waitFor(() => expect(within(hero).getByText("0/30 gimnastas · 3 clases · 1 grupos")).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith(
       `/api/v1/owner/saas/usage?organizationId=${organizationId}`,
       expect.objectContaining({ cache: "no-store" })
     );
-    expect(within(hero).getByText("Plan Free")).toBeInTheDocument();
+    expect(within(hero).getByText("Plan Gratis")).toBeInTheDocument();
     expect(within(hero).getByText(/Dentro de los límites/)).toBeInTheDocument();
     expect(within(hero).getByRole("progressbar", { name: "Uso del plan: gimnastas" })).toHaveAttribute("aria-valuenow", "0");
     expect(within(hero).getByRole("link", { name: "Mejorar plan" })).toHaveAttribute(
@@ -218,7 +218,7 @@ describe("OwnerSummaryHero", () => {
       "href",
       `/owner/attendance?organizationId=${managerOrganizationId}&locationId=${locationId}`
     );
-    expect(within(hero).getByText("Plan Starter")).toBeInTheDocument();
+    expect(within(hero).getByText("Plan Club")).toBeInTheDocument();
     expect(within(hero).getByText(/Solo lectura/)).toBeInTheDocument();
     expect(within(hero).queryByRole("link", { name: /plan/i })).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();

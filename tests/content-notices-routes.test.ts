@@ -15,6 +15,9 @@ const mocks = vi.hoisted(() => ({
   withdraw: vi.fn(),
   logAdminAction: vi.fn(),
   execute: vi.fn(),
+  runCronWithLease: vi.fn(),
+  eraseLeads: vi.fn(),
+  loggerInfo: vi.fn(),
   loggerError: vi.fn(),
 }));
 
@@ -40,10 +43,12 @@ vi.mock("@/lib/rate-limit", () => ({
   rateLimit: mocks.rateLimit,
   rateLimitExceededResponse: () => new Response(JSON.stringify({ ok: false }), { status: 429 }),
 }));
-vi.mock("@/lib/logger", () => ({ logger: { error: mocks.loggerError, warn: vi.fn(), info: vi.fn() } }));
+vi.mock("@/lib/logger", () => ({
+  logger: { error: mocks.loggerError, warn: vi.fn(), info: mocks.loggerInfo },
+}));
 vi.mock("@/lib/admin-logs", () => ({ logAdminAction: mocks.logAdminAction }));
 vi.mock("@/lib/cron-lease", () => ({
-  runCronWithLease: vi.fn(async (_name: string, job: () => Promise<unknown>) => ({ acquired: true, value: await job() })),
+  runCronWithLease: mocks.runCronWithLease,
 }));
 vi.mock("@/modules/element-library/application/notices", () => ({
   submitContentNotice: mocks.submit,
@@ -53,6 +58,9 @@ vi.mock("@/modules/element-library/application/notices", () => ({
   decodeNoticeCursor: (cursor: string) =>
     cursor === "valido" ? { receivedAt: "2026-11-19T10:00:00.000000Z", id: "a0000000-0000-4000-8000-0000000000a1" } : null,
 }));
+vi.mock("@/lib/growth/lead-retention", () => ({
+  eraseExpiredContactLeads: mocks.eraseLeads,
+}));
 vi.mock("@/modules/element-library/application/withdrawals", () => ({
   listCatalogElementsForReview: mocks.listElements,
   withdrawCatalogElement: mocks.withdraw,
@@ -60,6 +68,7 @@ vi.mock("@/modules/element-library/application/withdrawals", () => ({
 }));
 
 import { GET as retentionCron } from "@/app/api/cron/content-notices-retention/route";
+import { GET as leadRetentionCron } from "@/app/api/cron/lead-retention/route";
 import { POST as submitRoute } from "@/app/api/public/content-notices/route";
 import { PATCH as updateNoticeRoute } from "@/app/api/super-admin/content-notices/[noticeId]/route";
 import { GET as listNoticesRoute } from "@/app/api/super-admin/content-notices/route";
@@ -102,6 +111,10 @@ const params = (values: Record<string, string>) => ({ params: Promise.resolve(va
 
 beforeEach(() => {
   for (const mock of Object.values(mocks)) mock.mockReset();
+  mocks.runCronWithLease.mockImplementation(async (_name: string, job: () => Promise<unknown>) => ({
+    acquired: true,
+    value: await job(),
+  }));
   mocks.rateLimit.mockResolvedValue(allowed);
   mocks.resolveUserId.mockResolvedValue("user-1");
   mocks.getCurrentProfile.mockResolvedValue({ id: "profile-1", role: "super_admin", isSuspended: false });
@@ -413,5 +426,136 @@ describe("cron de conservación de avisos", () => {
     expect(
       readFileSync(join(process.cwd(), "docs/deployment/scheduler/20261115_pg_cron_avisos.sql"), "utf8")
     ).not.toContain("content-notices-retention");
+  });
+});
+
+describe("cron de conservación de solicitudes de contacto", () => {
+  const previous = { ...process.env };
+  beforeEach(() => {
+    process.env.CRON_SECRET = "cron-secret-de-prueba";
+  });
+  afterEach(() => {
+    process.env = { ...previous };
+  });
+
+  it("rechaza peticiones sin el secreto antes de iniciar la tarea", async () => {
+    const without = await leadRetentionCron(
+      new Request("https://zaltyko.com/api/cron/lead-retention")
+    );
+    const wrong = await leadRetentionCron(
+      new Request("https://zaltyko.com/api/cron/lead-retention", {
+        headers: { authorization: "Bearer otro" },
+      })
+    );
+
+    expect(without.status).toBe(401);
+    expect(wrong.status).toBe(401);
+    expect(mocks.eraseLeads).not.toHaveBeenCalled();
+    expect(mocks.loggerInfo).not.toHaveBeenCalled();
+  });
+
+  it("responde sin cambios cuando no hay leads vencidos y no expone datos personales", async () => {
+    mocks.eraseLeads.mockResolvedValue({
+      enabled: true,
+      erasedLeads: 0,
+      erasedInteractions: 0,
+      erasedLeadTrials: 0,
+      erasedTrialOutcomes: 0,
+      erasedInterviews: 0,
+      erasedGrowthEvents: 0,
+      erasedEmailLogs: 0,
+      unlinkedAcademyTrials: 0,
+      batches: 0,
+    });
+    const response = await leadRetentionCron(
+      new Request("https://zaltyko.com/api/cron/lead-retention", {
+        method: "POST",
+        headers: { authorization: "Bearer cron-secret-de-prueba" },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      ok: true,
+      data: {
+        enabled: true,
+        erasedLeads: 0,
+        erasedInteractions: 0,
+        erasedLeadTrials: 0,
+        erasedTrialOutcomes: 0,
+        erasedInterviews: 0,
+        erasedGrowthEvents: 0,
+        erasedEmailLogs: 0,
+        unlinkedAcademyTrials: 0,
+        batches: 0,
+      },
+    });
+    expect(mocks.loggerInfo).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ enabled: true, erasedLeads: 0, batches: 0 })
+    );
+  });
+
+  it("ejecuta la retención autorizada y registra únicamente recuentos", async () => {
+    const counts = {
+      enabled: true,
+      erasedLeads: 2,
+      erasedInteractions: 3,
+      erasedLeadTrials: 1,
+      erasedTrialOutcomes: 1,
+      erasedInterviews: 1,
+      erasedGrowthEvents: 2,
+      erasedEmailLogs: 2,
+      unlinkedAcademyTrials: 1,
+      batches: 1,
+    };
+    mocks.eraseLeads.mockResolvedValue(counts);
+    const response = await leadRetentionCron(
+      new Request("https://zaltyko.com/api/cron/lead-retention", {
+        method: "POST",
+        headers: { authorization: "Bearer cron-secret-de-prueba" },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, data: counts });
+    expect(mocks.loggerInfo).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining(counts)
+    );
+    expect(JSON.stringify(mocks.loggerInfo.mock.calls)).not.toMatch(/@|nombre|correo|message/i);
+  });
+
+  it("no vuelve a borrar si el lease ya está ocupado", async () => {
+    mocks.runCronWithLease.mockResolvedValueOnce({ acquired: false });
+
+    const response = await leadRetentionCron(
+      new Request("https://zaltyko.com/api/cron/lead-retention", {
+        method: "POST",
+        headers: { authorization: "Bearer cron-secret-de-prueba" },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      ok: true,
+      data: { skipped: true, reason: "ALREADY_RUNNING" },
+    });
+    expect(mocks.eraseLeads).not.toHaveBeenCalled();
+  });
+
+  it("deja la candidata sin aplicar y documenta su programación", () => {
+    const candidate = readFileSync(
+      join(process.cwd(), "docs/deployment/scheduler/candidates/lead-retention.sql"),
+      "utf8"
+    );
+    expect(candidate).toContain("NO APLICADO en producción");
+    expect(candidate).toContain(
+      "select cron.schedule('zaltyko-lead-retention', '15 3 * * *', $$select zaltyko_scheduler.call_cron('lead-retention')$$);"
+    );
+    expect(candidate).not.toMatch(/create (or replace )?function/i);
+    expect(readFileSync(join(process.cwd(), "docs/deployment/scheduler/README.md"), "utf8")).toContain(
+      "`zaltyko-lead-retention`"
+    );
   });
 });

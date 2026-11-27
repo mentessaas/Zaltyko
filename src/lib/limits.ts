@@ -26,24 +26,28 @@ export interface ActiveSubscription {
 
 const CLASS_LIMITS: Record<PlanCode, number | null> = {
   free: PRODUCT_PLAN_BY_CODE.free.classLimit,
+  club: PRODUCT_PLAN_BY_CODE.club.classLimit,
   pro: PRODUCT_PLAN_BY_CODE.pro.classLimit,
   premium: PRODUCT_PLAN_BY_CODE.premium.classLimit,
 };
 
 const GROUP_LIMITS: Record<PlanCode, number | null> = {
   free: PRODUCT_PLAN_BY_CODE.free.groupLimit,
+  club: PRODUCT_PLAN_BY_CODE.club.groupLimit,
   pro: PRODUCT_PLAN_BY_CODE.pro.groupLimit,
   premium: PRODUCT_PLAN_BY_CODE.premium.groupLimit,
 };
 
 const ACADEMY_LIMITS: Record<PlanCode, number | null> = {
   free: PRODUCT_PLAN_BY_CODE.free.academyLimit,
+  club: PRODUCT_PLAN_BY_CODE.club.academyLimit,
   pro: PRODUCT_PLAN_BY_CODE.pro.academyLimit,
   premium: PRODUCT_PLAN_BY_CODE.premium.academyLimit,
 };
 
 const ATHLETE_LIMITS: Record<PlanCode, number | null> = {
   free: PRODUCT_PLAN_BY_CODE.free.athleteLimit,
+  club: PRODUCT_PLAN_BY_CODE.club.athleteLimit,
   pro: PRODUCT_PLAN_BY_CODE.pro.athleteLimit,
   premium: PRODUCT_PLAN_BY_CODE.premium.athleteLimit,
 };
@@ -74,10 +78,10 @@ export async function getUserSubscription(
     ? ((row?.planCode as PlanCode | undefined) ?? "free")
     : "free";
   const athleteLimit = hasAccess
-    ? (row?.athleteLimit ?? ATHLETE_LIMITS[planCode])
+    ? ATHLETE_LIMITS[planCode]
     : ATHLETE_LIMITS.free;
   const academyLimit = hasAccess
-    ? (row?.academyLimit ?? ACADEMY_LIMITS[planCode])
+    ? ACADEMY_LIMITS[planCode]
     : ACADEMY_LIMITS.free;
 
   return {
@@ -180,8 +184,7 @@ export function evaluateLimit(
     return { exceeded: false };
   }
 
-  const upgradeTo: UpgradePlanCode =
-    planCode === "free" ? "pro" : planCode === "pro" ? "premium" : "network";
+  const upgradeTo: UpgradePlanCode = "club";
 
   return {
     exceeded: true,
@@ -626,25 +629,19 @@ export function getUpgradeInfo(planCode: PlanCode): {
 } {
   if (planCode === "free") {
     return {
-      nextPlan: "pro",
-      price: "19€/mes",
+      nextPlan: "club",
+      price: "29€/mes IVA incluido",
       benefits: [
-        "Hasta 75 gimnastas",
-        "Pagos recurrentes",
-        "Familias y responsables",
-        "Reportes básicos",
+        "Gimnastas, equipo, grupos y clases sin límite",
+        "Portal familiar y avisos",
+        "Recordatorios de cuotas pendientes",
+        "Resumen semanal e importación desde Excel",
       ],
-    };
-  } else if (planCode === "pro") {
-    return {
-      nextPlan: "premium",
-      price: "49€/mes",
-      benefits: ["Hasta 200 gimnastas", "10 grupos", "40 clases", "Soporte prioritario"],
     };
   }
   return {
-    nextPlan: "network",
-    price: "99€/mes",
-    benefits: ["Gimnastas, grupos y clases sin límite", "Condiciones acordadas por contacto"],
+    nextPlan: "club",
+    price: "29€/mes IVA incluido",
+    benefits: ["Derechos del plan Club", "Una sede incluida"],
   };
 }

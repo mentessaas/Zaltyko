@@ -1,11 +1,49 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-11-19
+last_reviewed: 2026-11-24
 source:
   - ../docs/audits/2026-10-03-launch-and-auth-followup.md
   - ../docs/architecture/zaltyko-domain-model.md
 ---
+
+## 2026-11-24 — Retención de solicitudes de contacto no convertidas
+
+- El cron `lead-retention` borra tras seis meses sin actividad los leads sin propiedad, prueba de academia convertida ni resultado `converted` de prueba.
+- Por lotes transaccionales, elimina la solicitud, interacciones, pruebas/outcomes y entrevistas ligadas; desvincula las pruebas de academia no convertidas. Solo elimina eventos y logs de correo ligados por el `submission_id` exacto.
+- La candidata `docs/deployment/scheduler/candidates/lead-retention.sql` y su programación no se aplicaron; no se cambió `vercel.json` ni el formulario o correo de contacto.
+- La política de privacidad ahora declara el plazo. El valor de conversión es texto libre en el esquema; la implementación reconoce `converted` tras normalizar mayúsculas y espacios.
+
+## 2026-11-24 — Oferta Gratis/Club y sedes adicionales
+
+- Se implementa localmente el catálogo Gratis/Club, el tope de dos personas en Gratis, la prueba de 30 días, checkout mensual/anual y el concepto de sedes con prorrateo. Se ocultan los planes heredados sin cambiar suscripciones ni importes existentes.
+- Se reemplazan precios y textos públicos, se preparan contratos de textos, checkout, fiscalidad y aislamiento, y se añade una migración candidata aditiva.
+- El precio de fundador usa un cupón neto de 3,39 € para obtener 24,90 € finales tras IVA; el objeto de Stripe aún no se ha creado.
+- Verificación local: `pnpm typecheck` y `pnpm lint` pasan; `pnpm test` pasa con 10.727 pruebas, 195 omitidas y 16 archivos omitidos. No se contactó Stripe, Supabase ni producción; no se aplicó migración ni se publicó.
+- Corrección CI Postgres del mismo catálogo: los tests de capacidad conservaban los topes anteriores de 3 grupos/10 clases; ahora prueban límites sin tope y mantienen el bloqueo cuando se superan los 30 gimnastas. La factura mensual también supera Free mediante el gimnasta 31. La fixture de acceso de equipo omitía `effective_from`, obligatoria desde el esquema canónico; no cambió esquema ni helper. Ajustes de academia simula el marcador `server-only` y aplica explícitamente la candidata de precios antes de usar las columnas nuevas. El README de candidatas fija el orden migración → Prices/variables → despliegue. Typecheck, lint y suite unitaria local pasan; integración Postgres no ejecutable directamente en macOS porque el script exige un runner Linux de GitHub.
+## 2026-11-24 — Corrección 2 de CI para logo de academia
+
+- `tests/organization-logo-pg.test.ts` aplica solo la sección de columna y constraint de la candidata en PostgreSQL desechable; no presupone ni consulta el esquema Supabase Storage y no modifica el SQL candidato.
+- `tests/skill-levels-pg.test.ts` simula `server-only` en Vitest, siguiendo el patrón de pruebas existente; el módulo de producción conserva su importación `server-only`.
+- Se revierte la ampliación accidental de `assertOwnerSettingsAccess`: los ajustes generales siguen exigiendo rol `owner` y alcance completo. La autorización separada de la ruta de logo para `owner`/`admin` no cambia.
+- Primera CI del commit `3de055a`: las 48 suites PostgreSQL ejecutaron 540 pruebas; los tres fallos originales se corrigieron, pero la limpieza del fixture de logo intentó borrar una academia y activó el historial append-only de entitlements. El fix de limpieza conserva esa fila sintética en la base efímera y solo retira la columna candidata.
+- Verificación local: 83 pruebas unitarias dirigidas, `pnpm typecheck`, `pnpm lint` y `git diff --check` pasan; los tests PostgreSQL importan localmente y quedan omitidos fuera del runner protegido de GitHub Actions.
+- CI del commit `465b2945` (SHA completo `465b29451a5a73e51836133d12d8cd1fc4b09fd2`): Postgres integration `45476252214` pasó las 48 suites (540/540); CI `45476252018` pasó Unit Tests, Build, Lint & Type Check, los E2E sintéticos Chromium/Firefox/WebKit y `Local Synthetic Owner E2E Required Gate`; Static Gates operativo `45476252116` también pasó.
+- La candidata `20261124120000_organization_logos_candidate.sql` sigue sin aplicarse a ningún entorno.
+
+## 2026-11-24 — Academy logo in Settings and diplomas (candidate, not applied)
+
+- `/owner/settings` lets an owner or an admin with access to every site upload, replace and remove a PNG, JPEG or WebP file up to 1 MB. The screen includes a preview, loading and error states, labels and accessible announcements.
+- The canonical logo uses `organizations.logo_path` and the private `organization-logos` bucket, separate from legacy `academies.logo_url`. Server routes authorize the academy before using Storage; academy and family diplomas receive a ten-minute signed URL.
+- Without the candidate column, Settings hides logo controls and the diploma continues without a logo through a safe `to_jsonb` read.
+- The export classifies but omits the private object locator and file bytes. Organization disposition only plans review and does not erase data; no fake Storage deletion was added.
+- SQL candidate `20261124120000_organization_logos_candidate.sql`; not applied. No new flag. No changes to pricing, billing, the element library or federation templates.
+- Closeout checks: `pnpm typecheck`, `pnpm lint` and `pnpm test`.
+- Without the candidate column, logo SQL first checks `information_schema`; Settings hides upload controls, POST/DELETE return 503 without using Storage, and diplomas continue without a logo. Drizzle does not declare the candidate column.
+- The export classifies but omits the private object locator and file bytes. Organization disposition only plans review and does not erase data; no fake Storage deletion was added.
+- SQL candidate `20261124120000_organization_logos_candidate.sql`; not applied. No new flag. No changes to pricing, billing, the element library or federation templates.
+- `tests/organization-logo-pg.test.ts` checks the baseline schema, then explicitly applies the SQL candidate and verifies read/write plus the organization-scope constraint in the disposable GitHub database. It was skipped locally because the runner requires GitHub Actions; `scripts/ci/run-postgres-integration.sh` refused with `GitHub Actions is required`.
+- Verification: targeted tests 64 passed / 1 PostgreSQL test skipped; full unit suite 10,732 passed / 196 skipped; `pnpm typecheck` and `pnpm lint` passed. The supplied historical CI log also has one unrelated 403 expectation failure in `tests/owner-academy-settings-pg.test.ts:91`; the local Owner E2E run cannot start because its pinned Supabase images are not installed and the harness refuses to pull them.
 
 ## 2026-11-21 — Biblioteca: vocabulario de sala por país (ADR-0030, apagado)
 
@@ -13403,6 +13441,13 @@ Navegación Owner solo lectura: dashboard/grupo2gimnastas y1grupo;inscripciones1
 **Cambios preparados:** publicar solo acceso, academia, gimnastas/familias, grupos/clases/inscripciones, asistencia, cuotas/pagos manuales y resumen. Health Score/Insights quedan sin navegación y sus páginas directas devuelven404. El resumen no consulta métricas avanzadas. Los embudos históricos /modules/* redirigen a /features y salen del sitemap. No se incluyen tareas programadas en el candidato. Se mantienen intactos contratos API, precios base, límites y esquema; no se activa un worker global.
 
 **Siguiente paso:** CI remota completa del nuevo commit, revisión externa vigente y comprobación en delivery con academias separadas; después controles productivos y comerciales. No equivale a un lanzamiento ni a validar producción. Se conserva el ensayo natural sin consultas ni escrituras en esta ronda.
+
+
+## 2026-11-24 — Plantillas RFEG Base 2026, fase D
+
+Se corrigió el contenido de fase D: 262 hechos para GAF Base 1–10 y 274 para GAM Base 1–5, organizados por aparato y página. La copia crea un elemento por hecho y muestra la cita de documento y página; se enlazan cinco hechos con coincidencia FIG exacta (`fx_turn_1_one_foot_low_leg` en dos fichas, `mfx_handstand_hold` en dos y `mph_double_scissor_fwd` en una). «Seta» queda bajo `pommel_horse` con la nota de aparato de iniciación. El límite por nivel y por envío de evaluación pasa de 40 a 64 para admitir las 60 entradas de GAM Base 2; el máximo de 400 marcas por envío y de 300 elementos por plantilla no cambia. La ficha GAF Base 9–10 solo expresa mínimos de RC FIG, sin enumerar los elementos que pueden cumplirlos; se mantiene explícito como límite de la fuente. La bandera `ZALTYKO_FEDERATION_LEVEL_TEMPLATES_ENABLED` sigue apagada y la candidata `20261124134300_skill_template_federation_source_candidate.sql` no se aplicó. FMG queda fuera; RFEG 2027 espera su PDF. URL oficial no confirmada.
+
+Prueba focal de datos: PASS (3/3), incluyendo páginas, claves de biblioteca compatibles por disciplina/aparato y 8-gramas contra las extracciones locales indicadas por `RFEG_GAF_TEXT_PATH` y `RFEG_GAM_TEXT_PATH` (los PDF extraídos permanecen fuera del repositorio). Verificación completa: `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` PASS (824 ficheros, 10.733 tests pasaron; 16 ficheros/195 tests omitidos, 0 fallidos). El test PostgreSQL de importación/permisos/aislamiento queda omitido fuera del runner de CI con base desechable. `git diff --check` PASS. No se consultaron Supabase/Stripe/producción ni se aplicó SQL.
 
 No se ejecutaron pruebas, instalaciones, servicios ni builds locales. Revisión estática y git diff --check sin errores. Nuevas pruebas cubren scope/denegaciones, resumen no disponible, navegación sin módulos avanzados, rutas retiradas y ausencia de crons; ejecución pendiente de CI remota. No hay migraciones ni cambios de credenciales.
 

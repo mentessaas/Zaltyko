@@ -21,7 +21,7 @@ function fixture(): OwnerSaasBillingSnapshot {
       planCode: "starter", source: "stripe_subscription", revision: 2,
       effectiveFrom: "2026-10-01T00:00:00.000Z", effectiveUntil: "2026-11-01T00:00:00.000Z",
     },
-    limits: { maxAthletes: 75, maxGroups: 5, maxClasses: 20, maxAcademies: 1 },
+    limits: { maxAthletes: null, maxGroups: null, maxClasses: null, maxAcademies: 1 },
     trial: { eligible: false, startsAt: null, endsAt: null, nextEligibleAt: null },
     subscription: {
       status: "active", billingInterval: "month",
@@ -202,7 +202,7 @@ describe("panel de facturación: lecturas simuladas sin comandos", () => {
     fetchMock.mockResolvedValueOnce(response({})).mockResolvedValueOnce(response(data));
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia actual" />);
     fireEvent.click(await screen.findByRole("button", { name: "Volver a consultar" }));
-    expect(await screen.findByText("75 gimnastas")).toBeVisible();
+    expect(await screen.findByText("Sin límite de plan")).toBeVisible();
     expect(screen.getByText("Versión del plan: 2")).toBeVisible();
     expect(screen.getByText("Suscripción Pago pendiente de resolver")).toBeVisible();
     expect(screen.getByRole("button", { name: "Gestionar suscripción" })).toBeEnabled();
@@ -243,7 +243,7 @@ describe("panel de facturación: lecturas simuladas sin comandos", () => {
     expect(await screen.findByRole("button", { name: "Gestionar suscripción" })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Actualizar estado" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("puede estar desactualizado");
-    expect(screen.getByText("75 gimnastas")).toBeVisible();
+    expect(screen.getByText("Sin límite de plan")).toBeVisible();
     expect(screen.getByRole("button", { name: "Gestionar suscripción" })).toBeDisabled();
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls.every(([, options]) => !options.method)).toBe(true);
@@ -253,7 +253,7 @@ describe("panel de facturación: lecturas simuladas sin comandos", () => {
     const data = fixture(); data.syncStatus = "future_sync";
     fetchMock.mockResolvedValueOnce(response(data));
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia A" />);
-    expect(await screen.findByText("75 gimnastas")).toBeVisible();
+    expect(await screen.findByText("Sin límite de plan")).toBeVisible();
     expect(screen.getByRole("button", { name: "Gestionar suscripción" })).toBeDisabled();
     expect(screen.getByText("Estado de facturación en revisión")).toBeVisible();
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -319,7 +319,7 @@ describe("mensajes de comandos simulados ligados a su academia", () => {
 
     view.rerender(<OwnerSaasBillingManager organizationId={otherOrg} organizationName="Academia B" />);
     expect(await screen.findByText("Academia B confirmada")).toBeVisible();
-    expect(screen.getByText("75 gimnastas")).toBeVisible();
+    expect(screen.getByText("Sin límite de plan")).toBeVisible();
     const getCallsBeforeTrialReceipt = fetchMock.mock.calls.filter(([, options]) => !options.method);
     expect(getCallsBeforeTrialReceipt).toHaveLength(2);
 
@@ -334,8 +334,8 @@ describe("mensajes de comandos simulados ligados a su academia", () => {
     });
 
     expect(screen.getByText("Academia B confirmada")).toBeVisible();
-    expect(screen.getByText("75 gimnastas")).toBeVisible();
-    expect(screen.queryByText(/Tu prueba Starter dura hasta/)).not.toBeInTheDocument();
+    expect(screen.getByText("Sin límite de plan")).toBeVisible();
+    expect(screen.queryByText(/Tu prueba Club dura hasta/)).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.filter(([, options]) => !options.method)).toHaveLength(2);
     expect(postCalls()).toHaveLength(1);
   });
@@ -376,7 +376,7 @@ describe("mensajes de comandos simulados ligados a su academia", () => {
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia A" />);
     fireEvent.click(await screen.findByRole("button", { name: "Activar prueba" }));
 
-    const confirmedNotice = await screen.findByText(/Tu prueba Starter dura hasta/);
+    const confirmedNotice = await screen.findByText(/Tu prueba Club dura hasta/);
     expect(confirmedNotice).toHaveTextContent("hasta el");
     expect(confirmedNotice).toHaveTextContent(/30/);
     expect(confirmedNotice).toHaveTextContent("No se ha solicitado ningún cobro.");
@@ -458,7 +458,7 @@ describe("recuperación explícita de Checkout abierto después de recargar", ()
     expect(link).toHaveAttribute("href", existingCheckout.checkoutUrl);
     expect(recoveryCalls()).toEqual([[`/api/v1/owner/saas/checkout?organizationId=${org}`, { method: "GET", cache: "no-store" }]]);
     expect(postCalls()).toHaveLength(0);
-    expect(screen.getAllByRole("button", { name: "Pago pendiente" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Pago pendiente" })).toHaveLength(1);
     view.unmount();
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia A" />);
     expect(await screen.findByRole("button", { name: "Recuperar pago pendiente" })).toBeEnabled();
@@ -532,7 +532,7 @@ describe("recuperación explícita de Checkout abierto después de recargar", ()
 
 describe("exclusión síncrona de comandos simulados de facturación", () => {
   type Action = "portal" | "trial" | "checkout";
-  const actionNames = { portal: "Gestionar suscripción", trial: "Activar prueba", checkout: "Contratar Growth" };
+  const actionNames = { portal: "Gestionar suscripción", trial: "Activar prueba", checkout: "Contratar Club" };
   function actionFixture(action: Action) {
     const data = fixture();
     if (action !== "portal") {
@@ -665,19 +665,18 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
     expect(posts()).toHaveLength(1);
     expect(posts()[0][1].headers["Idempotency-Key"]).toBeTruthy();
     expect(JSON.parse(posts()[0][1].body)).toEqual(action === "checkout"
-      ? { organizationId: org, planCode: "growth", billingInterval: "month" } : { organizationId: org });
+      ? { organizationId: org, planCode: "starter", billingInterval: "month" } : { organizationId: org });
     await act(async () => { finish(response(actionResult(action))); });
     expect(posts()).toHaveLength(1);
   });
 
-  it("Starter y Growth pulsados sin ceder el render no inician dos contrataciones", async () => {
+  it("dos pulsaciones en Club sin ceder el render no inician dos contrataciones", async () => {
     let finish!: (value: ReturnType<typeof response>) => void;
     fetchMock.mockImplementation(async (_url, options) => options.method === "POST"
       ? new Promise(resolve => { finish = resolve; }) : response(actionFixture("checkout")));
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" />);
-    const starter = await screen.findByRole("button", { name: "Contratar Starter" });
-    const growth = screen.getByRole("button", { name: "Contratar Growth" });
-    act(() => { starter.click(); growth.click(); });
+    const club = await screen.findByRole("button", { name: "Contratar Club" });
+    act(() => { club.click(); club.click(); });
     expect(posts()).toHaveLength(1);
     expect(JSON.parse(posts()[0][1].body).planCode).toBe("starter");
     await act(async () => { finish(response(actionResult("checkout"))); });
@@ -758,7 +757,7 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" />);
     const retry = await screen.findByRole("button", { name: "Reintentar la operación pendiente" });
     const actionButton = action === "checkout"
-      ? within(screen.getByRole("heading", { name: "Growth" }).closest("article")!).getByRole("button", { name: "No disponible ahora" })
+      ? within(screen.getByRole("heading", { name: "Club" }).closest("article")!).getByRole("button", { name: "No disponible ahora" })
       : screen.getByRole("button", { name: actionNames[action] });
     expect(actionButton).toBeDisabled();
     fireEvent.click(retry);
@@ -789,9 +788,9 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
     fetchMock.mockImplementation(async (_url, options) => options.method === "POST" ? response(actionResult("checkout")) : response(actionFixture("checkout")));
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" />);
     expect(await screen.findByRole("alert")).toHaveTextContent("no se puede validar");
-    const growthCard = screen.getByRole("heading", { name: "Growth" }).closest("article");
-    expect(growthCard).not.toBeNull();
-    expect(within(growthCard!).getByRole("button", { name: "No disponible ahora" })).toBeDisabled();
+    const clubCard = screen.getByRole("heading", { name: "Club" }).closest("article");
+    expect(clubCard).not.toBeNull();
+    expect(within(clubCard!).getByRole("button", { name: "No disponible ahora" })).toBeDisabled();
     expect(posts()).toHaveLength(0);
   });
 
@@ -811,7 +810,7 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
       return response(data);
     });
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" />);
-    fireEvent.click(await screen.findByRole("button", { name: "Contratar Growth" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Contratar Club" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("No podemos confirmar el resultado");
     expect(screen.getByRole("button", { name: "Anual" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Anual" }));
@@ -823,7 +822,7 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reintentar la operación pendiente" }));
     await waitFor(() => expect(posts()).toHaveLength(2));
     expect(posts()[1]).toEqual(posts()[0]);
-    expect(JSON.parse(posts()[1][1].body)).toEqual({ organizationId: org, planCode: "growth", billingInterval: "month" });
+    expect(JSON.parse(posts()[1][1].body)).toEqual({ organizationId: org, planCode: "starter", billingInterval: "month" });
     expect(await screen.findByRole("link", { name: "Continuar al pago seguro" })).toBeVisible();
   });
 
@@ -844,11 +843,11 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
     fetchMock.mockImplementation(async (_url, options) => options.method === "POST"
       ? (++count === 1 ? failed() : response(actionResult("checkout"))) : response(actionFixture("checkout")));
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" />);
-    fireEvent.click(await screen.findByRole("button", { name: "Contratar Growth" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Contratar Club" }));
     const retry = await screen.findByRole("button", { name: "Reintentar la operación pendiente" });
     await waitFor(() => expect(retry).toBeEnabled());
     expect(screen.getByRole("button", { name: "Anual" })).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "Contratar Starter" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Contratar Club" })).not.toBeInTheDocument();
     expect(posts()).toHaveLength(1);
     fireEvent.click(retry);
     expect(await screen.findByRole("link", { name: "Continuar al pago seguro" })).toBeVisible();
@@ -864,12 +863,12 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
       return response(actionResult("checkout"));
     });
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" />);
-    fireEvent.click(await screen.findByRole("button", { name: "Contratar Growth" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Contratar Club" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("No se ha podido validar");
     expect(screen.queryByRole("region", { name: "Cambio de plan pendiente" })).not.toBeInTheDocument();
     expect(posts()).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Anual" }));
-    fireEvent.click(screen.getByRole("button", { name: "Contratar Growth" }));
+    fireEvent.click(screen.getByRole("button", { name: "Contratar Club" }));
     expect(await screen.findByRole("link", { name: "Continuar al pago seguro" })).toBeVisible();
     expect(posts()).toHaveLength(2);
     expect(posts()[1][1].headers["Idempotency-Key"]).not.toEqual(posts()[0][1].headers["Idempotency-Key"]);
@@ -909,9 +908,9 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" />);
     fireEvent.click(await screen.findByRole("button", { name: "Activar prueba" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("No podemos confirmar el resultado");
-    expect(screen.queryByText(/Tu prueba Starter dura hasta/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tu prueba Club dura hasta/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Reintentar la operación pendiente" }));
-    expect(await screen.findByText(/Tu prueba Starter dura hasta/)).toBeVisible();
+    expect(await screen.findByText(/Tu prueba Club dura hasta/)).toBeVisible();
     expect(posts()[1]).toEqual(posts()[0]);
   });
 
@@ -929,11 +928,11 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Activar prueba" }));
     const retry = await screen.findByRole("button", { name: "Reintentar la operación pendiente" });
     await waitFor(() => expect(retry).toBeEnabled());
-    expect(screen.queryByText(/Tu prueba Starter dura hasta/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tu prueba Club dura hasta/)).not.toBeInTheDocument();
     expect(leavingPageIsPrevented()).toBe(true);
     expect(posts()).toHaveLength(1);
     fireEvent.click(retry);
-    expect(await screen.findByText(/Tu prueba Starter dura hasta/)).toBeVisible();
+    expect(await screen.findByText(/Tu prueba Club dura hasta/)).toBeVisible();
     expect(posts()[1]).toEqual(posts()[0]);
     expect(leavingPageIsPrevented()).toBe(false);
   });
@@ -946,7 +945,7 @@ describe("exclusión síncrona de comandos simulados de facturación", () => {
       ? response({ ...actionResult("trial"), ...fields }) : response(actionFixture("trial")));
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" />);
     fireEvent.click(await screen.findByRole("button", { name: "Activar prueba" }));
-    expect(await screen.findByText(/Tu prueba Starter dura hasta/)).toBeVisible();
+    expect(await screen.findByText(/Tu prueba Club dura hasta/)).toBeVisible();
     expect(screen.queryByRole("button", { name: "Reintentar la operación pendiente" })).not.toBeInTheDocument();
     expect(posts()).toHaveLength(1);
   });
@@ -970,16 +969,12 @@ describe("contratación en España: sede fiscal, precio con IVA y casilla de ini
   it("muestra el precio final con IVA y la base como secundaria", async () => {
     fetchMock.mockResolvedValue(response(checkoutFixture()));
     render(<OwnerSaasBillingManager organizationId={org} organizationName="Academia sintética" taxTerritoryRequired />);
-    expect(await screen.findAllByRole("button", { name: "Indica la sede fiscal" })).toHaveLength(2);
+    expect(await screen.findAllByRole("button", { name: "Indica la sede fiscal" })).toHaveLength(1);
     const text = document.body.textContent!.replace(/\s/gu, " ");
-    expect(text).toContain("22,99 €");
-    expect(text).toContain("59,29 €");
-    expect(text).toContain("19 € + IVA (21 %)");
-    expect(text).toContain("49 € + IVA (21 %)");
+    expect(text).toContain("29,00 €");
+    expect(text).toContain("Base 23,97 € antes del IVA");
+    expect(text).toContain("IVA incluido");
     expect(text).not.toContain("Precios sin IVA.");
-    // Starter y Growth no limitan sedes: Network no se presenta como «varias sedes».
-    expect(text).toContain("¿Necesitas acompañamiento o condiciones a medida?");
-    expect(text).toContain("escríbenos y vemos tu caso.");
     expect(text).not.toContain("Network");
     expect(text).not.toContain("¿Gestionas varias sedes?");
   });
@@ -996,7 +991,7 @@ describe("contratación en España: sede fiscal, precio con IVA y casilla de ini
     fireEvent.click(await screen.findByLabelText("Península o Islas Baleares"));
     fireEvent.click(screen.getByRole("checkbox", { name: /pierdo el derecho de desistimiento de 14 días/ }));
     const incomplete = screen.getAllByRole("button", { name: "Completa los datos de factura" });
-    expect(incomplete).toHaveLength(2);
+    expect(incomplete).toHaveLength(1);
     for (const button of incomplete) expect(button).toBeDisabled();
 
     fillBillingDetails("B12345675");
@@ -1008,7 +1003,7 @@ describe("contratación en España: sede fiscal, precio con IVA y casilla de ini
 
     fireEvent.change(screen.getByLabelText("NIF, NIE o CIF"), { target: { value: "b-1234567.4" } });
     expect(screen.queryByText(/la letra o el dígito de control no coincide/)).not.toBeInTheDocument();
-    fireEvent.click(await screen.findByRole("button", { name: "Contratar Starter" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Contratar Club" }));
     await waitFor(() => expect(posts()).toHaveLength(1));
     expect(JSON.parse(posts()[0][1].body)).toEqual({
       organizationId: org, planCode: "starter", billingInterval: "month",
@@ -1023,7 +1018,7 @@ describe("contratación en España: sede fiscal, precio con IVA y casilla de ini
     fireEvent.click(await screen.findByLabelText("Península o Islas Baleares"));
     fillBillingDetails();
     const blocked = screen.getAllByRole("button", { name: "Marca la casilla para contratar" });
-    expect(blocked).toHaveLength(2);
+    expect(blocked).toHaveLength(1);
     for (const button of blocked) expect(button).toBeDisabled();
     const consent = screen.getByRole("checkbox", { name: /pierdo el derecho de desistimiento de 14 días/ });
     expect(consent).toBeRequired();
@@ -1031,10 +1026,10 @@ describe("contratación en España: sede fiscal, precio con IVA y casilla de ini
     expect(posts()).toHaveLength(0);
 
     fireEvent.click(consent);
-    fireEvent.click(await screen.findByRole("button", { name: "Contratar Growth" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Contratar Club" }));
     await waitFor(() => expect(posts()).toHaveLength(1));
     expect(JSON.parse(posts()[0][1].body)).toEqual({
-      organizationId: org, planCode: "growth", billingInterval: "month",
+      organizationId: org, planCode: "starter", billingInterval: "month",
       taxTerritory: "peninsula_baleares", immediateStartConsent: true,
       billingDetails: { legalName: "Club Sintético", taxId: "B12345674" },
     });

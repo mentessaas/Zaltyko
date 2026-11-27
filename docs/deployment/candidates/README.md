@@ -1,9 +1,80 @@
 # Candidatos SQL: aplicados y pendientes de autorización
 
+## 2026-11-24 — Private academy logo (not applied)
+
+| Candidata | SHA-256 | Estado |
+|---|---|---|
+| `20261124120000_organization_logos_candidate.sql` | `5069c597bdaa26adc3a52504ef812a9a44d872dc3b4bd754ccd513ff6f53d08a` | No aplicada en ningún entorno |
+
+Adds `zaltyko.organizations.logo_path` and the private `organization-logos`
+bucket (PNG, JPEG or WebP, up to 1 MB). Objects use
+`<organization_id>/logo.<ext>`. A restrictive policy blocks direct Auth-client
+access even if another permissive policy is added later; server routes require
+`owner`/`admin` access to every site and use `service_role`. Families receive
+no Storage read policy: the server creates ten-minute signed URLs only after
+authorizing each diploma.
+
+The export catalog classifies `logo_path` but omits the private object locator
+and file bytes from the JSON package. Academy disposition is review planning only and does not execute
+deletions; any future erasure executor must remove the object through the
+Storage API because deleting SQL rows does not remove the physical file. This
+candidate and its code have not been applied to any database.
+
+Runtime compatibility: Drizzle does not declare `logo_path`. The organization
+logo storage module checks `information_schema` before its explicit SQL reads
+and writes. Without the column, Settings shows no upload controls, GET reports
+no logo, POST/DELETE return 503 without accessing Storage, and diplomas omit the
+logo. The PostgreSQL integration suite checks this baseline and applies this
+candidate only to its disposable database before checking the enabled state.
+
 Estos archivos están fuera de `supabase/migrations` deliberadamente. No forman
 parte del historial aplicable, no se recorren automáticamente y no recuperan
 migraciones perdidas. No ejecutar el directorio ni aplicar el snapshot sandbox
 completo sobre una base existente.
+
+## 2026-11-24 — Oferta Gratis/Club y sedes adicionales (pendiente)
+
+`20261124121000_pricing_club_locations_candidate.sql` amplía `public.plans` con
+límites de grupos, clases y equipo, sedes incluidas y precios de sedes extra;
+archiva los códigos antiguos sin alterar sus Prices ni sus importes, crea el
+registro Club y actualiza Gratis. Añade `extra_location_quantity` a las
+operaciones de checkout para fijar la cantidad inicial de sedes extras.
+
+**Estado: aplicada en staging y en producción el 24-11-2026**, con autorización
+expresa de Elvis («Tienes mi permiso»), sobre el archivo exacto con el SHA-256 de
+abajo. Orden seguido: staging → fusión del PR #390 → producción → despliegue
+`zaltyko-1jr3xgk7k` el mismo minuto. En staging `public.plans` estaba vacía antes
+de aplicarla; el 24-11-2026 se añadió en staging la fila `free` con los mismos valores que producción (30 gimnastas, equipo de 2).
+
+Stripe Live (cuenta Zaltyko), creados el 24-11-2026; los identificadores no son
+secretos y están en Vercel Production:
+
+| Variable | Objeto | Importe |
+|---|---|---|
+| `STRIPE_SAAS_LIVE_PRICE_CLUB_MONTH` | `price_1UfQfDDXXopppUpeaJ3EAZnc` | 23,97 € + IVA / mes |
+| `STRIPE_SAAS_LIVE_PRICE_CLUB_YEAR` | `price_1UfQfEDXXopppUpezMaX0SnK` | 239,67 € + IVA / año |
+| `STRIPE_SAAS_LIVE_PRICE_LOCATION_MONTH` | `price_1UfQfFDXXopppUpeg9kHO67b` | 16,53 € + IVA / mes |
+| `STRIPE_SAAS_LIVE_PRICE_LOCATION_YEAR` | `price_1UfQfHDXXopppUpeUfCvbSmI` | 165,29 € + IVA / año |
+| `STRIPE_SAAS_LIVE_TAX_RATE_ES_IVA21` | `txr_1UfQfIDXXopppUpesU7pmtXR` | IVA 21 % exclusivo |
+
+Cupón fundador `pa0OmWjT` (339 céntimos, 12 meses, máximo 10, solo producto Club)
+con el código promocional `FUNDADOR`. El Checkout Live sigue cerrado: faltan
+`STRIPE_SAAS_ENVIRONMENT`, la clave y el webhook Live, y en
+`commercial-launch-profile.ts` siguen en `false` `legalTextsApproved`,
+`invoicingIntegrationReady` y `liveReleaseApproved`.
+No llama a Stripe/Supabase; los cuatro Price IDs y el cupón de fundador se
+configuran en cada entorno después por el agente autorizado. `plans` es
+catálogo público de producto y `extra_location_quantity` es metadato SaaS
+excluido del paquete de datos de academia en `src/modules/data-rights/application/catalog.ts`.
+
+**Orden de producción obligatorio:** aplicar y verificar primero esta migración;
+después configurar los Prices de Stripe y las variables de entorno; desplegar
+el código al final. El código de esta rama no es seguro para desplegar sobre una
+base que aún no tenga la candidata: Drizzle lee las columnas nuevas de
+`public.plans` y del checkout (`extra_location_quantity`).
+
+**SHA-256:** `381e0fba8c0032a440a92f5e65240ab56956188014cc110e71fba0a005070b5a`.
+Debe coincidir con el archivo exacto antes de cualquier revisión posterior.
 
 ## Estado a 12-11-2026
 
@@ -131,6 +202,15 @@ commit;
   Antes, apagar `ZALTYKO_SKILL_LEVELS_ENABLED`: sin la bandera la función deja de existir sin tocar datos. Tras el borrado, la exportación de la academia vuelve al paquete anterior (el módulo está ausente entero).
 - **Espejo Drizzle** fuera de `src/db/schema/`, como los demás candidatos.
 - **Producto y prueba en staging:** `docs/producto/niveles-y-progresion.md`.
+
+## Importación de plantillas RFEG de niveles (candidata nueva, sin aplicar)
+
+**Estado: `20261124134300_skill_template_federation_source_candidate.sql` es candidata local y no está aplicada.** Amplía el CHECK de `zaltyko.skill_templates.source` para admitir `federation`; conserva los valores anteriores y no añade columnas ni reescribe filas.
+
+- **Revisión previa.** Comprueba manualmente que el esquema instalado tenga `skill_templates_source_check` antes de promoverla. La candidata aborta si falta la tabla o la restricción.
+- **Bandera separada.** `ZALTYKO_FEDERATION_LEVEL_TEMPLATES_ENABLED` permanece apagada por defecto. La importación también requiere `ZALTYKO_SKILL_LEVELS_ENABLED` y el esquema existente de niveles.
+- **Datos.** La clave, el título de fuente, edición y fecha consultada se conservan en la descripción de la copia y en las citas de cada requisito. Por ello no hacen falta columnas de migración en esta fase.
+- **Rollback.** No se recomienda revertir mientras existan copias `source = 'federation'`. Si no hay ninguna, puede restaurarse el CHECK previo (`blank`, `starter`, `copy`) en una candidata revisada.
 
 ## Candidato de instalación canónica
 
@@ -1023,9 +1103,9 @@ familia guardó, en la cuenta Stripe conectada de su academia. Decisión:
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261118120000_family_collection_events_candidate.sql` | `4655a7867d1b239e7b9e5418d4bd28905695b37246a381e02cd62c921e06a40a` | No aplicada | No aplicada |
+| `20261118120000_family_collection_events_candidate.sql` | `4655a7867d1b239e7b9e5418d4bd28905695b37246a381e02cd62c921e06a40a` | No aplicada | Instalada (objetos comprobados el 24-11-2026; fecha de aplicación sin registrar) |
 
-**Estado: no aplicada en ningún entorno** (comprobado el 18-11-2026: el
+**Estado a 24-11-2026: instalada en staging, no aplicada en producción.** El 24-11-2026 se comprobó en staging que existen `zaltyko.family_collection_disputes` (con RLS forzado), sus tres índices, `family_collection_attempts_open_uq` y la columna `action_deadline_at`; no consta quién la aplicó ni cuándo. Texto anterior: no aplicada en ningún entorno (comprobado el 18-11-2026: el
 SHA-256 de la fila coincide con `shasum -a 256` del archivo). Staging y
 producción necesitan cada uno una autorización expresa de Elvis; las de las
 Fases 1 a 3 no la cubren. En staging va con los pasos de la Tarea 14
@@ -1137,7 +1217,7 @@ commit;
 |---|---|---|---|
 | `20261119120000_element_library_candidate.sql` | `584d44defba1a8d54976f53bef07cbad9f4047b56094ed4d762a4ef99800d6d5` | No aplicada | Aplicada 19-11-2026 |
 | `20261119120500_element_library_notes_candidate.sql` | `e521dccf2731854da916f1986764e0e40b5823ec4bd3952dc86797d47a846abb` | No aplicada | Aplicada 19-11-2026 |
-| `20261119121000_element_catalog_seed_fig-wag-2025-2028_1.sql` (semilla de la tanda 1, revisada por Elvis el 19-11-2026) | `e0460dd430115358d224b0e426e3585ee6673d85a8c070d409f97d523d3e1488` | No aplicada | Pendiente (aplicada el 19-11-2026 la versión en borrador, `22c07286…`) |
+| `20261119121000_element_catalog_seed_fig-wag-2025-2028_1.sql` (semilla de la tanda 1, revisada por Elvis el 19-11-2026) | `e0460dd430115358d224b0e426e3585ee6673d85a8c070d409f97d523d3e1488` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en producción.** Staging: las dos candidatas y la
 versión en borrador de la semilla (`22c07286…`) se aplicaron el 19-11-2026 con
@@ -1215,27 +1295,27 @@ commit;
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261119123000_element_catalog_seed_fig-wag-2025-2028_2.sql` (semilla de la tanda 2, revisada el 23-11-2026 por delegación de Elvis; en borrador era `a9005a6a…`) | `d9bf27580755f6ebf44221a40a9e1d8461075caa463ef592b71d90ba7c356530` | No aplicada | No aplicada |
+| `20261119123000_element_catalog_seed_fig-wag-2025-2028_2.sql` (semilla de la tanda 2, revisada el 23-11-2026 por delegación de Elvis; en borrador era `a9005a6a…`) | `d9bf27580755f6ebf44221a40a9e1d8461075caa463ef592b71d90ba7c356530` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 ## Semilla de la tanda 3 de la biblioteca: asimétricas, grupos 1 y 2 (20-11-2026)
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120003000_element_catalog_seed_fig-wag-2025-2028_3.sql` (semilla de la tanda 3, revisada el 23-11-2026 por delegación de Elvis; en borrador era `d2e93819…`) | `374016d60c1876b71b935c4cd22bc04016b08a2f753306f5335e175fc319fe42` | No aplicada | No aplicada |
+| `20261120003000_element_catalog_seed_fig-wag-2025-2028_3.sql` (semilla de la tanda 3, revisada el 23-11-2026 por delegación de Elvis; en borrador era `d2e93819…`) | `374016d60c1876b71b935c4cd22bc04016b08a2f753306f5335e175fc319fe42` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 ## Semilla de la tanda 6 de la biblioteca: barra, grupo 1 (20-11-2026)
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120033000_element_catalog_seed_fig-wag-2025-2028_6.sql` (semilla de la tanda 6, revisada el 23-11-2026 por delegación de Elvis; en borrador era `cc7f14d2…`) | `df00ff97a269d4d5b5fab1b68c7bc4d971bf6c16a44737585a27c45215a013c1` | No aplicada | No aplicada |
+| `20261120033000_element_catalog_seed_fig-wag-2025-2028_6.sql` (semilla de la tanda 6, revisada el 23-11-2026 por delegación de Elvis; en borrador era `cc7f14d2…`) | `df00ff97a269d4d5b5fab1b68c7bc4d971bf6c16a44737585a27c45215a013c1` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 ## Semilla de la tanda 10 de la biblioteca: suelo, grupo 1 (20-11-2026)
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120073000_element_catalog_seed_fig-wag-2025-2028_10.sql` (semilla de la tanda 10, revisada el 23-11-2026 por delegación de Elvis; en borrador era `803e3589…`) | `64e8b63362f033297eb5f3b7d04aad4d222b035c39731f50c02137b3d4994a71` | No aplicada | No aplicada |
+| `20261120073000_element_catalog_seed_fig-wag-2025-2028_10.sql` (semilla de la tanda 10, revisada el 23-11-2026 por delegación de Elvis; en borrador era `803e3589…`) | `64e8b63362f033297eb5f3b7d04aad4d222b035c39731f50c02137b3d4994a71` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 ## Semilla de la tanda 1 de la masculina: suelo, grupo I (21-11-2026)
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261121120000_element_catalog_seed_fig-mag-2025-2028_1.sql` (semilla de la tanda 1 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `a0cc9b45…`) | `1b3a380279a10d1a63be789f9788fd733a07c0bd0d3c912b19ebd0befff596b0` | No aplicada | No aplicada |
+| `20261121120000_element_catalog_seed_fig-mag-2025-2028_1.sql` (semilla de la tanda 1 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `a0cc9b45…`) | `1b3a380279a10d1a63be789f9788fd733a07c0bd0d3c912b19ebd0befff596b0` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1265,7 +1345,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120013000_element_catalog_seed_fig-wag-2025-2028_4.sql` (semilla de la tanda 4, revisada el 23-11-2026 por delegación de Elvis; en borrador era `7f6e0cd0…`) | `d9820ca1eb58474bbb718d3b06ee5254a88a9705d7567a107ffafc7355e51950` | No aplicada | No aplicada |
+| `20261120013000_element_catalog_seed_fig-wag-2025-2028_4.sql` (semilla de la tanda 4, revisada el 23-11-2026 por delegación de Elvis; en borrador era `7f6e0cd0…`) | `d9820ca1eb58474bbb718d3b06ee5254a88a9705d7567a107ffafc7355e51950` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1283,7 +1363,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120023000_element_catalog_seed_fig-wag-2025-2028_5.sql` (semilla de la tanda 5, revisada el 23-11-2026 por delegación de Elvis; en borrador era `16c6a6ca…`) | `dea89d120af2b07756d8c1bd9327e228e83a82bd0a335c8e07d1eaa9dfce4394` | No aplicada | No aplicada |
+| `20261120023000_element_catalog_seed_fig-wag-2025-2028_5.sql` (semilla de la tanda 5, revisada el 23-11-2026 por delegación de Elvis; en borrador era `16c6a6ca…`) | `dea89d120af2b07756d8c1bd9327e228e83a82bd0a335c8e07d1eaa9dfce4394` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1309,7 +1389,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120043000_element_catalog_seed_fig-wag-2025-2028_7.sql` (semilla de la tanda 7, revisada el 23-11-2026 por delegación de Elvis; en borrador era `d16a2a9e…`) | `884f63a41938e7556411c75d102388a84635c19d4e2e33d8e8158c9affbcdc80` | No aplicada | No aplicada |
+| `20261120043000_element_catalog_seed_fig-wag-2025-2028_7.sql` (semilla de la tanda 7, revisada el 23-11-2026 por delegación de Elvis; en borrador era `d16a2a9e…`) | `884f63a41938e7556411c75d102388a84635c19d4e2e33d8e8158c9affbcdc80` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1327,7 +1407,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120053000_element_catalog_seed_fig-wag-2025-2028_8.sql` (semilla de la tanda 8, revisada el 23-11-2026 por delegación de Elvis; en borrador era `597a06f4…`) | `590608ecc9ce3e66cdd73bdd9d8eb1723d91755ab37c64ca35a1a927d0f12c4b` | No aplicada | No aplicada |
+| `20261120053000_element_catalog_seed_fig-wag-2025-2028_8.sql` (semilla de la tanda 8, revisada el 23-11-2026 por delegación de Elvis; en borrador era `597a06f4…`) | `590608ecc9ce3e66cdd73bdd9d8eb1723d91755ab37c64ca35a1a927d0f12c4b` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1345,7 +1425,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120063000_element_catalog_seed_fig-wag-2025-2028_9.sql` (semilla de la tanda 9, revisada el 23-11-2026 por delegación de Elvis; en borrador era `2bbf1b75…`) | `ba2c4aad24066c1ab6979e2d9c5a3cb92544feb2b72c6cf3e42dd33645a028bc` | No aplicada | No aplicada |
+| `20261120063000_element_catalog_seed_fig-wag-2025-2028_9.sql` (semilla de la tanda 9, revisada el 23-11-2026 por delegación de Elvis; en borrador era `2bbf1b75…`) | `ba2c4aad24066c1ab6979e2d9c5a3cb92544feb2b72c6cf3e42dd33645a028bc` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1370,7 +1450,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261120083000_element_catalog_seed_fig-wag-2025-2028_11.sql` (semilla de la tanda 11, revisada el 23-11-2026 por delegación de Elvis; en borrador era `fedffc05…`) | `f52d52ddeefaf8556461fa58274e6f7e459e61d7d4b15e6f7372b281e4a7f4f5` | No aplicada | No aplicada |
+| `20261120083000_element_catalog_seed_fig-wag-2025-2028_11.sql` (semilla de la tanda 11, revisada el 23-11-2026 por delegación de Elvis; en borrador era `fedffc05…`) | `f52d52ddeefaf8556461fa58274e6f7e459e61d7d4b15e6f7372b281e4a7f4f5` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1397,7 +1477,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261121130000_element_catalog_seed_fig-mag-2025-2028_2.sql` (semilla de la tanda 2 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `5c63a1b9…`) | `346c1ff330c2f8b9793ecba3d3d5d28f9456af43da94f9a8bd5f130cb6e008b3` | No aplicada | No aplicada |
+| `20261121130000_element_catalog_seed_fig-mag-2025-2028_2.sql` (semilla de la tanda 2 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `5c63a1b9…`) | `346c1ff330c2f8b9793ecba3d3d5d28f9456af43da94f9a8bd5f130cb6e008b3` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1414,7 +1494,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122120000_element_catalog_seed_fig-mag-2025-2028_3.sql` (semilla de la tanda 3 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `3c4639b0…`) | `ce12420b15caf76744c088f3f47b748244b6a224e76011993a7f38e40fef8bd0` | No aplicada | No aplicada |
+| `20261122120000_element_catalog_seed_fig-mag-2025-2028_3.sql` (semilla de la tanda 3 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `3c4639b0…`) | `ce12420b15caf76744c088f3f47b748244b6a224e76011993a7f38e40fef8bd0` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1430,7 +1510,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122130000_element_catalog_seed_fig-mag-2025-2028_4.sql` (semilla de la tanda 4 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `ea82dfbb…`) | `029629c9a3b2c5bf55397d105d54f2019955795a3e3c9813dea3e091e9cdcbca` | No aplicada | No aplicada |
+| `20261122130000_element_catalog_seed_fig-mag-2025-2028_4.sql` (semilla de la tanda 4 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `ea82dfbb…`) | `029629c9a3b2c5bf55397d105d54f2019955795a3e3c9813dea3e091e9cdcbca` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1447,7 +1527,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122140000_element_catalog_seed_fig-mag-2025-2028_5.sql` (semilla de la tanda 5 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `8f83ebe4…`) | `2d9ffde7cb46fb00a9ce3583b168e4f72d5a66732cdde2f4242e92fc910b9c67` | No aplicada | No aplicada |
+| `20261122140000_element_catalog_seed_fig-mag-2025-2028_5.sql` (semilla de la tanda 5 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `8f83ebe4…`) | `2d9ffde7cb46fb00a9ce3583b168e4f72d5a66732cdde2f4242e92fc910b9c67` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1464,7 +1544,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122150000_element_catalog_seed_fig-mag-2025-2028_6.sql` (semilla de la tanda 6 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `c721d86d…`) | `322cc77cc248eb68cd799137c1a98f745067f876fbfa1f216eeb9a622d8a78aa` | No aplicada | No aplicada |
+| `20261122150000_element_catalog_seed_fig-mag-2025-2028_6.sql` (semilla de la tanda 6 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `c721d86d…`) | `322cc77cc248eb68cd799137c1a98f745067f876fbfa1f216eeb9a622d8a78aa` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1480,7 +1560,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122160000_element_catalog_seed_fig-mag-2025-2028_7.sql` (semilla de la tanda 7 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `06ec9211…`) | `025c09aab622d63bc6a3e352a0a46ef2ee0159489e451afbb4a5af1a84b16911` | No aplicada | No aplicada |
+| `20261122160000_element_catalog_seed_fig-mag-2025-2028_7.sql` (semilla de la tanda 7 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `06ec9211…`) | `025c09aab622d63bc6a3e352a0a46ef2ee0159489e451afbb4a5af1a84b16911` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1497,7 +1577,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122170000_element_catalog_seed_fig-mag-2025-2028_8.sql` (semilla de la tanda 8 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `4010a05c…`) | `fe498f65c588e40a43ed54a57442ee1dea7ea6223f2282b14edad940fed9bf9b` | No aplicada | No aplicada |
+| `20261122170000_element_catalog_seed_fig-mag-2025-2028_8.sql` (semilla de la tanda 8 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `4010a05c…`) | `fe498f65c588e40a43ed54a57442ee1dea7ea6223f2282b14edad940fed9bf9b` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1513,7 +1593,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122180000_element_catalog_seed_fig-mag-2025-2028_9.sql` (semilla de la tanda 9 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `a152807b…`) | `5b44514918577342991005b993cd6d65f8ea8bbfd10b2cd18ef1064677e0e30c` | No aplicada | No aplicada |
+| `20261122180000_element_catalog_seed_fig-mag-2025-2028_9.sql` (semilla de la tanda 9 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `a152807b…`) | `5b44514918577342991005b993cd6d65f8ea8bbfd10b2cd18ef1064677e0e30c` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1530,7 +1610,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122190000_element_catalog_seed_fig-mag-2025-2028_10.sql` (semilla de la tanda 10 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `cba05298…`) | `dfdefb59070be3edb69586cbdd58db04e7033e3dfe7d3173117f7ad26430adbf` | No aplicada | No aplicada |
+| `20261122190000_element_catalog_seed_fig-mag-2025-2028_10.sql` (semilla de la tanda 10 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `cba05298…`) | `dfdefb59070be3edb69586cbdd58db04e7033e3dfe7d3173117f7ad26430adbf` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1546,7 +1626,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122200000_element_catalog_seed_fig-mag-2025-2028_11.sql` (semilla de la tanda 11 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `80f1cbb4…`) | `1d71a6adaa8e4faf913213d3ed926ecf25fef98b9749bdca4d2b084497e60bb3` | No aplicada | No aplicada |
+| `20261122200000_element_catalog_seed_fig-mag-2025-2028_11.sql` (semilla de la tanda 11 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `80f1cbb4…`) | `1d71a6adaa8e4faf913213d3ed926ecf25fef98b9749bdca4d2b084497e60bb3` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1562,7 +1642,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122210000_element_catalog_seed_fig-mag-2025-2028_12.sql` (semilla de la tanda 12 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `04fb07f2…`) | `6fcd003ccc31a0c5a748cfe2354f690555aa0794a1b5bfc884e3b4d2625d3326` | No aplicada | No aplicada |
+| `20261122210000_element_catalog_seed_fig-mag-2025-2028_12.sql` (semilla de la tanda 12 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `04fb07f2…`) | `6fcd003ccc31a0c5a748cfe2354f690555aa0794a1b5bfc884e3b4d2625d3326` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1579,7 +1659,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122220000_element_catalog_seed_fig-mag-2025-2028_13.sql` (semilla de la tanda 13 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `3e53d47c…`) | `5b9b854bb82af38280b58dced67cd51d3c01bd8225311a668985cbf647819213` | No aplicada | No aplicada |
+| `20261122220000_element_catalog_seed_fig-mag-2025-2028_13.sql` (semilla de la tanda 13 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `3e53d47c…`) | `5b9b854bb82af38280b58dced67cd51d3c01bd8225311a668985cbf647819213` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.
@@ -1596,7 +1676,7 @@ autorización expresa de Elvis; la CI verde no equivale a autorización.
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261122230000_element_catalog_seed_fig-mag-2025-2028_14.sql` (semilla de la tanda 14 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `19b508fb…`) | `677654c73dabe033e3f389bab89fe19b1976bdf3b8e89904ffef206ff4631a2f` | No aplicada | No aplicada |
+| `20261122230000_element_catalog_seed_fig-mag-2025-2028_14.sql` (semilla de la tanda 14 de la masculina, revisada el 23-11-2026 por delegación de Elvis; en borrador era `19b508fb…`) | `677654c73dabe033e3f389bab89fe19b1976bdf3b8e89904ffef206ff4631a2f` | No aplicada | Aplicada 24-11-2026 (1.301 elementos; comparados con el repo, 0 diferencias) |
 
 **Estado: No se ha aplicado en ningún entorno.** Cada entorno necesita una
 autorización expresa de Elvis; la CI verde no equivale a autorización.

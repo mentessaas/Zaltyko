@@ -27,9 +27,10 @@
   `expectedColumns` de `data-rights/application/catalog.ts:658-685`. Una
   columna nueva sin código preparado deja ambas funciones en 503 y rompe la
   exportación.
-- **Las federaciones están prohibidas a propósito**
-  (`tests/skill-levels-domain.test.ts:227-236`; decisión 7 de
-  `docs/producto/niveles-y-progresion.md`).
+- **Las plantillas genéricas no citan federaciones sin fuente verificada**
+  (`tests/skill-levels-domain.test.ts:227-236`; §4 y decisión 7 de
+  `docs/producto/niveles-y-progresion.md`). La fase D permite datos RFEG que
+  cumplan el resumen legal y mantengan la atribución visible.
 - **Informe legal (19-11-2026).** Nombre, aparato, grupo y valor son hechos; el
   texto y los dibujos del Código de Puntuación no (veredictos 1, 1b, 5, 6c).
   RFEG de solo hechos: con condiciones (2); con texto o ilustraciones: abogado
@@ -176,47 +177,45 @@
 
 ### 4. Plantillas de niveles de federación
 
-1. **Dónde viven.** En archivos versionados en el código, como las plantillas
-   de inicio: `src/modules/skill-levels/domain/federation-templates/<clave>.json`.
-   Cada archivo declara su disciplina con la clave de `skill-levels`
-   (`artistic_female` o `artistic_male`) y su fila de `sport_profiles`
-   (`ES / artistic / rfeg / rfeg-2027`). Esa fila, que cubre GAF y GAM a la
-   vez, la crea una semilla con `status='verified'` (ADR-0018). Al importar, el
-   servidor comprueba que existe y está `verified`.
-2. **Contenido.** Clave y versión (`rfeg-gaf-base-2027`); fuente (título, URL
-   HTTPS del PDF, fecha del documento, fecha de lectura y vigencia
-   `valid_from`/`valid_to`); niveles con nombre y página; elementos exigidos
-   con aparato, nombre técnico, `catalog_element_key` si coincide, obligatorio
-   o no y referencia («R2, p. 14»). El esquema es estricto y **no tiene campos
-   de texto libre**.
+1. **Dónde viven.** En datos JSON versionados por edición:
+   `src/modules/skill-levels/data/federation/rfeg-2026/{gaf,gam}.json`.
+   La clave de disciplina es `artistic_female` o `artistic_male`. La
+   importación crea una copia de academia; no importa material FMG.
+2. **Contenido.** Cada fichero declara federación, documento, edición, fecha
+   del documento y fecha de consulta. Incluye URL oficial solo si se verifica;
+   en el lote inicial solo se conserva el nombre del documento porque la URL
+   no se confirmó sin navegar. Los niveles siguen el orden oficial, con
+   referencias de página y hechos breves redactados en palabras propias.
+   `elementKey` solo se rellena con coincidencia inequívoca y puede quedar nulo.
 3. **Importación y copias.** `skill_templates.source` admite `federation`.
-   Columnas nuevas, nulas: `federation_key`, `federation_version`,
-   `source_title`, `source_url`, `source_document_date`, `source_checked_on`.
-   - CHECK: si `source = 'federation'`, la fuente está completa y en HTTPS; y
-     `federation_key` solo puede existir con `source` en (`federation`,
-     `copy`). La regla actual de `starter_key` no cambia.
-   - **Copiar** una plantilla basada en una federación conserva `federation_*`
-     y `source_*`: la atribución sobrevive a la copia.
-   - **Etiqueta:** sin cambios, «Niveles de la RFEG: [documento], edición […]»;
-     copia o editada (`revision > 1`), «Basada en [documento] (RFEG, edición
-     […]), modificada por la academia».
-   - **La cabecera de atribución no se edita**: se compone desde `source_*` y
-     ninguna orden de edición acepta esos campos.
+   No se añaden columnas en esta fase: la atribución se conserva en la
+   descripción de la copia y en la cita de cada requisito. La candidata
+   `20261124134300_skill_template_federation_source_candidate.sql` amplía el
+   CHECK existente y no está aplicada.
+   - El CHECK vigente de `starter_key` se mantiene sin cambios.
+   - **Copiar** conserva la descripción y las citas con página, por lo que la
+     atribución se arrastra a las copias de academia.
+   - La academia puede editar la copia. La plantilla oficial de código no se
+     modifica al importar.
+   - Cada elemento o condición factual se guarda como una entrada separada. El
+     límite por nivel sube de 40 a 64 para admitir la plantilla GAM Base 2
+     (60 entradas); el máximo de 300 por plantilla no cambia. El tope de
+     elementos por envío de evaluación también sube a 64; el máximo conjunto de
+     400 marcas por envío se mantiene. No requiere una migración.
    - «Solo hechos» se garantiza en los archivos del código, no en lo que la
      academia escriba después, y es aceptable: la academia es autora de sus
      cambios.
-4. **Cómo se muestra.** En el diálogo de importación y en la cabecera: fuente,
-   edición, fecha y enlace al PDF, con el texto del §7.3: «Resumen de los
-   niveles del [documento] de la Real Federación Española de Gimnasia (versión
-   del […]). Para competir, consulta siempre el documento oficial: [enlace].
-   Zaltyko no está afiliado a la RFEG.»
-5. **Solo hechos (2 y 2b).** Ni requisitos redactados ni ilustraciones: se
-   remite al requisito y a la página. En los ejercicios obligatorios (GAF
-   B1–B5) se listan los elementos, no la secuencia, que puede ser obra
-   coreográfica. El PDF se enlaza, no se incrusta.
-6. **RFEG primero:** GAF Base B1–B10 y GAM Base B1–B5, edición 2027; después,
-   la Vía Olímpica (VO9 y VO10 aplican el Código completo: los cubre la
-   biblioteca).
+4. **Cómo se muestra.** En la selección y en la copia figura «Fuente: RFEG,
+   [documento], pág. N». En la copia se recuerda que debe consultarse siempre
+   el documento oficial y que Zaltyko no está afiliado a la RFEG. El PDF no se
+   incrusta. La URL oficial queda pendiente de verificación.
+5. **Solo hechos (2 y 2b).** No se copian texto, dibujos ni secuencias. Se
+   conservan nombres de nivel y aparato, referencias de página y hechos breves
+   propios. La prueba anti-copia compara secuencias de ocho palabras con las
+   extracciones locales del PDF.
+6. **RFEG primero:** GAF Base 1–10 y GAM Base 1–5, edición 2026, vigente hasta
+   el 31-12-2026 según los documentos disponibles. La edición 2027 queda
+   pendiente de obtener y revisar su PDF; después se estudiará Vía Olímpica.
 7. **FMG bloqueada (3 y 3b).** La Pirámide GAF usa rutinas y el código JO de
    USA Gymnastics, que prohíbe resúmenes y adaptaciones sin permiso escrito.
    El esqueleto espera al abogado (L11, L12) o a una licencia de la FMG o de
@@ -224,14 +223,16 @@
    academias mexicanas usan la biblioteca y sus plantillas propias.
 8. **Regla del test: «solo con fuente verificada y sin texto reproducido».**
    - La comprobación actual sigue para `STARTER_TEMPLATES`.
-   - `tests/federation-templates.test.ts` exige: esquema estricto; nombres
-     cortos (nivel ≤ 60, elemento ≤ 100); URL HTTPS de un dominio permitido
-     (`rfegimnasia.es`); fechas válidas; un perfil `verified` en la semilla; y
-     `catalog_element_key` existentes.
-   - **Sin texto reproducido:** al preparar la plantilla se extrae el texto del
-     PDF y se guardan solo las huellas SHA-256 de cada secuencia de 6 palabras
-     normalizadas (`tests/fixtures/federation-shingles/<clave>.json`). El test
-     falla si alguna secuencia de la plantilla coincide.
+   - `tests/skill-levels-federation-data.test.ts` valida orden, metadatos,
+     páginas, aparato y disciplina de cada `elementKey`, bandera apagada por
+     defecto y ausencia del texto genérico de relleno.
+   - **Sin texto reproducido:** la persona que prepara la edición extrae el
+     texto de los PDF locales con `pdftotext` y pasa las rutas fuera del
+     repositorio mediante `RFEG_GAF_TEXT_PATH` y `RFEG_GAM_TEXT_PATH`. El test
+     compara todos los textos de la ficha con secuencias normalizadas de ocho
+     palabras; nombres de elementos breves no alcanzan ese umbral. Si esas
+     variables no están definidas, la comprobación se omite; si se definen y la
+     extracción no existe, el test falla.
 
 ### 5. Una sola tabla de equivalencias de disciplina
 

@@ -18,6 +18,9 @@ source:
 
 ## Competencia — backlog derivado de la investigación del 2026-11-10
 
+- P2 · Incorporar RFEG 2027 cuando se disponga del PDF oficial; verificar vigencia, URL oficial, niveles, aparatos, requisitos y páginas. No copiar texto, ilustraciones ni secuencias.
+- Hecho en local · Cotejo página a página de las fichas RFEG 2026 contra los PDF y prueba anti-copia. Antes de promover la candidata o encender la bandera, siguen pendientes la revisión y autorización de Elvis para ese entorno.
+
 Fuente: `docs/research/competencia/plan-validacion-30-dias.md`. No construir nada solo porque lo tenga un competidor.
 - P1 · Activar invitaciones de entrenadoras. Depende del correo transaccional aislado.
 - P1 · Entrenadora titular por clase y sustitución por sesión, sobre `session_staff`. Hecho en código (O1, 2026-11-11) tras el candidato `20261111180000_coach_assignment_candidate.sql`, **dormido hasta que Elvis lo autorice**. Pendiente: vincular ficha de equipo y acceso (`staff_profiles.member_id`) al aceptar la invitación (O3); sin ese vínculo nadie es asignable.
@@ -35,7 +38,8 @@ Producto: `docs/producto/biblioteca-de-elementos.md`. Orden y hashes: `docs/depl
 - P1 · Tanda 2: salto, grupos 4 y 5.
 - P1 · Siguientes tandas de GAF: asimétricas, barra y suelo; después, GAM (`fig-mag-2025-2028`).
 - Pendiente de autorización · Prueba en staging (buscar, añadir desde la biblioteca, evaluar, ver en el guion, retirar un elemento), con permiso de Elvis para cada candidata, la semilla y la bandera.
-- P2 · Fase D: plantillas de niveles de la RFEG (GAF Base B1–B10 y GAM Base B1–B5, edición 2027), solo con hechos, en su propia PR.
+- Hecho en local · Fase D RFEG 2026: GAF Base 1–10 y GAM Base 1–5, solo hechos, con página y bandera apagada.
+- P2 · Añadir RFEG 2027 cuando se disponga del PDF oficial y revisar la edición antes de una PR.
 - Deuda · Con la migración de la biblioteca en todos los entornos, quitar el conjunto antiguo de columnas de las detecciones de niveles, guiones y derechos de datos (PR propia).
 - Pendiente de autorización · Retirada de las tablas antiguas (`20261119122000_retire_legacy_skill_catalog_candidate.sql`), después de la fase C y primero en staging.
 - P1 · Corregir los specs de animación que fallan el nuevo validador geométrico. La auditoría del 25-11 validó 563 archivos del worktree `animaciones`: 266 tienen problemas de superficie de contacto, despeje de viga/barra, colisión con aparato o límites del lienzo. Revisar anillas y barras para marcar `underBar` solo en fases colgadas correctas. No editar las copias de `anim-cx-*` hasta coordinar sus lotes. Evidencia: `scripts/element-library/animation/work/geometry-audit.md`.

@@ -24,7 +24,7 @@ Lanzamiento en español; alta abierta a academias de cualquier país, con Españ
 - Sesiones de hoy en el Resumen y pase de lista desde el móvil.
 - Importación de gimnastas desde Excel o CSV con vista previa; las filas con el mismo nombre y fecha de nacimiento que una gimnasta existente se señalan y no se crean de nuevo.
 - Lista de puesta en marcha para academias nuevas.
-- Zona horaria propia de cada sede; cuotas en la moneda de la academia (EUR o MXN).
+- Zona horaria propia de cada sede.
 - Historial de grupos con fechas de entrada y salida, también tras archivar una ficha.
 - Altas, inscripciones, cuotas, pagos y listas protegidos contra el doble envío.
 - Acceso de entrenadoras por invitación: la dirección copia el enlace y lo comparte (Zaltyko no envía el correo); cada entrenadora entra con su cuenta y solo llega a las sesiones de hoy y al pase de lista de sus sedes.
@@ -32,18 +32,16 @@ Lanzamiento en español; alta abierta a academias de cualquier país, con Españ
 - Guion de cada sesión (foco del día y bloques de trabajo) y objetivos y observaciones por gimnasta, visibles solo para el equipo de la academia.
 - Solicitudes de prueba de las familias desde el enlace público de la academia, sin envío de correos ni reserva de la sesión de prueba.
 
-En preparación, sin fecha y no disponible todavía: portal de familias.
+El portal familiar permite a las familias consultar la información de sus gimnastas.
 
 Zaltyko no inicia cargos automáticos a las familias.
 La suscripción SaaS de la academia es independiente de esas cuotas.
 Health Score, retención, IA, marketplace y funciones avanzadas no forman parte de esta versión.
 
-Free: 30 gimnastas, 3 grupos y 10 clases activas; el alta no pide tarjeta.
-Starter: 19 €/mes o 190 €/año, hasta 75 gimnastas.
-Growth: 49 €/mes o 490 €/año, hasta 200 gimnastas.
-Precios sin IVA. ¿Varias sedes o academias? Escríbenos y vemos tu caso.
-Prueba de Starter de 7 días sin tarjeta, una por academia cada 12 meses.
-Al terminar el acceso se aplican límites Free: si hay excedente, solo lectura hasta archivar o contratar capacidad.
+Gratis: 0 €, hasta 30 gimnastas y 2 personas en el equipo; grupos y clases sin límite.
+Club: 29 €/mes o 290 €/año, IVA incluido; sin límite de gimnastas, equipo, grupos ni clases.
+La primera sede está incluida en Club; cada sede adicional cuesta 20 €/mes o 200 €/año, IVA incluido.
+Prueba Club durante 30 días, sin tarjeta. México todavía no tiene precio publicado.
 
 Rutas: /, /features, /pricing, /faq, /ayuda, /auth/register?role=owner.
 Condiciones: /terminos. Privacidad: /politica-privacidad.

@@ -5,18 +5,13 @@ import { getProductPlanPublicName } from "@/lib/plans/catalog";
 import { getSubscriptionStatusLabel } from "@/lib/billing/subscription-status-labels";
 
 const PLAN_COPY: Record<string, { title: string; description: string }> = {
-  free: {
-    title: "Free",
-    description: "Hasta 30 gimnastas · ideal para academias en lanzamiento",
-  },
-  pro: {
-    title: "Starter",
-    description: "Hasta 75 gimnastas · familias y responsables y gestión de cuotas",
-  },
-  premium: {
-    title: "Growth",
-    description: "Hasta 200 gimnastas · soporte prioritario",
-  },
+  free: { title: "Gratis", description: "Hasta 30 gimnastas · dirección y una persona más en el equipo" },
+  club: { title: "Club", description: "Todas las funciones del plan Club" },
+  starter: { title: "Club", description: "Plan Club heredado" },
+  pro: { title: "Club", description: "Plan Club heredado" },
+  growth: { title: "Club", description: "Plan Club heredado" },
+  premium: { title: "Club", description: "Plan Club heredado" },
+  network: { title: "Club", description: "Plan Club heredado" },
 };
 
 function formatPlanPrice(plan: PlanSummary) {
@@ -90,7 +85,7 @@ export function BillingSummary({
                 summary.billingInterval === "year"
                   ? currentPlan.annualPriceEur ?? currentPlan.priceEur
                   : currentPlan.priceEur,
-            })} / {summary.billingInterval ?? currentPlan.billingInterval ?? "mes"}
+            })} / {summary.billingInterval ?? currentPlan.billingInterval ?? "mes"} · IVA incluido
           </p>
         )}
         {summary.hasStripeCustomer && (

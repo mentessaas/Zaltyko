@@ -87,8 +87,8 @@ describe("effective canonical SaaS entitlement (mocked DB, real resolver)", () =
 
   it.each([
     [row(), "free", 30],
-    [trial(), "starter", 75],
-    [paid(), "growth", 200],
+    [trial(), "starter", null],
+    [paid(), "growth", null],
     [row({ plan_code: "network", source: "contract" }), "network", null],
   ])("resolves valid entitlement %#", async (value, plan, limit) => {
     const result = await resolve(value as Record<string, unknown>);
@@ -128,7 +128,7 @@ describe("effective canonical SaaS entitlement (mocked DB, real resolver)", () =
       justBeforeEnd
     );
     expect(result.planCode).toBe("growth");
-    expect(result.limits.athleteLimit).toBe(200);
+    expect(result.limits.athleteLimit).toBeNull();
     expect(result.effectiveUntil?.toISOString()).toBe(end);
   });
 

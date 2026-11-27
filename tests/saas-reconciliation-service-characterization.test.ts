@@ -83,9 +83,10 @@ const config: SaasStripeConfig = {
   providerAccountReference: "acct_synthetic",
   portalEnabled: false,
   prices: {
-    starter: { month: "price_starter_month", year: "price_starter_year" },
+    starter: { month: "price_club_month", year: "price_club_year" },
     growth: { month: "price_growth_month", year: "price_growth_year" },
   },
+  legacyPrices: { starter: { month: "price_starter_month", year: "price_starter_year" } },
 };
 
 const epoch = (iso: string) => Date.parse(iso) / 1000;
@@ -121,7 +122,7 @@ function stripePrice(
   overrides: Record<string, unknown> = {}
 ) {
   return {
-    id: config.prices[planCode][interval],
+    id: planCode === "starter" ? config.legacyPrices.starter[interval] : config.prices[planCode][interval],
     active: true,
     livemode: false,
     currency: "eur",
@@ -978,7 +979,7 @@ describe("previewSaasReconciliation: subscription snapshot", () => {
     expect(evidence.subscription).toMatchObject({
       planCode,
       billingInterval: interval,
-      priceReference: config.prices[planCode][interval],
+      priceReference: planCode === "starter" ? config.legacyPrices.starter[interval] : config.prices[planCode][interval],
     });
   });
 

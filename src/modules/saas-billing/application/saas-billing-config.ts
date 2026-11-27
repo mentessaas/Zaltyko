@@ -10,7 +10,10 @@ export interface SaasStripeConfig {
   webhookSecret: string;
   providerAccountReference: string;
   portalEnabled: boolean;
-  prices: Record<SelfServePlanCode, Record<SaasBillingInterval, string>>;
+  prices: Record<SelfServePlanCode, Record<SaasBillingInterval, string | null>>;
+  /** Price IDs anteriores de Starter; solo para reconocer contratos vigentes. */
+  legacyPrices: Record<"starter", Record<SaasBillingInterval, string | null>>;
+  locationPrices: Record<SaasBillingInterval, string>;
   /**
    * Tax Rate de Stripe (txr_…) del IVA general español, 21 % exclusivo.
    * Opcional para no cerrar el recorrido de test existente; Checkout Live
@@ -57,14 +60,30 @@ export function getSaasStripeConfig(
   const providerAccountReference = env[`${prefix}_ACCOUNT_REFERENCE`]?.trim();
   const prices = {
     starter: {
-      month: env[`${prefix}_PRICE_STARTER_MONTH`]?.trim(),
-      year: env[`${prefix}_PRICE_STARTER_YEAR`]?.trim(),
+      month: env[`${prefix}_PRICE_CLUB_MONTH`]?.trim(),
+      year: env[`${prefix}_PRICE_CLUB_YEAR`]?.trim(),
     },
     growth: {
       month: env[`${prefix}_PRICE_GROWTH_MONTH`]?.trim(),
       year: env[`${prefix}_PRICE_GROWTH_YEAR`]?.trim(),
     },
   };
+  const locationPrices = {
+    month: env[`${prefix}_PRICE_LOCATION_MONTH`]?.trim(),
+    year: env[`${prefix}_PRICE_LOCATION_YEAR`]?.trim(),
+  };
+  const legacyPrices = {
+    starter: {
+      month: env[`${prefix}_PRICE_STARTER_MONTH`]?.trim(),
+      year: env[`${prefix}_PRICE_STARTER_YEAR`]?.trim(),
+    },
+  };
+  const requiredPrices = [prices.starter.month, prices.starter.year, ...Object.values(locationPrices),
+    ...Object.values(legacyPrices.starter), ...Object.values(prices.growth)];
+  const suppliedPrices = [
+    ...Object.values(prices).flatMap((plan) => Object.values(plan)),
+    ...Object.values(locationPrices),
+  ].filter((price): price is string => Boolean(price));
 
   if (
     !secretKey ||
@@ -73,16 +92,8 @@ export function getSaasStripeConfig(
     !/^acct_[A-Za-z0-9]+$/u.test(providerAccountReference) ||
     !isStripeKeyForEnvironment(secretKey, environment) ||
     !webhookSecret.startsWith("whsec_") ||
-    !prices.starter.month ||
-    !prices.starter.year ||
-    !prices.growth.month ||
-    !prices.growth.year ||
-    !Object.values(prices).every((plan) =>
-      Object.values(plan).every(
-        (price) =>
-          typeof price === "string" && /^price_[A-Za-z0-9]+$/u.test(price)
-      )
-    )
+    requiredPrices.some((price) => !price) ||
+    !suppliedPrices.every((price) => /^price_[A-Za-z0-9]+$/u.test(price))
   ) {
     return null;
   }
@@ -95,6 +106,8 @@ export function getSaasStripeConfig(
     portalEnabled:
       env[`${prefix}_PORTAL_ENABLED`]?.trim().toLowerCase() === "true",
     prices: prices as SaasStripeConfig["prices"],
+    legacyPrices: legacyPrices as SaasStripeConfig["legacyPrices"],
+    locationPrices: locationPrices as SaasStripeConfig["locationPrices"],
     taxRates: {
       esVatGeneral: stripeTaxRateReference(env[`${prefix}_TAX_RATE_ES_IVA21`]),
     },
@@ -119,7 +132,13 @@ export function priceForPlan(
   planCode: SelfServePlanCode,
   billingInterval: SaasBillingInterval
 ): string {
-  return config.prices[planCode][billingInterval];
+  const price = config.prices[planCode][billingInterval];
+  if (!price) throw new Error("El precio de este plan heredado no está configurado");
+  return price;
+}
+
+export function priceForLocation(config: SaasStripeConfig, billingInterval: SaasBillingInterval): string {
+  return config.locationPrices[billingInterval];
 }
 
 function isStripeKeyForEnvironment(

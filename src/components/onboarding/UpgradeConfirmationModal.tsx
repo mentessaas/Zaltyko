@@ -72,8 +72,8 @@ export function UpgradeConfirmationModal({
         {/* Content */}
         <div className="px-6 py-4 space-y-4">
           <p className="text-sm text-muted-foreground">
-            Estás a punto de actualizar de <span className="font-semibold text-foreground">{currentPlan.toUpperCase()}</span> a{" "}
-            <span className="font-semibold text-foreground">{targetPlan.toUpperCase()}</span> ({price}).
+            Vas a cambiar de <span className="font-semibold text-foreground">{currentPlan === "free" ? "Gratis" : "Club"}</span> a{" "}
+            <span className="font-semibold text-foreground">{targetPlan === "club" ? "Club" : targetPlan}</span> ({price}).
           </p>
 
           <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
@@ -82,7 +82,7 @@ export function UpgradeConfirmationModal({
                 <ArrowUpRight className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <p className="font-semibold text-sm">Plan {targetPlan.toUpperCase()}</p>
+                <p className="font-semibold text-sm">Plan {targetPlan === "club" ? "Club" : targetPlan}</p>
                 <p className="text-xs text-muted-foreground">{price}</p>
               </div>
             </div>
@@ -117,20 +117,14 @@ export function UpgradeConfirmationModal({
           </button>
           <Link
             href={
-              targetPlan === "network"
-                ? "/contact?type=network"
-                : academyId
-                  ? `/owner/payments`
-                  : "/billing"
+              academyId ? `/owner/subscription?organizationId=${encodeURIComponent(academyId)}` : "/pricing"
             }
             onClick={handleConfirm}
             className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isNavigating
               ? "Redirigiendo..."
-              : targetPlan === "network"
-                ? "Hablar con Zaltyko"
-                : "Continuar a suscripción"}
+              : "Ver Club y sus precios"}
             <ArrowUpRight className="h-4 w-4" />
           </Link>
         </div>

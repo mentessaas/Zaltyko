@@ -164,14 +164,13 @@ function isTrialResult(value: unknown): value is OwnerSaasTrialResult {
 }
 
 function planLabel(code: OwnerSaasPlanCode): string {
-  const catalogCode =
-    code === "starter" ? "pro" : code === "growth" ? "premium" : code;
-  return getProductPlanPublicName(catalogCode);
+  if (code === "starter" || code === "growth") return "Club";
+  return getProductPlanPublicName(code);
 }
 
 function sourceLabel(source: string): string {
   const labels: Record<string, string> = {
-    trial: "Prueba de Starter",
+    trial: "Prueba de Club",
     stripe_subscription: "Suscripción",
     bootstrap: "Plan inicial",
     contract: "Acuerdo vigente",
@@ -279,7 +278,7 @@ function syncStatusPresentation(status: string): {
 }
 
 function formatPrice(code: "starter" | "growth", interval: OwnerSaasBillingInterval) {
-  const product = PRODUCT_PLAN_BY_CODE[code === "starter" ? "pro" : "premium"];
+  const product = PRODUCT_PLAN_BY_CODE.club;
   const cents =
     interval === "year" ? product.annualPriceEurCents : product.priceEurCents;
   return cents === undefined ? null : formatPlanAmount(cents);
@@ -287,7 +286,7 @@ function formatPrice(code: "starter" | "growth", interval: OwnerSaasBillingInter
 
 /** Total con el IVA general (21 %) para Península y Baleares. */
 function formatPriceWithVat(code: "starter" | "growth", interval: OwnerSaasBillingInterval) {
-  const product = PRODUCT_PLAN_BY_CODE[code === "starter" ? "pro" : "premium"];
+  const product = PRODUCT_PLAN_BY_CODE.club;
   const cents =
     interval === "year" ? product.annualPriceEurCents : product.priceEurCents;
   return cents === undefined
@@ -706,7 +705,7 @@ export function OwnerSaasBillingManager({
       if (!clearCommand(intent)) throw new Error("La respuesta se ha validado, pero no hemos podido limpiar el registro local. Reintenta la misma operación.");
       setTrialConfirmed(organizationId);
       setNotice(
-        `Tu prueba Starter dura hasta el ${formatDate(result.endsAt) ?? "final de su periodo"}. No se ha solicitado ningún cobro.`
+        `Tu prueba Club dura hasta el ${formatDate(result.endsAt) ?? "final de su periodo"}. No se ha solicitado ningún cobro.`
       );
       if (activeOrganizationIdRef.current === organizationId) {
         setSnapshot(null);
@@ -896,7 +895,7 @@ export function OwnerSaasBillingManager({
               ) : null}
               {isTrialActive ? (
                 <div className="border-t border-z-line pt-4 sm:col-span-2">
-                  <p className="text-sm font-bold">Prueba Starter activa</p>
+                  <p className="text-sm font-bold">Prueba Club activa</p>
                   <p className="mt-1 text-sm text-z-soft">
                     {trial?.endsAt
                       ? `Finaliza el ${formatDate(trial.endsAt) ?? "fecha por confirmar"}. No se hará ningún cobro automático al terminar.`
@@ -954,7 +953,7 @@ export function OwnerSaasBillingManager({
         {pendingCommand ? (
           <section className="rounded-[12px] mt-4 border border-ochre-line bg-ochre-wash p-5" aria-label="Cambio de plan pendiente" aria-busy={busyAction !== null}>
             {pendingCommand.organizationId === organizationId ? <>
-              <p className="font-semibold">{pendingCommand.action === "checkout" ? `Contratación de ${pendingCommand.planCode === "growth" ? "Growth" : "Starter"} · ${pendingCommand.intent.body.billingInterval === "year" ? "pago anual" : "mensual"}` : pendingCommand.action === "portal" ? "Preparación del Portal" : "Activación de la prueba"}: pendiente de confirmar.</p>
+              <p className="font-semibold">{pendingCommand.action === "checkout" ? `Contratación de Club · ${pendingCommand.intent.body.billingInterval === "year" ? "pago anual" : "mensual"}` : pendingCommand.action === "portal" ? "Preparación del Portal" : "Activación de la prueba"}: pendiente de confirmar.</p>
               <p className="mt-2 text-sm">No cierres ni recargues esta página. El reintento conserva la operación, el cuerpo y la clave originales; no inicia otra contratación.</p>
               <button type="button" className="touch-target mt-3 rounded-full border px-5 text-sm font-bold disabled:opacity-50" disabled={busyAction !== null} onClick={retryPendingCommand}>Reintentar la operación pendiente</button>
             </> : <p>Hay un cambio de plan pendiente en otra academia. Vuelve a ella para terminarlo antes de empezar otro.</p>}
@@ -1167,7 +1166,7 @@ export function OwnerSaasBillingManager({
               <div className="mt-5 flex flex-col gap-4 rounded-md border border-z-line border-t-[3px] border-t-z-ink bg-white p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
                 <div>
                   <h3 className="font-display text-xl font-bold">
-                    Prueba Starter durante 7 días
+                    Prueba Club durante 30 días
                   </h3>
                   <p className="mt-1 text-sm leading-6 text-z-soft">
                     Sin tarjeta y sin cobro automático al terminar. La prueba
@@ -1195,9 +1194,8 @@ export function OwnerSaasBillingManager({
             ) : null}
 
             <div className="mt-5 grid gap-4 lg:grid-cols-2">
-              {(["starter", "growth"] as const).map((code) => {
-                const product =
-                  PRODUCT_PLAN_BY_CODE[code === "starter" ? "pro" : "premium"];
+              {(["starter"] as const).map((code) => {
+                const product = PRODUCT_PLAN_BY_CODE.club;
                 const available =
                   code === "starter" ? canCheckoutStarter : canCheckoutGrowth;
                 const busy = displayedBusyAction === `checkout:${code}`;
@@ -1231,7 +1229,7 @@ export function OwnerSaasBillingManager({
                 return (
                   <article
                     key={code}
-                    className={`flex flex-col border bg-white p-5 sm:p-6 ${code === "growth" ? "border-z-ink" : "border-z-line"}`}
+                    className="flex flex-col border border-z-line bg-white p-5 sm:p-6"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -1239,16 +1237,13 @@ export function OwnerSaasBillingManager({
                           {planLabel(code)}
                         </h3>
                         <p className="mt-1 text-sm text-z-soft">
-                          Hasta {product.athleteLimit} gimnastas
+                          Gimnastas, equipo, grupos y clases sin límite
                         </p>
                       </div>
-                      {code === "growth" ? (
-                        <span className="rounded-full bg-z-brand-50 px-3 py-1 text-xs font-bold text-z-brand-700">
-                          Crecimiento
-                        </span>
-                      ) : null}
                     </div>
-                    {taxTerritoryRequired && formatPriceWithVat(code, interval) ? (
+                    {marketNotice ? (
+                      <p className="mt-5 font-semibold text-z-soft">El precio todavía no está disponible para esta academia.</p>
+                    ) : formatPriceWithVat(code, interval) ? (
                       <>
                         {/* Precio final para consumidores (art. 20 TRLGDCU): IVA incluido. */}
                         <p className="mt-5 font-display text-3xl font-bold">
@@ -1258,7 +1253,7 @@ export function OwnerSaasBillingManager({
                           </span>
                         </p>
                         <p className="mt-1 text-sm text-z-soft">
-                          {formatPrice(code, interval)} + IVA ({SPANISH_VAT_GENERAL_RATE_PERCENT} %). Península y Baleares.
+                        Base {formatPrice(code, interval)} antes del IVA. Península y Baleares.
                         </p>
                       </>
                     ) : (
@@ -1269,7 +1264,7 @@ export function OwnerSaasBillingManager({
                             {priceSubtitle(code, interval)}
                           </span>
                         </p>
-                        <p className="mt-1 text-sm text-z-soft">Precios sin IVA.</p>
+                        <p className="mt-1 text-sm text-z-soft">Precio antes del IVA.</p>
                       </>
                     )}
                     {interval === "year" ? (
@@ -1281,7 +1276,7 @@ export function OwnerSaasBillingManager({
                       {product.description}
                     </p>
                     <ul className="mt-4 space-y-2 text-sm text-z-soft">
-                      {product.features.slice(0, 3).map((feature) => (
+                      {product.features.filter((feature) => !feature.startsWith("Cobro automático")).map((feature) => (
                         <li key={feature} className="flex gap-2">
                           <span aria-hidden="true" className="font-bold text-z-brand-600">
                             ✓
@@ -1310,18 +1305,8 @@ export function OwnerSaasBillingManager({
             ) : null}
 
             <aside className="rounded-[12px] mt-5 border border-z-line bg-z-canvas p-5">
-              <h3 className="font-display text-lg font-bold">
-                ¿Necesitas acompañamiento o condiciones a medida?
-              </h3>
-              <p className="mt-1 text-sm leading-6 text-z-soft">
-                Si gestionas varias academias o necesitas más capacidad que Growth, escríbenos y vemos tu caso.
-              </p>
-              <Link
-                className="touch-target mt-3 inline-flex items-center text-sm font-bold text-z-brand-700 underline underline-offset-4"
-                href="/contact?type=network"
-              >
-                Hablar con Zaltyko
-              </Link>
+              <h3 className="font-display text-lg font-bold">¿Tienes más de una sede?</h3>
+              <p className="mt-1 text-sm leading-6 text-z-soft">La primera sede está incluida. Cada sede adicional cuesta 20 €/mes o 200 €/año, IVA incluido; el importe se ajusta al número de sedes activas.</p>
             </aside>
           </section>
         ) : null}

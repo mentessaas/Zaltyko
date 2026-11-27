@@ -18,7 +18,7 @@
   "relatedComparativas": ["zaltyko-vs-excel", "zaltyko-vs-glofox"],
   "content": [
     "## Lo que se ve: el precio del software",
-    "Un plan de gestión para academias de gimnasia cuesta desde 0 € (Free) hasta 49 €/mes (Growth) o más en planes multi-sede. Pero el coste del software es solo una fracción de lo que cuesta operar una academia.",
+    "Zaltyko ofrece un plan Gratis hasta 30 gimnastas y Club por 29 €/mes o 290 €/año, IVA incluido. Una sede adicional cuesta 20 €/mes o 200 €/año, IVA incluido. Pero el coste del software es solo una fracción de lo que cuesta operar una academia.",
     "## Lo que no se ve: horas administrativas",
     "Hacer cobros manuales, perseguir morosos, enviar recordatorios uno a uno, copiar datos entre hojas, generar recibos, responder consultas de familias por WhatsApp. Estas tareas consumen entre 5 y 20 horas semanales según el tamaño de la academia.",
     "## Errores que cuestan dinero",
@@ -29,7 +29,7 @@
     "Una hoja de cálculo compartida por email, en un USB, en el móvil del dueño. Cuando se pierde, no hay backup. Cuando un entrenador cambia de academia, se va con la información. El software con aislamiento por academia y backups automáticos elimina este riesgo.",
     "## Coste total: una fórmula simple",
     "Coste mensual ≈ (horas administrativas × coste/hora) + (errores y correcciones) + (morosidad no cobrada) + (coste del software) + (coste de oportunidad por no escalar).",
-    "Para una academia de 50 gimnastas, el coste administrativo suele estar entre 800 € y 2.000 € al mes. Un software a 49 €/mes se paga solo si reduce 1 hora administrativa semanal.",
+    "Para una academia de 50 gimnastas, el coste administrativo suele estar entre 800 € y 2.000 € al mes. Un software Club a 29 €/mes se paga solo si reduce 1 hora administrativa semanal.",
     "## Qué hacer con este análisis",
     "Calcula tus horas administrativas reales durante una semana. Multiplica por tu coste hora. Compara con el coste del software. Si el software reduce al menos 4 horas semanales, está justificado."
   ]

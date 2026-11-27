@@ -11,6 +11,109 @@ const SETTINGS_ENDPOINT = "/api/v1/owner/academy-settings";
 
 type ProblemBody = { detail?: unknown; type?: unknown };
 
+function OwnerAcademyLogoSettings({ organizationId, academyName }: { organizationId: string; academyName: string }) {
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [available, setAvailable] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const loadLogo = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/v1/owner/academy-settings/logo?organizationId=${encodeURIComponent(organizationId)}`, { cache: "no-store" });
+      if (!response.ok) throw new Error((await problemOf(response, "No hemos podido cargar el logo.")).text);
+      const body = (await response.json()) as { data: { logoUrl: string | null; available: boolean } };
+      setLogoUrl(body.data.logoUrl);
+      setAvailable(body.data.available);
+    } catch {
+      setMessage({ ok: false, text: "No hemos podido cargar el logo. Comprueba la conexión e inténtalo de nuevo." });
+    } finally {
+      setLoading(false);
+    }
+  }, [organizationId]);
+
+  useEffect(() => { void loadLogo(); }, [loadLogo]);
+
+  async function uploadLogo(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const file = form.elements.namedItem("academy-logo") as HTMLInputElement | null;
+    if (!file?.files?.[0] || busy) return;
+    setBusy(true);
+    setMessage(null);
+    const data = new FormData();
+    data.set("organizationId", organizationId);
+    data.set("file", file.files[0]);
+    try {
+      const response = await fetch("/api/v1/owner/academy-settings/logo", { method: "POST", body: data });
+      if (!response.ok) throw new Error((await problemOf(response, "No hemos podido guardar el logo.")).text);
+      const body = (await response.json()) as { data: { logoUrl: string } };
+      setLogoUrl(body.data.logoUrl);
+      setMessage({ ok: true, text: "Logo guardado. Ya aparece en los diplomas." });
+      form.reset();
+    } catch (error) {
+      setMessage({ ok: false, text: error instanceof Error ? error.message : "No hemos podido guardar el logo. Inténtalo de nuevo." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeLogo() {
+    if (busy) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/v1/owner/academy-settings/logo", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ organizationId }),
+      });
+      if (!response.ok) throw new Error((await problemOf(response, "No hemos podido quitar el logo.")).text);
+      setLogoUrl(null);
+      setMessage({ ok: true, text: "Logo quitado. Los diplomas volverán a mostrar solo el nombre de la academia." });
+    } catch (error) {
+      setMessage({ ok: false, text: error instanceof Error ? error.message : "No hemos podido quitar el logo. Inténtalo de nuevo." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className={ownerUi.card} aria-labelledby="academy-logo-title">
+      <h2 id="academy-logo-title" className={ownerUi.sectionTitle}>Logo del club</h2>
+      <p className={`mt-2 ${ownerUi.muted}`}>Añade el logo que aparecerá en los diplomas de nivel. Puedes cambiarlo o quitarlo cuando quieras.</p>
+      {available === false ? <p className={`mt-3 ${ownerUi.help}`} role="status">El logo estará disponible cuando se actualicen los ajustes de la academia.</p> : null}
+      {logoUrl ? (
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={logoUrl} alt={`Vista previa del logo de ${academyName}`} className="h-20 max-w-48 rounded-md border border-z-line bg-white p-2 object-contain" />
+          <button type="button" className={ownerUi.secondaryButton} onClick={() => void removeLogo()} disabled={busy}>
+            {busy ? "Guardando…" : "Quitar logo"}
+          </button>
+        </div>
+      ) : null}
+      {loading ? <p className={`mt-3 ${ownerUi.help}`} role="status">Cargando logo…</p> : null}
+      {available === true ? <form onSubmit={uploadLogo} className="mt-4 grid max-w-xl gap-3">
+        <label htmlFor="academy-logo" className={ownerUi.label}>{logoUrl ? "Cambiar logo" : "Subir logo"}</label>
+        <input
+          id="academy-logo"
+          name="academy-logo"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          required
+          disabled={busy || loading}
+          aria-describedby="academy-logo-help"
+          className="block w-full rounded-md border border-z-line bg-white px-3 py-2 text-sm text-z-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-z-blue"
+        />
+        <p id="academy-logo-help" className={ownerUi.help}>PNG, JPG o WebP. Tamaño máximo: 1 MB.</p>
+        <div><button type="submit" className={ownerUi.primaryButton} disabled={busy || loading}>{busy ? "Guardando…" : "Guardar logo"}</button></div>
+      </form> : null}
+      {message ? <p className={`mt-3 ${message.ok ? ownerUi.noticeInfo : ownerUi.noticeError}`} role={message.ok ? "status" : "alert"}>{message.text}</p> : null}
+    </section>
+  );
+}
+
 async function problemOf(response: Response, fallback: string): Promise<{ text: string; versionConflict: boolean }> {
   const body = (await response.json().catch(() => null)) as ProblemBody | null;
   return {
@@ -115,6 +218,31 @@ export function OwnerAcademySettingsManager({ organizationId }: { organizationId
     }
   }
 
+  async function deactivateLocation(locationId: string, locationLabel: string) {
+    if (!settings || locationBusy || capacity.activeLocations <= 1) return;
+    if (!window.confirm(`¿Quieres desactivar la sede «${locationLabel}»? Se conservará su historial y dejará de contar para el precio.`)) return;
+    setLocationBusy(true);
+    setLocationMessage(null);
+    try {
+      const response = await fetch(`${SETTINGS_ENDPOINT}/locations`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json", "idempotency-key": newKey() },
+        body: JSON.stringify({ organizationId, locationId }),
+      });
+      if (!response.ok) {
+        setLocationMessage({ ok: false, text: (await problemOf(response, "No hemos podido desactivar la sede.")).text });
+        await load(true);
+        return;
+      }
+      setLocationMessage({ ok: true, text: "Sede desactivada. El importe se ha actualizado según las sedes activas." });
+      await load(true);
+    } catch {
+      setLocationMessage({ ok: false, text: "No hemos podido desactivar la sede. Comprueba la conexión e inténtalo de nuevo." });
+    } finally {
+      setLocationBusy(false);
+    }
+  }
+
   if (loadError) {
     return (
       <div className={ownerUi.noticeError} role="alert">
@@ -184,6 +312,8 @@ export function OwnerAcademySettingsManager({ organizationId }: { organizationId
         </form>
       </section>
 
+      <OwnerAcademyLogoSettings organizationId={organizationId} academyName={organization.name} />
+
       <section className={ownerUi.card} aria-labelledby="academy-locations-title">
         <h2 id="academy-locations-title" className={ownerUi.sectionTitle}>Sedes</h2>
         <p className={`mt-2 ${ownerUi.muted}`}>
@@ -197,6 +327,12 @@ export function OwnerAcademySettingsManager({ organizationId }: { organizationId
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-semibold text-z-ink">{location.name}</span>
                 {location.isActive ? null : <span className={ownerUi.chipAttention}>Inactiva</span>}
+                {location.isActive && capacity.activeLocations > 1 ? (
+                  <button type="button" className={ownerUi.textLink} disabled={locationBusy}
+                    onClick={() => void deactivateLocation(location.id, location.name)}>
+                    Desactivar sede
+                  </button>
+                ) : null}
               </div>
               <p className={`mt-1 ${ownerUi.help}`}>Zona horaria: {location.timezone}</p>
             </li>
@@ -231,7 +367,7 @@ export function OwnerAcademySettingsManager({ organizationId }: { organizationId
             ) : (
               <p>
                 {capacity.locationLimit === 1
-                  ? "Tu plan incluye 1 sede. Para añadir otra necesitas el plan Network, que incluye varias sedes."
+                  ? "El plan Gratis incluye 1 sede. Cambia a Club para añadir sedes adicionales."
                   : `Tu plan incluye ${capacity.locationLimit} sedes y ya las tienes todas.`}
               </p>
             )}

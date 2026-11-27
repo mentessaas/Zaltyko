@@ -10,16 +10,18 @@ source:
 ---
 # Mensajes aprobados
 
-## Alcance vigente de apertura — 2026-10-26
+## Alcance vigente — decisión de Elvis del 24-11-2026
 
-Esta decisión humana prevalece para la primera entrega pública sobre el empaquetado histórico de abajo. España, español y EUR; Free, Starter y Growth autoservicio; Network acompañado. Precios base aprobados **sin IVA**: Starter19€/mes o190€/año; Growth49€/mes o490€/año, sin cambiar importes. La fiscalidad, identidad del vendedor, condiciones y buzón de soporte operativo deben cerrarse antes de cobrar. No se activa Stripe Tax ni se supone que el tipo general se aplique a cualquier cliente.
+Esta sección reemplaza los importes y nombres antiguos que aparecen en notas históricas de este archivo. Oferta pública: **Gratis** por 0 € (30 gimnastas, equipo de dos incluida la dueña, grupos y clases sin límite) y **Club** por 29 €/mes o 290 €/año. En España peninsular y Baleares, los precios publicados incluyen IVA del 21 %. México no muestra precio y no se publica ningún importe en MXN.
 
-La promesa se limita a gimnastas/familias, grupos/clases/inscripciones, asistencia, cuotas con pagos manuales y resumen persistido. Se retiran del lanzamiento Health Score, retención, informes avanzados, portal familiar, evaluaciones, automatizaciones e importación no verificada. No se prometen resultados, adopción, prioridad de soporte ni tiempos de puesta en marcha. La suscripción SaaS es independiente de las cuotas familiares. Código preparado en la rama de entrega; publicación y pruebas del nuevo commit pendientes.
+Club incluye una sede; cada sede adicional cuesta 20 €/mes o 200 €/año con IVA incluido y se contrata como cantidad adicional en la suscripción. Dos sedes cuestan 49 €/mes. El alta de otra sede es autoservicio. La prueba de Club dura 30 días sin tarjeta. Los diez primeros clubes de Málaga pueden usar el precio fundador de 24,90 €/mes durante 12 meses; después pagan 29 €/mes. El código de Stripe requiere cupón neto de 3,39 € para que, al aplicar IVA, el precio final baje 4,10 € hasta 24,90 €.
+
+Las suscripciones anteriores `pro`/Starter y `premium`/Growth se respetan al precio y con el Price que ya tenían hasta que la dueña cambie de plan; se ocultan de la oferta nueva y reciben los derechos de Club. Network se retira de la oferta y no debe aparecer como destino de una subida de plan. El cobro automático de cuotas se describe solo como incluido en Club cuando se active, sin afirmar que ya está disponible. La factura SaaS sigue emitiéndose por FacturaDirecta; Stripe aplica el Tax Rate exclusivo del 21 %.
 
 
 ## Promesa principal
 
-La entrada pública `/auth/register`, con o sin parámetros de rol, presenta únicamente la cuenta de dirección y creación de academia en esta apertura. No anuncia alta de proveedores, marketplace ni un portal familiar verificado. Se conserva el acceso de cuentas existentes y los contratos internos por rol; no se reclasifican usuarios. Corrección preparada el26oct, pendiente de CI y publicación del nuevo commit.
+La entrada pública `/auth/register`, con o sin parámetros de rol, presenta únicamente la cuenta de dirección y creación de academia. La oferta de Club incluye el portal familiar según el alcance aprobado; no atribuirle funciones que no existan. No anuncia alta de proveedores ni marketplace. Se conserva el acceso de cuentas existentes y los contratos internos por rol; no se reclasifican usuarios.
 
 Gestiona tu academia deportiva sin perder el foco en lo que importa: formar atletas.
 
@@ -42,11 +44,11 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
 | Google Ads | Software de gestion para academias deportivas. |
 | Demo ventas | Veremos como centralizar operaciones y reducir trabajo manual. |
 | Email onboarding | Empieza configurando academia, clases, atletas y primer cobro. |
-| Network | Multi-sede solo bajo diagnostico y onboarding acompanado. |
-| Pricing vigente | Free hasta 30 gimnastas; Starter 19 €/mes o 190 €/año hasta 75; Growth 49 €/mes o 490 €/año hasta 200; Network 99 €/mes multi-sede con onboarding acompañado. |
-| Trial | 7 días de Starter sin tarjeta, una activación por academia cada 12 meses; al terminar vuelve a Free y no hay cargo automático. |
+| Plan heredado | Solo se muestra a quien ya tiene una suscripción anterior; no se ofrece para nuevas altas. |
+| Pricing vigente | Gratis 0 €; Club 29 €/mes o 290 €/año con IVA incluido; sedes extra 20 €/mes o 200 €/año. |
+| Trial | 30 días de Club sin tarjeta, una activación por academia cada 12 meses; al terminar vuelve a Gratis. |
 
-### Cobros a familias — copy de lanzamiento, 2026-10-13
+### Cobros a familias — estado y mensaje vigente
 
 - Copy aprobado para la experiencia de lanzamiento: «Organiza las cuotas,
   registra manualmente los pagos recibidos y consulta qué importes siguen
@@ -56,21 +58,12 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
   actual. No equivale a producción: PR #225 sigue pendiente de aprobación
   independiente, merge y despliegue. No activar captación con una promesa de
   automatización ni tratar el preview como comportamiento productivo.
-- Free y trial usan registro manual. Los planes de pago podrán optar a cobro
-  automático solo cuando se habiliten todos los gates; hoy la preferencia del
-  núcleo nuevo no autoriza ni inicia cargos y no es una función disponible.
-- Free y trial se mantienen en registro/cobro manual. En planes de pago puede
-  configurarse una preferencia automática en el núcleo nuevo, pero hoy es solo
-  una preferencia: no autoriza ni inicia cargos y no debe anunciarse como una
-  función disponible.
+- Gratis y la prueba usan registro manual. Club incluye el cobro automático de
+  cuotas sin coste adicional cuando se active; hoy no está disponible y no se
+  debe presentar como una función ya operativa.
 - Solo revisar y aprobar un claim de automatización cuando estén activos y
   probados el entitlement de pago, consentimiento/mandato por pagador, Connect,
   worker idempotente, webhook verificado, recuperación, permisos y QA de release.
-- Copy local 2026-10-14: Growth conserva la mención genérica a
-  automatizaciones, con aclaración visible de que el cobro familiar automático
-  no está disponible. El artículo de cobros separa consejo general de las
-  capacidades actuales de Zaltyko. No modifica precios ni habilita cobros; la
-  corrección está en una rama local sin merge ni despliegue.
 - Portal familiar, tarjeta: «Guardar una tarjeta no realiza un cargo en ese
   paso; la academia gestiona cómo se cobran las cuotas». No describir el alta
   de tarjeta como activación de cobros automáticos.
@@ -79,8 +72,8 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
 
 - Free puede dirigir al registro de owner.
 - Actualización 2026-09-13: el CTA principal de la landing (hero, navbar, CTA final, sticky bar) dirige a `/auth/register?role=owner` ("Crear cuenta gratis") y las CTAs de home, módulos y features explican que primero se crea la cuenta y después se configura la academia.
-- Free, Starter y Growth usan la CTA pública **"Crear academia gratis"** y dirigen a `/auth/register?role=owner`. Desde Facturación, la persona propietaria puede activar el trial Starter y elegir pago mensual o anual para Starter/Growth. Network conserva contacto y onboarding acompañados.
-- Network siempre dirige a contacto/onboarding acompanado, nunca a checkout.
+- Gratis y Club usan la CTA pública **"Crear academia gratis"** y dirigen a `/auth/register?role=owner`. Desde Facturación, la persona propietaria puede activar la prueba de Club y elegir pago mensual o anual.
+- La oferta ya no incluye Network ni una llamada de contacto obligatoria para añadir una sede.
 - Usar "aislamiento por academia" y "controles de acceso"; no usar "100% seguro" ni "cumplimiento RGPD garantizado".
 - Usar “privacidad por diseño” y “atención por email”; no publicar “RGPD Compliant” ni tiempos de respuesta cerrados sin evidencia operativa.
 - Usar "puesta en marcha guiada"; no prometer una duracion cerrada sin evidencia operativa.
@@ -89,10 +82,10 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
 - Usar resultados como beneficios esperados (menos trabajo manual, más trazabilidad); no publicar porcentajes de ahorro, recaudación o adopción sin trials y denominadores verificables.
 - No publicar testimonios con nombres, academias, volúmenes o resultados concretos sin autorización y evidencia trazable. Mientras no exista esa evidencia, usar proof points de capacidad.
 - Describir exportación y retención por módulo y política vigente; no prometer "toda la información en cualquier momento" si el alcance no está documentado.
-- Mostrar Starter a 190 €/año y Growth a 490 €/año (dos meses bonificados frente a doce pagos mensuales); la opción anual se selecciona después, desde Facturación. Prices Live e importes se verificaron el 2026-10-05; el checkout de prueba integrado aún no se ha completado.
-- Publicar el claim del trial únicamente cuando la promoción de Fase 1 esté verificada en producción. El CTA correcto es crear la academia y activarlo desde Facturación; no decir que se activa automáticamente al registrarse.
+- Los precios actuales son los fijados en la decisión del 24-11-2026; los bloques Starter/Growth/Network y sus importes son históricos. La creación y verificación de los Price IDs nuevos queda pendiente y no se presume hecha.
+- La prueba publicada es Club durante 30 días, sin tarjeta. No decir que se activa automáticamente al registrarse.
 
-## Mensajes de gimnasia en validacion
+## Mensajes de gimnasia en validacion — ejemplos históricos, no oferta vigente
 
 Usar en entrevistas, demos manuales y documentos internos; no publicar como promesa definitiva sin revisar producto real.
 
@@ -100,8 +93,8 @@ Usar en entrevistas, demos manuales y documentos internos; no publicar como prom
 | --- | --- |
 | Discovery gimnasia | Software para academias de gimnasia artistica y ritmica que quieren ordenar gimnastas, familias, clases, cuotas, asistencia y progreso tecnico. |
 | Demo beta | Veremos como centralizar alumnos, grupos, pagos, asistencia, evaluaciones y comunicacion interna para que entrenadores y familias trabajen dentro de Zaltyko. |
-| Pricing oficial | Zaltyko tiene un Free util y planes pagados simples para el mercado hispano: Starter 19 €, Growth 49 € y Network 99 € bajo acompanamiento. |
-| Comunicacion | La comunicacion prioritaria vive dentro de Zaltyko: mensajes, avisos, notificaciones e historial por gimnasta/familia/grupo. |
+| Pricing oficial histórico | Sustituido por Gratis y Club según la decisión del 24-11-2026; no reutilizar importes Starter/Growth/Network. |
+| Comunicacion | La comunicación interna incluye avisos y notificaciones según los permisos de cada perfil. |
 | Cuentas por rol | Cada persona puede tener su cuenta propia en Zaltyko: academia, entrenador, familia, atleta o proveedor. Las academias se conectan con usuarios por invitacion o solicitud aceptada. |
 | Publico sin cuenta | Visitantes pueden descubrir academias, eventos y marketplace sin crear cuenta; crear cuenta sirve para guardar historial, aceptar vinculos y gestionar solicitudes. |
 
@@ -113,8 +106,7 @@ Usar en entrevistas, demos manuales y documentos internos; no publicar como prom
 - IA que toma decisiones automaticas.
 - Resultados federativos/listados automaticos completos.
 - Soporte enterprise o integraciones custom sin alcance cerrado.
-- Academias ilimitadas en Starter o Growth.
-- Multi-sede autoservicio sin onboarding acompanado.
+- Academias ilimitadas en los planes individuales.
 - WhatsApp como canal principal, automatizacion central o integracion prioritaria v1.
 - App nativa/branded para padres como parte del MVP.
 - Vincular usuarios existentes a una academia sin aceptacion explicita.

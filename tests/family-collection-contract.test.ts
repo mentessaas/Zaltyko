@@ -496,10 +496,10 @@ describe("candidata SQL del cobro automático (Fase 4: requires_action y disputa
     }
   });
 
-  it("el README documenta el SHA-256 exacto, que no está aplicada y la misma vuelta atrás", () => {
+  it("el README documenta el SHA-256 exacto, que no está aplicada en producción y la misma vuelta atrás", () => {
     const readme = read("docs/deployment/candidates/README.md");
     const sha = createHash("sha256").update(readFileSync(join(ROOT, EVENTS_CANDIDATE))).digest("hex");
-    expect(readme).toContain(`| \`${EVENTS_FILE}\` | \`${sha}\` | No aplicada | No aplicada |`);
+    expect(readme).toContain(`| \`${EVENTS_FILE}\` | \`${sha}\` | No aplicada | Instalada (`);
     expect(readme).toContain(rollbackBlock(sql));
   });
 

@@ -44,7 +44,7 @@ const featureSchema = {
     "@type": "Offer",
     price: "0",
     priceCurrency: "EUR",
-    description: "Plan Free: hasta 30 gimnastas, 3 grupos y 10 clases activas",
+    description: "Plan Gratis: hasta 30 gimnastas, grupos y clases sin límite",
   },
 };
 

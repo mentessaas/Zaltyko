@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
@@ -392,7 +392,13 @@ async function readDiploma(
     .from(organizations)
     .where(eq(organizations.id, input.organizationId))
     .limit(1);
-  // unbounded-read-ok: como mucho 40 elementos por nivel (dominio).
+  // Keep the candidate column lookup and privileged Storage code inside the
+  // organization logo boundary; an unapplied candidate leaves the diploma intact.
+  const { createOrganizationLogoUrlForOrganization } = await import(
+    "@/modules/organizations/infrastructure/organization-logo-storage"
+  );
+  const academyLogoUrl = await createOrganizationLogoUrlForOrganization(input.organizationId, tx);
+  // unbounded-read-ok: como mucho 64 elementos por nivel (dominio).
   const achieved = await tx
     .select({ name: skillElements.name, apparatus: skillElements.apparatus, position: skillElements.position })
     .from(skillElements)
@@ -419,6 +425,7 @@ async function readDiploma(
     passId: pass.id,
     athleteName: input.athleteName,
     academyName: organization?.name ?? "",
+    academyLogoUrl,
     templateName: pass.templateName,
     discipline: pass.discipline as SkillDiscipline,
     levelName: pass.levelName,

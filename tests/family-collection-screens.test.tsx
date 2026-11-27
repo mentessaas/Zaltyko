@@ -670,7 +670,7 @@ describe("OwnerFamilyPaymentMethodsPanel: «Cobrar automáticamente»", () => {
     );
 
     expect(screen.getByRole("switch", { name: "Cobrar automáticamente a Lucía Martín" })).toBeDisabled();
-    expect(screen.getByText("El cobro automático de cuotas está incluido en Starter y Growth.")).toBeInTheDocument();
+    expect(screen.getByText("Cuando se active, el cobro automático estará incluido en Club sin coste adicional.")).toBeInTheDocument();
   });
 
   it("tras un cambio de plan, apagado y con el aviso para volver a encenderlo", () => {

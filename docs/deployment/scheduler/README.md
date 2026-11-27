@@ -35,6 +35,7 @@ Las horas de pg_cron en Supabase van en UTC y se cumplen al minuto.
 | `zaltyko-owner-weekly-digest` | `7 * * * *` | cada hora a y 7; el correo sale el lunes a las 08:07 | cada hora a y 7; el correo sale el lunes a las 08:07 |
 | `zaltyko-usage-at-risk` | `0 7 * * *` | 08:00 (invierno) · 09:00 (verano) | 01:00 |
 | `zaltyko-family-payment-reminders` | `0 16 * * *` | 17:00 (invierno) · 18:00 (verano) | 10:00 |
+| `zaltyko-lead-retention` | `15 3 * * *` | 04:15 (invierno) · 05:15 (verano) | 21:15 del día anterior |
 | `zaltyko-cron-history-cleanup` | `30 3 * * 0` | domingo 04:30 / 05:30 | sábado 21:30 |
 
 El resumen semanal se lanza cada hora, pero solo envía el lunes entre las 08:00
@@ -258,3 +259,38 @@ borra nombre y correo de quien avisó en los avisos cerrados hace más de 730
 días, por lotes de 100. Sin la tabla de avisos responde `enabled: false` y no
 hace nada. En staging se programa con `call_cron_staging` y el mismo nombre de
 ruta.
+
+## Conservación de solicitudes de contacto (aplicado solo en staging)
+
+`candidates/lead-retention.sql` programa el trabajo
+`zaltyko-lead-retention`, que llama a `/api/cron/lead-retention`. **No está
+aplicado en producción**; aplicarlo allí necesita autorización expresa de Elvis.
+
+**Staging, 25-11-2026 (autorizado por Elvis):** en la base de staging se
+activaron `pg_cron` y `pg_net`, se creó `zaltyko_scheduler.call_cron_staging`
+(el bloque de la sección «Cobro automático de cuotas → Staging», sin la línea
+de `collect-family-fees`), se guardó en Vault un `CRON_SECRET` nuevo, solo de
+staging (también cambiado en Vercel `zaltyko-staging`), y se programó
+`zaltyko-lead-retention` a las `15 3 * * *` con `call_cron_staging`. Prueba:
+una solicitud de 7 meses se borró y una de 1 mes se conservó (respuesta 200,
+`erasedLeads: 1`). Vuelta atrás en staging:
+`select cron.unschedule('zaltyko-lead-retention');`.
+
+La ruta conserva un lead si tiene `tenant_id` o `academy_id`, si alguna fila
+vinculada de `academy_trials` tiene `converted_at`, o si un resultado enlazado
+de `lead_trial_outcomes` tiene `outcome = 'converted'` tras normalizar espacios
+y mayúsculas. El plazo se cuenta desde la actividad más reciente de `leads`,
+`lead_interactions`, pruebas y resultados vinculados, entrevistas comerciales
+y pruebas de academia; deben haber pasado seis meses completos.
+
+Por lote transaccional, borra hasta 100 leads no convertidos y sus
+`lead_interactions`, pruebas de prospecto, resultados y entrevistas asociadas.
+Desvincula de `academy_trials` las pruebas no convertidas. Borra de
+`growth_events` y `email_logs` solo filas vinculadas por el `submission_id`
+exacto de la interacción: claves de idempotencia `contact:<submission_id>`,
+`directory:demo:<submission_id>` y
+`email:public-contact-lead:<submission_id>`. No toca eventos o correos sin esa
+referencia. Cada ejecución procesa como máximo 50 lotes, usa el lease
+`cron:lead-retention` y devuelve/registra solo recuentos; los lotes restantes
+se procesan en la siguiente ejecución diaria. En staging se programa con
+`call_cron_staging` y la misma ruta.

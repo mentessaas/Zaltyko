@@ -53,6 +53,7 @@ vi.mock("@/modules/saas-billing/application/saas-billing-config", () => ({
     },
   }),
   priceForPlan: () => "price_synthetic",
+  priceForLocation: (_config: unknown, interval: "month" | "year") => `price_location_${interval}`,
 }));
 import { createOwnerSaasCheckout } from "@/modules/saas-billing/application/saas-billing-service";
 
@@ -86,12 +87,14 @@ const limit = vi.fn();
 const insert = vi.fn();
 const update = vi.fn();
 const tx = {
+  execute: vi.fn().mockResolvedValue({ rows: [{ count: 1 }] }),
   select: () => ({ from: () => ({ where: () => ({ limit }) }) }),
   insert,
   update,
 };
 beforeEach(() => {
   vi.clearAllMocks();
+  tx.execute.mockReset().mockResolvedValue({ rows: [{ count: 1 }] });
   limit.mockReset();
   mocks.transaction.mockImplementation((fn) => fn(tx));
   mocks.config
@@ -191,7 +194,7 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       id: "customer-row", status: "ready", customerReference: "cus_saved",
       creationIdempotencyKey: customerKey, creationRequestHash: customerHash,
     }] }) }) });
-    const price = { id: "price_synthetic", active: true, livemode: false, currency: "eur", type: "recurring", recurring: { interval: "month", interval_count: 1 }, unit_amount: 1900 };
+    const price = { id: "price_synthetic", active: true, livemode: false, currency: "eur", type: "recurring", recurring: { interval: "month", interval_count: 1 }, unit_amount: 2397 };
     const session = { id: "cs_same", mode: "subscription", status: "open", customer: "cus_saved", livemode: false,
       expires_at: 4070908800, url: "https://checkout.stripe.com/c/pay/synthetic",
       metadata: { zaltyko_saas: "true", organization_saas_checkout_operation_id: "operation", organization_id: organizationId,
@@ -313,11 +316,11 @@ describe("Checkout reservation guards with isolated dependencies", () => {
     const operation = { id: "operation", organizationId, planCode: "starter", billingInterval: "month", requestHash: v3Hash,
       status: "recovery_required", checkoutSessionReference: null, createdAt: new Date(at.getTime() - 60000),
       stripeIdempotencyKey: "stable-checkout-key", leaseToken: "lease", fencingVersion: 2 };
-    const price = { id: "price_synthetic", active: true, livemode: false, currency: "eur", type: "recurring", recurring: { interval: "month", interval_count: 1 }, unit_amount: 1900 };
+    const price = { id: "price_synthetic", active: true, livemode: false, currency: "eur", type: "recurring", recurring: { interval: "month", interval_count: 1 }, unit_amount: 2397 };
     const taxRate = { id: "txr_synthetic", active: true, livemode: false, inclusive: false, percentage: 21, country: "ES", tax_type: "vat" };
     const session = { id: "cs_taxed", mode: "subscription", status: "open", customer: "cus_saved", livemode: false,
       expires_at: 4070908800, url: "https://checkout.stripe.com/c/pay/synthetic",
-      amount_subtotal: 1900, amount_total: 2299, total_details: { amount_discount: 0, amount_shipping: 0, amount_tax: 399 },
+      amount_subtotal: 2397, amount_total: 2900, total_details: { amount_discount: 0, amount_shipping: 0, amount_tax: 503 },
       metadata: { zaltyko_saas: "true", organization_saas_checkout_operation_id: "operation", organization_id: organizationId,
         plan_code: "starter", billing_interval: "month", provider_account_reference: "acct_synthetic", environment: "test" },
       line_items: { data: [{ quantity: 1, price }] } };
@@ -346,6 +349,57 @@ describe("Checkout reservation guards with isolated dependencies", () => {
         ? { returning: async () => [{ id: operation.id }] }
         : Promise.resolve() }) });
     }
+    it.each([
+      { billingInterval: "month" as const, extras: 2, discount: 339, subtotal: 5703, tax: 1126, total: 6490, locationAmount: 1653, promotions: true },
+      { billingInterval: "year" as const, extras: 1, discount: 0, subtotal: 40496, tax: 8504, total: 49000, locationAmount: 16529, promotions: false },
+    ])("contrata Club $billingInterval con sedes y valida el código fundador si procede", async (scenario) => {
+      const baseAmount = scenario.billingInterval === "month" ? 2397 : 23967;
+      const locationPrice = `price_location_${scenario.billingInterval}`;
+      const sessionTotal = {
+        ...session,
+        metadata: { ...session.metadata, billing_interval: scenario.billingInterval },
+        amount_subtotal: scenario.subtotal,
+        amount_total: scenario.total,
+        total_details: { amount_discount: scenario.discount, amount_shipping: 0, amount_tax: scenario.tax },
+        line_items: { data: [
+          { quantity: 1, price: { ...price, recurring: { interval: scenario.billingInterval, interval_count: 1 }, unit_amount: baseAmount } },
+          { quantity: scenario.extras, price: { id: locationPrice, active: true, livemode: false, currency: "eur", type: "recurring", recurring: { interval: scenario.billingInterval, interval_count: 1 }, unit_amount: scenario.locationAmount } },
+        ] },
+      };
+      const requestHashV5 = createHash("sha256").update(JSON.stringify({
+        organizationId, planCode: "starter", billingInterval: scenario.billingInterval,
+        environment: "test", providerAccountReference: "acct_synthetic", priceReference: "price_synthetic",
+        extraLocationQuantity: scenario.extras, requestVersion: 5,
+      })).digest("hex");
+      const arranged = { ...operation, billingInterval: scenario.billingInterval,
+        extraLocationQuantity: scenario.extras, requestHash: requestHashV5 };
+      limit.mockResolvedValue([arranged]);
+      tx.execute.mockResolvedValue({ rows: [{ count: scenario.extras + 1 }] });
+      update.mockReturnValue({ set: () => ({ where: () => ({ returning: async () => [arranged] }) }) });
+      mocks.config.mockReturnValue({ environment: "test", providerAccountReference: "acct_synthetic",
+        taxRates: { esVatGeneral: "txr_synthetic" } });
+      mocks.select.mockReturnValue({ from: () => ({ where: () => ({ limit: async () => [{
+        id: "customer-row", status: "ready", customerReference: "cus_saved",
+        creationIdempotencyKey: `zaltyko-saas-customer-${organizationId}-test-${createHash("sha256").update("acct_synthetic").digest("hex").slice(0, 8)}`,
+        creationRequestHash: createHash("sha256").update(JSON.stringify({ organizationId, environment: "test", providerAccountReference: "acct_synthetic" })).digest("hex"),
+      }] }) }) });
+      mocks.provider.mockImplementation(async (arg) => typeof arg === "string"
+        ? arg === "price_synthetic" ? { ...price, recurring: { interval: scenario.billingInterval, interval_count: 1 }, unit_amount: baseAmount }
+          : arg.startsWith("price_location_") ? { id: arg, active: true, livemode: false, currency: "eur", type: "recurring", recurring: { interval: scenario.billingInterval, interval_count: 1 }, unit_amount: scenario.locationAmount }
+            : arg === "txr_synthetic" ? taxRate : sessionTotal
+        : { id: sessionTotal.id });
+      mocks.dbUpdate.mockReturnValue({ set: () => ({ where: () => ({ returning: async () => [{ id: arranged.id }] }) }) });
+      await expect(createOwnerSaasCheckout({ ...spanishInput, billingInterval: scenario.billingInterval }))
+        .resolves.toMatchObject({ operationId: arranged.id });
+      const creation = mocks.provider.mock.calls.find(([arg]) => typeof arg === "object")![0] as Record<string, unknown>;
+      expect(creation).toMatchObject({ allow_promotion_codes: scenario.promotions,
+        line_items: [
+          { price: "price_synthetic", quantity: 1 },
+          { price: locationPrice, quantity: scenario.extras },
+        ] });
+      expect(sessionTotal.total_details.amount_tax).toBe(scenario.tax);
+      expect(sessionTotal.amount_total).toBe(scenario.total);
+    });
     it("validates the tax ID on the Customer and lets Checkout ask only for the address (v4)", async () => {
       arrange({ requestHash: v4Hash });
       // Un NIF que Checkout guardó antes sin validar se borra; la factura copia todos.
@@ -438,8 +492,8 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       expect(mocks.createTaxId).toHaveBeenCalledExactlyOnceWith("cus_saved", { type: "es_cif", value: "B12345674" });
     });
     it.each([
-      ["a session without tax", { amount_total: 1900, total_details: { amount_discount: 0, amount_shipping: 0, amount_tax: 0 } }],
-      ["a session with another tax amount", { amount_total: 2280, total_details: { amount_discount: 0, amount_shipping: 0, amount_tax: 380 } }],
+      ["a session without tax", { amount_total: 2397, total_details: { amount_discount: 0, amount_shipping: 0, amount_tax: 0 } }],
+      ["a session with another tax amount", { amount_total: 2880, total_details: { amount_discount: 0, amount_shipping: 0, amount_tax: 483 } }],
     ])("does not hand over %s", async (_label, sessionOverride) => {
       arrange({ session: sessionOverride });
       await expect(createOwnerSaasCheckout(spanishInput))
@@ -459,7 +513,7 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       mocks.config.mockReturnValue({ environment: "test", providerAccountReference: "acct_synthetic" });
       mocks.provider.mockImplementation(async (arg) => typeof arg === "string"
         ? arg === "price_synthetic" ? price
-          : { ...session, amount_subtotal: 1900, amount_total: 1900, total_details: { amount_discount: 0, amount_shipping: 0, amount_tax: 0 } }
+          : { ...session, amount_subtotal: 2397, amount_total: 2397, total_details: { amount_discount: 0, amount_shipping: 0, amount_tax: 0 } }
         : { id: session.id });
       await expect(createOwnerSaasCheckout(input)).resolves.toMatchObject({ operationId: "operation" });
       const creations = mocks.provider.mock.calls.filter(([arg]) => typeof arg === "object");
@@ -494,7 +548,7 @@ describe("Checkout reservation guards with isolated dependencies", () => {
       id: "cs_saved", mode: "subscription", status: "open", customer: "cus_saved", livemode: false,
       expires_at: expiresAt.getTime() / 1000, url: "https://checkout.stripe.com/c/pay/synthetic",
       metadata: { zaltyko_saas: "true", organization_saas_checkout_operation_id: "operation", organization_id: organizationId, plan_code: "starter", billing_interval: "month", provider_account_reference: "acct_synthetic", environment: "test" },
-      line_items: { data: [{ quantity: 1, price: { id: "price_synthetic", active: true, livemode: false, currency: "eur", type: "recurring", recurring: { interval: "month", interval_count: 1 }, unit_amount: 1900 } }] },
+      line_items: { data: [{ quantity: 1, price: { id: "price_synthetic", active: true, livemode: false, currency: "eur", type: "recurring", recurring: { interval: "month", interval_count: 1 }, unit_amount: 2397 } }] },
     });
     await expect(createOwnerSaasCheckout(input)).resolves.toEqual({ operationId: "operation", checkoutUrl: "https://checkout.stripe.com/c/pay/synthetic", expiresAt, status: "pending", replayed: true });
     expect(mocks.provider).toHaveBeenCalledExactlyOnceWith("cs_saved", { expand: ["line_items.data.price"] });

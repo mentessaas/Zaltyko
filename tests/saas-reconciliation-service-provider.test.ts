@@ -47,9 +47,10 @@ const config: SaasStripeConfig = {
   providerAccountReference: "acct_synthetic",
   portalEnabled: false,
   prices: {
-    starter: { month: "price_starter_month", year: "price_starter_year" },
+    starter: { month: "price_club_month", year: "price_club_year" },
     growth: { month: "price_growth_month", year: "price_growth_year" },
   },
+  legacyPrices: { starter: { month: "price_starter_month", year: "price_starter_year" } },
 };
 
 function eventRow(eventType: string, objectReference: string) {

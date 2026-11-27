@@ -4,9 +4,13 @@ import { resolve } from "node:path";
 
 import { sql } from "drizzle-orm";
 import { Client } from "pg";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 
 import { db } from "@/db";
+import gaf from "@/modules/skill-levels/data/federation/rfeg-2026/gaf.json";
+import gam from "@/modules/skill-levels/data/federation/rfeg-2026/gam.json";
 import {
   createSkillTemplate,
   evaluateSkills,
@@ -31,6 +35,7 @@ import {
 import {
   CATALOG_LINK_MISMATCH_MESSAGE,
   SKILL_LEVELS_ENV_FLAG,
+  FEDERATION_LEVEL_TEMPLATES_ENV_FLAG,
   type SkillTemplateView,
   type TemplateElementView,
 } from "@/modules/skill-levels/domain/skill-levels";
@@ -93,6 +98,8 @@ function assertDisposableTarget() {
 
 const candidate = () =>
   readFileSync(resolve(process.cwd(), "docs/deployment/candidates/20261114121000_skill_levels_candidate.sql"), "utf8");
+const federationSourceCandidate = () =>
+  readFileSync(resolve(process.cwd(), "docs/deployment/candidates/20261124134300_skill_template_federation_source_candidate.sql"), "utf8");
 
 const TABLES = ["skill_templates", "skill_levels", "skill_elements", "athlete_skill_progress", "athlete_level_passes"];
 
@@ -382,6 +389,7 @@ describe.skipIf(!disposablePgEnabled)("niveles y progresión en PostgreSQL desec
     );
     expect(await isSkillLevelsStorageInstalled(db)).toBe(false);
     await db.execute(sql.raw(candidate()));
+    await db.execute(sql.raw(federationSourceCandidate()));
   }, 60_000);
 
   afterAll(async () => {
@@ -504,6 +512,50 @@ describe.skipIf(!disposablePgEnabled)("niveles y progresión en PostgreSQL desec
         command: { ...scopeB, clientRequestId: randomUUID(), source: "copy", templateId: template.id, name: "Robada" },
       })
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("importa una copia RFEG solo con bandera, permisos y aislamiento de academia", async () => {
+    const previousFederationFlag = process.env[FEDERATION_LEVEL_TEMPLATES_ENV_FLAG];
+    delete process.env[FEDERATION_LEVEL_TEMPLATES_ENV_FLAG];
+    expect((await listSkillTemplates({ actor: ownerA, query: s1() })).federationTemplates).toEqual([]);
+    await expect(createSkillTemplate({
+      actor: ownerA,
+      command: { ...s1(), clientRequestId: randomUUID(), source: "federation", federationTemplateKey: "rfeg_2026_gaf_base" },
+    })).rejects.toMatchObject({ code: "NOT_FOUND" });
+
+    process.env[FEDERATION_LEVEL_TEMPLATES_ENV_FLAG] = "true";
+    const visible = await listSkillTemplates({ actor: ownerA, query: s1() });
+    expect(visible.federationTemplates.map((entry) => entry.key)).toContain("rfeg_2026_gaf_base");
+    await expect(createSkillTemplate({
+      actor: coachA1,
+      command: { ...s1(), clientRequestId: randomUUID(), source: "federation", federationTemplateKey: "rfeg_2026_gaf_base" },
+    })).rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
+
+    const imported = await createSkillTemplate({
+      actor: ownerA,
+      command: { ...s1(), clientRequestId: randomUUID(), source: "federation", federationTemplateKey: "rfeg_2026_gaf_base" },
+    });
+    const copy = await getSkillTemplate({ actor: ownerA, templateId: imported.id, query: s1() });
+    expect(copy).toMatchObject({ source: "federation", sourceLabel: expect.stringContaining("RFEG") });
+    expect(copy.levels).toHaveLength(10);
+    expect(copy.levels[0]!.elements).toHaveLength(gaf.levels[0]!.requirements.length);
+    expect(copy.levels[0]!.elements[0]!.description)
+      .toContain("Fuente: RFEG, Programa técnico GAF 2026, pág. 5.");
+
+    const importedGam = await createSkillTemplate({
+      actor: ownerA,
+      command: { ...s1(), clientRequestId: randomUUID(), source: "federation", federationTemplateKey: "rfeg_2026_gam_base" },
+    });
+    const gamCopy = await getSkillTemplate({ actor: ownerA, templateId: importedGam.id, query: s1() });
+    expect(gamCopy.levels[0]!.elements).toHaveLength(gam.levels[0]!.requirements.length);
+    const setaElement = gamCopy.levels[0]!.elements.find((element) =>
+      element.apparatus === "pommel_horse" && element.description?.includes("pág. 5")
+    );
+    expect(setaElement?.description).toContain("Seta (caballo con arcos de iniciación)");
+    expect((await listSkillTemplates({ actor: ownerB, query: { organizationId: b.organizationId, locationId: b.locationIds[0]! } })).templates.map((entry) => entry.id)).not.toContain(imported.id);
+
+    if (previousFederationFlag === undefined) delete process.env[FEDERATION_LEVEL_TEMPLATES_ENV_FLAG];
+    else process.env[FEDERATION_LEVEL_TEMPLATES_ENV_FLAG] = previousFederationFlag;
   });
 
   it("evalúa varias gimnastas a la vez, de forma idempotente, con fecha y sin cambiar quién lo consiguió", async () => {

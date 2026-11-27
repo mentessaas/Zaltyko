@@ -8,6 +8,32 @@ source:
 
 # Decisiones
 
+## 2026-11-24 — Borrar solicitudes de contacto no convertidas a los seis meses (decisión de Elvis)
+
+- Las solicitudes de contacto que no llegan a ser clientes se borran seis meses después de su última actividad.
+- Se considera convertido un lead con `tenant_id` o `academy_id`, con `academy_trials.converted_at` informado, o con un resultado enlazado `lead_trial_outcomes.outcome` cuyo valor normalizado sea `converted`.
+- La limpieza programada elimina los datos vinculados con relación verificable; las claves de idempotencia por `submission_id` permiten identificar los eventos y logs de correo de ese envío. No se eliminan eventos ni correos sin esa relación exacta.
+- La constante del plazo cita la decisión de 2026-11-24. El cron y su candidata SQL quedan sin aplicar a cualquier base.
+- El esquema no enumera `lead_trial_outcomes.outcome` ni ofrece un escritor canónico; hasta que eso cambie, la señal de conversión admitida es exactamente `converted`, normalizada en mayúsculas y espacios.
+
+## 2026-11-24 — Nueva oferta Gratis/Club, sedes y planes heredados (decisión de Elvis)
+
+- Sustituir Free/Starter/Growth/Network en la oferta por Gratis (0 €) y Club (29 €/mes o 290 €/año, IVA incluido en España peninsular y Baleares). Gratis admite 30 gimnastas y dos miembros de equipo contando a la dueña; grupos y clases sin límite. Club no limita gimnastas, equipo, grupos ni clases e incluye una sede.
+- Sede adicional: 20 €/mes o 200 €/año con IVA incluido por cada `location` activa extra dentro de la misma academia. Stripe usa un segundo concepto de suscripción y la cantidad es sedes activas menos una; añadir/desactivar sede aplica prorrateo. Alta autoservicio.
+- Prueba de Club de 30 días sin tarjeta. Precio fundador para los primeros diez clubes de Málaga: 24,90 €/mes durante 12 meses y luego el precio ordinario. Stripe aplica descuento fijo de 3,39 € antes del IVA (equivalente redondeado a 4,10 € de ahorro final con 21 %); configurar 4,10 € antes del IVA no daría 24,90 €.
+- No crear el producto de fundador separado. Permitir códigos promocionales en Club mensual. Los objetos Stripe y sus IDs los crea otro agente autorizado; este cambio no toca Stripe, Supabase ni producción.
+- `pro`/Starter y `premium`/Growth (y Network si existe) son códigos heredados ocultos: conservar sus suscripciones, Prices e importes vigentes hasta cambio voluntario de la dueña, otorgándoles derechos de Club. No aumentar ni migrar el precio automáticamente.
+- No publicar precio en México ni importes en MXN. Mantener el Tax Rate exclusivo español de Stripe y la emisión fiscal SaaS por FacturaDirecta.
+- Candidata `docs/deployment/candidates/20261124121000_pricing_club_locations_candidate.sql`; queda pendiente de revisión y autorización separada. La aplicación requiere gates de checkout/Stripe completos; la candidata no se aplicó.
+## 2026-11-24 — Private academy logo in Settings and diplomas
+
+- **Data and file.** `zaltyko.organizations.logo_path` stores `<organization_id>/logo.<ext>` in the private `organization-logos` bucket. Accepted formats are PNG, JPEG and WebP up to 1 MB; SVG is excluded. This is separate from legacy `academies.logo_url` and is not a public URL.
+- **Access.** Server-side upload and removal require an active `owner` or `admin` membership with access to every site. Families receive a ten-minute signed URL only after authorization to read that diploma. A restrictive policy blocks direct `anon` and `authenticated` access.
+- **Compatibility.** No feature flag is needed: Settings hides logo controls while `logo_path` is absent, and the diploma reads the field through the row's JSON representation, which returns `null` before the candidate column exists without aborting the transaction.
+- **Compatibility.** No feature flag is needed. Drizzle omits the candidate column; the organization-logo storage boundary checks `information_schema` before explicit SQL reads or writes. Without the column, Settings hides upload controls, POST/DELETE return 503 without touching Storage, and diplomas render without a logo.
+- **Data rights.** The catalog classifies but omits `logo_path` from the JSON export; neither the private object locator nor its bytes are included. Canonical academy disposition is a review plan and does not delete data. There is no canonical organization erasure executor; if one is added, it must delete the Storage object through the Storage API as well as the database rows.
+- **Status.** Candidate only: `20261124120000_organization_logos_candidate.sql`; not applied in any environment. The earlier decision to allow public logos in `actor-photos` does not apply to this private diploma asset.
+
 
 ## 2026-11-19 — Biblioteca de elementos, fase C: decisiones del ADR-0029 aplicadas al construirla
 
@@ -1499,3 +1525,11 @@ El validador debe comprobar el cuerpo completo contra las superficies modeladas:
 ## 2026-11-25 — Vista de animación ligada al hecho técnico
 
 El hecho que define una fase determina su cámara. En anillas, posiciones cuyo hecho clave son brazos laterales se muestran de frente; los balanceos longitudinales se muestran de lado. El spec declara `view` en cada fase de contacto y puede usar `cameraTransitionS` (y `cameraFrom` al inicio) para una transición gradual entre el agarre central lateral y las anillas `ring_near`/`ring_far` de frente. La anilla y cinta cercanas se dibujan sobre el cuerpo y la validación comprueba que la muñeca no quede bajo el tronco ni fuera del agarre visible. En paralelas, una fase marcada `verticalSupport: true` dentro de un spec `definingPosition: handstand|vertical` falla si el tronco supera 45° desde la vertical. La escena de salto añade 40 px de margen inicial sin cambiar la separación entre aparatos.
+
+## 2026-11-27 — Animaciones: el navegador solo pinta articulaciones ya calculadas
+
+El formato 2 del exportador envía, por fotograma, las articulaciones que calcula `figure.Pose.joints` (con vista frontal, brazos abiertos y giro de cámara ya aplicados) y el dibujo del aparato tal como lo hace `scenes.py`. El dibujo TypeScript deja de repetir la geometría del motor, que se había quedado atrás. `accepted.json` recoge los 604 elementos revisados. La bandera sigue apagada.
+
+# 2026-11-24 — Importación de plantillas RFEG de niveles 2026
+
+Se incorpora en fase D una primera edición RFEG de solo hechos: GAF Base 1–10 y GAM Base 1–5. Cada elemento o condición se importa como un elemento propio de la copia editable, con atribución al documento y página. Solo se enlazan coincidencias inequívocas con la biblioteca; la seta usa la clave caballo con arcos y una nota de iniciación. Como GAM Base 2 necesita 60 entradas, los topes por nivel y por envío de evaluación pasan a 64; el máximo conjunto de 400 marcas y el tope de 300 elementos por plantilla no cambian. En GAF Base 9–10 la normativa da mínimos de requisitos FIG sin enumerar los elementos elegibles, límite que se muestra en la documentación. `ZALTYKO_FEDERATION_LEVEL_TEMPLATES_ENABLED` queda apagada por defecto; SQL solo en candidata, sin aplicar. No se añade URL porque no aparece en los PDF locales. La edición 2027 espera al PDF; FMG sigue excluida por licencia. Evidencia: `docs/producto/niveles-y-progresion.md` y `src/modules/skill-levels/data/federation/rfeg-2026/`.

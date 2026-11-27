@@ -17,6 +17,9 @@ vi.mock("@/lib/rate-limit", () => ({
   rateLimitExceededResponse: () => new Response("{}", { status: 429 }),
 }));
 vi.mock("@/modules/owner-dashboard/application/owner-scope", () => ({ resolveOwnerScope: mocks.ownerScope }));
+vi.mock("@/modules/saas-billing/application/location-addon-service", () => ({
+  syncOrganizationLocationAddon: vi.fn(),
+}));
 vi.mock("@/modules/organizations/application/owner-academy-settings", async () => {
   const actual = await vi.importActual<typeof import("@/modules/organizations/application/owner-academy-settings")>(
     "@/modules/organizations/application/owner-academy-settings"

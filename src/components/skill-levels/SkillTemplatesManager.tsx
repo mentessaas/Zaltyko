@@ -194,6 +194,7 @@ export function SkillTemplatesManager({ organizationId, locationId }: { organiza
                   {skillDisciplineLabels[template.discipline]} · {template.levelCount} niveles · {template.elementCount}{" "}
                   elementos
                   {template.source === "starter" ? " · Basada en un ejemplo" : ""}
+                  {template.sourceLabel ? ` · ${template.sourceLabel}` : ""}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button type="button" className={ownerUi.secondaryButton} onClick={() => setEditingId(template.id)}>
@@ -239,8 +240,10 @@ function CreateTemplateForm({
   data: SkillTemplatesListView;
   onCreated: (message: string, templateId: string) => Promise<void>;
 }) {
-  const [source, setSource] = useState<"starter" | "blank" | "copy">(data.starters.length > 0 ? "starter" : "blank");
+  const federationTemplates = data.federationTemplates ?? [];
+  const [source, setSource] = useState<"starter" | "blank" | "copy" | "federation">(data.starters.length > 0 ? "starter" : "blank");
   const [starterKey, setStarterKey] = useState(data.starters[0]?.key ?? "");
+  const [federationTemplateKey, setFederationTemplateKey] = useState(federationTemplates[0]?.key ?? "");
   const [copyId, setCopyId] = useState(data.templates.find((entry) => !entry.archived)?.id ?? "");
   const [discipline, setDiscipline] = useState<SkillDiscipline>("artistic_female");
   const [name, setName] = useState("");
@@ -261,9 +264,11 @@ function CreateTemplateForm({
       body = { source: "blank", discipline, name: name.trim() };
     } else if (source === "starter") {
       body = { source: "starter", starterKey, name: name.trim() ? name.trim() : null };
-    } else {
+    } else if (source === "copy") {
       if (name.trim().length < 2) return setError("Escribe un nombre de al menos 2 caracteres para la copia.");
       body = { source: "copy", templateId: copyId, name: name.trim() };
+    } else {
+      body = { source: "federation", federationTemplateKey, name: name.trim() ? name.trim() : null };
     }
     setBusy(true);
     setError("");
@@ -289,11 +294,12 @@ function CreateTemplateForm({
           id={sourceId}
           className={ownerUi.field}
           value={source}
-          onChange={(event) => setSource(event.target.value as "starter" | "blank" | "copy")}
+          onChange={(event) => setSource(event.target.value as "starter" | "blank" | "copy" | "federation")}
         >
           <option value="starter">De un ejemplo de Zaltyko</option>
           <option value="blank">En blanco</option>
           {activeTemplates.length > 0 ? <option value="copy">Copia de una plantilla mía</option> : null}
+          {federationTemplates.length > 0 ? <option value="federation">Importar plantilla de la federación</option> : null}
         </select>
       </div>
 
@@ -325,6 +331,19 @@ function CreateTemplateForm({
           </fieldset>
           <p className={ownerTone.noticeNeutral}>{STARTER_TEMPLATE_NOTICE}</p>
         </div>
+      ) : null}
+
+      {source === "federation" ? (
+        <fieldset className="grid gap-2">
+          <legend className={ownerUi.label}>Plantilla RFEG 2026</legend>
+          {federationTemplates.map((template) => (
+            <label key={template.key} className="flex min-h-12 cursor-pointer items-start gap-3 rounded-md border border-z-line bg-white px-3 py-2">
+              <input type="radio" name="federation-template" className="mt-1 h-5 w-5 accent-[#1E3FA8]" checked={federationTemplateKey === template.key} onChange={() => setFederationTemplateKey(template.key)} />
+              <span><span className="block text-sm font-semibold text-z-ink">{template.name}</span><span className={ownerUi.help}>{skillDisciplineLabels[template.discipline]} · {template.levelCount} niveles · Fuente: RFEG, {template.description.match(/Programa técnico[^;]*/)?.[0] ?? "programa técnico 2026"}</span></span>
+            </label>
+          ))}
+          <p className={ownerTone.noticeNeutral}>Se importa una copia editable. Consulta el documento oficial antes de competir; Zaltyko no está afiliado a la RFEG.</p>
+        </fieldset>
       ) : null}
 
       {source === "blank" ? (
@@ -567,6 +586,7 @@ function TemplateEditor({
       </div>
       {template.archived ? <p className={ownerTone.noticeWarning}>Plantilla archivada. Restáurala desde la lista para editarla.</p> : null}
       {template.source === "starter" ? <p className={ownerTone.noticeNeutral}>{STARTER_TEMPLATE_NOTICE}</p> : null}
+      {template.sourceLabel ? <p className={ownerTone.noticeNeutral}>{template.sourceLabel}. Consulta siempre el documento oficial de la RFEG.</p> : null}
       <p className={ownerUi.help}>
         {skillDisciplineLabels[discipline]}. Lo que quites se archiva: el progreso ya registrado se conserva.
       </p>
@@ -594,7 +614,7 @@ function TemplateEditor({
             className={ownerUi.field}
             value={description}
             maxLength={DESCRIPTION_MAX}
-            disabled={!editable}
+            disabled={!editable || Boolean(template.sourceLabel)}
             onChange={(event) => setDescription(event.target.value)}
           />
         </div>
@@ -666,6 +686,9 @@ function TemplateEditor({
                       onChange={(event) => updateElement(levelIndex, elementIndex, { name: event.target.value })}
                     />
                   </div>
+                  {element.description?.startsWith("Fuente: RFEG,") ? (
+                    <p className={`${ownerUi.help} break-words`}>{element.description}</p>
+                  ) : null}
                   {element.catalogLink ? (
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={linkChipClass[element.catalogLink.status]}>
