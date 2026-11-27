@@ -14,15 +14,48 @@ def pose_of(d):
     p = Pose(torso=d['torso'], arm_n=tuple(d['arm_n']), arm_f=tuple(d.get('arm_f', d['arm_n'])),
              leg_n=tuple(d['leg_n']), leg_f=tuple(d.get('leg_f', d['leg_n'])), head=d.get('head', 0), front=d.get('front', False))
     p.facing = d.get('facing', 1); p.yaw = d.get('yaw', 0); p.yaw_pivot = d.get('yawPivot', 'han')
-    p.arch = d.get('arch', 0); return p
+    p.arch = d.get('arch', 0); p.spread = d.get('spread', 0); return p
 
 def shape_of(d):
     p = pose_of(d); return Shape.of(p, p.facing)
 
+def validate_timeline(spec, sc, tl):
+    has_phase_views = any('view' in phase.get('contact', {}) for phase in spec.get('timeline', []))
+    front = spec.get('view') == 'front' and not has_phase_views
+    shift = headroom(tl)
+    rings = None
+    if sc.kind == 'rings':
+        center = sc.at('rings')
+        def rings(p):
+            amount = max(0.0, min(1.0, float(p.front)))
+            return [(center[0] - 21 * amount, center[1]), (center[0] + 21 * amount, center[1])]
+    return validate(tl, floor_y=sc.floor_y, bars=sc.bars, front=front,
+                    solids=getattr(sc, 'solids', ()), surfaces=getattr(sc, 'surfaces', ()),
+                    canvas=(sc.w, sc.h + shift), canvas_shift=shift, rings=rings,
+                    vertical_support=(sc.kind == 'parallel_bars' and spec.get('definingPosition') in ('handstand', 'vertical')))
+
+def _camera_value(view):
+    if view not in ('side', 'front'):
+        raise ValueError(f"unsupported phase view {view!r}; use 'side' or 'front'")
+    return float(view == 'front')
+
+def _apply_camera_transition(tl, start, source, target, frames, joint, source_point, target_point):
+    if frames <= 0:
+        return
+    for index in range(start, min(len(tl.frames), start + frames)):
+        pose, _, meta = tl.frames[index]
+        progress = (index - start + 1) / frames
+        pose.front = source + (target - source) * min(progress, 1.0)
+        amount = min(progress, 1.0)
+        point = (source_point[0] + (target_point[0] - source_point[0]) * amount,
+                 source_point[1] + (target_point[1] - source_point[1]) * amount)
+        meta['contact'] = (joint, point)
+        tl.frames[index] = (pose, pin(pose, joint, point), meta)
+
 def planned_flight_velocity(p0, pel0, phase, sc):
     """Return the exact ballistic launch velocity implied by this flight's landing/apex."""
     f = phase['flight']; land = f['land']
-    point = sc.at(land['at']) if isinstance(land['at'], str) else tuple(land['at'])
+    point = sc.at(land['at'])
     end_pose = f['shapes'][-1]['pose']
     end_shape = shape_of(end_pose)
     end_pose = end_shape.pose(p0.torso + f['rotation'])
@@ -46,8 +79,27 @@ def build(spec):
     sc = SCENES[spec['scene']](); tl = Timeline(); flights = []
     for phase_index, ph in enumerate(spec['timeline']):
         if 'contact' in ph:
-            c = ph['contact']; pt = sc.at(c['at']) if isinstance(c['at'], str) else tuple(c['at'])
+            c = ph['contact']; pt = sc.at(c['at'])
             keys = [(k.get('dt', 0), k['pose']['torso'], shape_of(k['pose'])) for k in c['keys']]
+            declared_view = c.get('view', 'front' if spec.get('view') == 'front' else None)
+            if declared_view is not None:
+                camera_target = _camera_value(declared_view)
+                camera_source = _camera_value(c['cameraFrom']) if 'cameraFrom' in c else (
+                    float(getattr(tl.frames[-1][0], 'front', camera_target)) if tl.frames else camera_target)
+                previous_contact = tl.frames[-1][2].get('contact') if tl.frames else None
+                if previous_contact:
+                    camera_source_point = previous_contact[1]
+                elif sc.kind == 'rings' and camera_source < 0.5:
+                    camera_source_point = sc.at('rings')
+                else:
+                    camera_source_point = pt
+                for _, _, shape in keys:
+                    shape.front = camera_target
+                transition_frames = round(c.get('cameraTransitionS', 0) * FPS)
+                if c.get('cameraTransitionS', 0) < 0:
+                    raise ValueError('cameraTransitionS must be non-negative')
+            else:
+                camera_source = camera_target = transition_frames = camera_source_point = None
             if tl.frames and keys[0][0] == 0 and len(keys) > 1 and c.get('continue', True):
                 pass
             start = len(tl.frames)
@@ -74,14 +126,19 @@ def build(spec):
                 # Burt et al. report up to 8.46 BW at the ankles in floor round-offs; use as a linked-acro envelope.
                 # https://www.fsp.uni-lj.si/mma/SCGYM_2_3_2010_article1/2010093009140391/?m=1285830843
                 elastic_accel = (8.46 - 1.0) * 9.81
-            existing = set(validate(tl, floor_y=sc.floor_y, bars=sc.bars,
-                                    front=spec.get('view') == 'front', solids=getattr(sc, 'solids', ())))
+            existing = set(validate_timeline(spec, sc, tl))
             existing_momentum = len(momentum_warnings(tl))
             contact(tl, keys, c['joint'], pt, surface=sc.floor_y, end_velocity=launch_velocity,
                     phase_id=phase_index, elastic_accel=elastic_accel)   # front view is set per pose
+            for _, _, meta in tl.frames[start:]:
+                meta['verticalSupport'] = bool(c.get('verticalSupport'))
+            if camera_target is not None:
+                _apply_camera_transition(tl, start, camera_source, camera_target, transition_frames,
+                                         c['joint'], camera_source_point, pt)
+            for _, _, meta in tl.frames[start:]:
+                meta['underBar'] = bool(c.get('underBar'))
             if launch_velocity is not None:
-                candidate_problems = validate(tl, floor_y=sc.floor_y, bars=sc.bars,
-                                              front=spec.get('view') == 'front', solids=getattr(sc, 'solids', ()))
+                candidate_problems = validate_timeline(spec, sc, tl)
                 if set(candidate_problems) - existing:
                     # Reduce the launch tangent only as much as needed to preserve every validator rule.
                     low, high, best = 0.0, 1.0, None
@@ -90,8 +147,14 @@ def build(spec):
                         tl.frames = tl.frames[:start]
                         contact(tl, keys, c['joint'], pt, surface=sc.floor_y, end_velocity=launch_velocity,
                                 phase_id=phase_index, elastic_accel=elastic_accel, tangent_scale=scale)
-                        revised = validate(tl, floor_y=sc.floor_y, bars=sc.bars,
-                                           front=spec.get('view') == 'front', solids=getattr(sc, 'solids', ()))
+                        for _, _, meta in tl.frames[start:]:
+                            meta['verticalSupport'] = bool(c.get('verticalSupport'))
+                        if camera_target is not None:
+                            _apply_camera_transition(tl, start, camera_source, camera_target, transition_frames,
+                                                     c['joint'], camera_source_point, pt)
+                        for _, _, meta in tl.frames[start:]:
+                            meta['underBar'] = bool(c.get('underBar'))
+                        revised = validate_timeline(spec, sc, tl)
                         if set(revised) - existing or len(momentum_warnings(tl)) > existing_momentum:
                             high = scale
                         else:
@@ -100,6 +163,13 @@ def build(spec):
                         tl.frames = tl.frames[:start]
                         contact(tl, keys, c['joint'], pt, surface=sc.floor_y, phase_id=phase_index,
                                 elastic_accel=elastic_accel)
+                        for _, _, meta in tl.frames[start:]:
+                            meta['verticalSupport'] = bool(c.get('verticalSupport'))
+                        if camera_target is not None:
+                            _apply_camera_transition(tl, start, camera_source, camera_target, transition_frames,
+                                                     c['joint'], camera_source_point, pt)
+                        for _, _, meta in tl.frames[start:]:
+                            meta['underBar'] = bool(c.get('underBar'))
                     else:
                         tl.frames = best
             if c.get('twist'):
@@ -108,7 +178,7 @@ def build(spec):
                 for i in range(start, len(tl.frames)):
                     tl.frames[i][2]['twistShow'] = True; tl.frames[i][2]['twistTotal'] = abs(c['twist']['total'])
         else:
-            f = ph['flight']; land = f['land']; pt = sc.at(land['at']) if isinstance(land['at'], str) else tuple(land['at'])
+            f = ph['flight']; land = f['land']; pt = sc.at(land['at'])
             p0, pel0, _ = tl.last; c0y = pel0[1] + com(p0)[1]
             apex = c0y - f['riseM'] * PX_PER_M if 'riseM' in f else None
             if 'apexAbove' in f:   # e.g. {"at": "bar", "m": 0.8}: COM peak this high above an anchor
@@ -127,12 +197,14 @@ def build(spec):
                     if 0 < done < abs(twist): tl.frames[i][2]['twistTotal'] = abs(twist)
                     if round(done / 180) % 2 == 1:
                         p = tl.frames[i][0]; p.facing = -getattr(p, 'facing', 1)
+            if land.get('underBar') and len(tl.frames) > start:
+                # the catch frame belongs to the next contact (a hang or upper-arm catch between the rails)
+                tl.frames[-1][2]['underBar'] = True
             info['twist'] = twist; flights.append(info)
     return sc, tl, flights
 
 def validate_spec(spec, sc, tl):
-    front = spec.get('view') == 'front'
-    return validate(tl, floor_y=sc.floor_y, bars=sc.bars, front=front, solids=getattr(sc, 'solids', ()))
+    return validate_timeline(spec, sc, tl)
 
 def turns_label(deg):
     """720 -> '2', 540 -> '1½', 180 -> '½', 270 -> '¾'."""
@@ -140,15 +212,21 @@ def turns_label(deg):
     frac = {0: '', 1: '¼', 2: '½', 3: '¾'}[rest]
     return (str(whole) if whole else '') + frac or '0'
 
-def overlay(sc, p, pel, meta, label=True):
+def overlay(sc, p, pel, meta, label=True, ring_layer='all'):
     o = ''
     if sc.kind == 'rings':
         j = p.joints(pel)
-        tops = [(180 - 21, 6), (180 + 21, 6)] if p.front else [(j['han'][0], 6), (j['han'][0], 6)]
-        for (tx, ty), h in zip(tops, (j['haf'], j['han']) if p.front else (j['han'], j['han'])):
+        front_amount = max(0.0, min(1.0, float(getattr(p, 'front', False))))
+        center = sc.at('rings')[0]
+        grips = [('far', (center - 21 * front_amount, 6), j['haf']),
+                 ('near', (center + 21 * front_amount, 6), j['han'])]
+        for layer, (tx, ty), hand in grips:
+            if ring_layer not in ('all', layer):
+                continue
+            h = hand
             o += f'<line x1="{tx}" y1="{ty}" x2="{h[0]:.1f}" y2="{h[1]-9:.1f}" stroke="{V.APP_D}" stroke-width="2"/>'
             o += f'<circle cx="{h[0]:.1f}" cy="{h[1]:.1f}" r="8.5" fill="none" stroke="#7d8aab" stroke-width="4"/>'
-    if meta.get('twist') or meta.get('twistShow'):
+    if ring_layer != 'far' and (meta.get('twist') or meta.get('twistShow')):
         j = p.joints(pel); c = ((j['pelvis'][0] + j['neck'][0]) / 2, (j['pelvis'][1] + j['neck'][1]) / 2)
         o += f'<ellipse cx="{c[0]:.1f}" cy="{c[1]:.1f}" rx="26" ry="8" transform="rotate({p.torso:.1f} {c[0]:.1f} {c[1]:.1f})" fill="none" stroke="{V.BLUE}" stroke-width="3" opacity=".8"/>'
         if meta.get('twistTotal') and label:
@@ -171,6 +249,8 @@ def floor_band(sc, tl):
 
 def headroom(tl, margin=22):
     """Pixels to shift the scene down so the highest point of any frame stays inside the canvas."""
+    if not tl.frames:
+        return 0
     top = min(min(y for k, (x, y) in p.joints(pel).items()) - 12 for p, pel, _ in tl.frames)
     return max(0, round(margin - top))
 
@@ -188,7 +268,7 @@ def frame_svg(sc, tl, i, trails=True, uid='a'):
         for lag, op in ((6, .06), (4, .09), (2, .13)):
             k = i - lag
             if k >= 0: q, qp, _ = tl.frames[k]; body += V.fig(uid, q, qp, False, op)
-    body += overlay(sc, p, pel, meta) + V.fig(uid, p, pel)
+    body += overlay(sc, p, pel, meta, ring_layer='far') + V.fig(uid, p, pel) + overlay(sc, p, pel, meta, ring_layer='near')
     if behind and scene_drawing: body += scene_drawing
     dy = headroom(tl)
     return V.frame(uid, shifted(body, dy), sc.h + dy, w=sc.w)
@@ -205,10 +285,11 @@ def poster_svg(spec, sc, tl, uid):
         # different twist than the main frame (e.g. the first-flight turn of a vault), so labels never pile up
         tw = lambda k: tl.frames[k][2].get('twist') or tl.frames[k][2].get('twistShow')
         lab = not all(tw(k) for k in range(min(g, main), max(g, main) + 1))
-        body += f'<g opacity=".55">{overlay(sc, q, qp, qm, label=lab)}</g>'
+        body += f'<g opacity=".55">{overlay(sc, q, qp, qm, label=lab, ring_layer="far")}</g>'
         body += V.fig(uid, q, qp, False, .16)
+        body += f'<g opacity=".55">{overlay(sc, q, qp, qm, label=lab, ring_layer="near")}</g>'
     p, pel, meta = tl.frames[main]
-    body += overlay(sc, p, pel, meta) + V.fig(uid, p, pel)
+    body += overlay(sc, p, pel, meta, ring_layer='far') + V.fig(uid, p, pel) + overlay(sc, p, pel, meta, ring_layer='near')
     dy = headroom(tl)
     return V.frame(uid, shifted(body, dy), sc.h + dy, w=sc.w)
 

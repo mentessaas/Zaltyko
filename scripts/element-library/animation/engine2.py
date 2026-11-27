@@ -24,24 +24,26 @@ def ease(u): return u * u * (3 - 2 * u)
 # ---------- representation ----------
 class Shape:
     """Pose relative to the torso: rel angles for upper/lower of each limb, plus head tilt."""
-    def __init__(self, arm_n, arm_f, leg_n, leg_f, head=0.0, facing=1, yaw=0.0, yaw_pivot='han', front=False, arch=0.0):
+    def __init__(self, arm_n, arm_f, leg_n, leg_f, head=0.0, facing=1, yaw=0.0, yaw_pivot='han', front=False, arch=0.0, spread=0.0):
         self.arm_n, self.arm_f, self.leg_n, self.leg_f, self.arch = arm_n, arm_f, leg_n, leg_f, arch
+        self.spread = spread
         self.head, self.facing, self.yaw, self.yaw_pivot, self.front = head, facing, yaw, yaw_pivot, front
     @staticmethod
     def of(p, facing=1):
         r = lambda pair: (pair[0] - p.torso, pair[1] - p.torso)
-        return Shape(r(p.arm_n), r(p.arm_f), r(p.leg_n), r(p.leg_f), p.head, facing, getattr(p, 'yaw', 0), getattr(p, 'yaw_pivot', 'han'), getattr(p, 'front', False), getattr(p, 'arch', 0))
+        return Shape(r(p.arm_n), r(p.arm_f), r(p.leg_n), r(p.leg_f), p.head, facing, getattr(p, 'yaw', 0), getattr(p, 'yaw_pivot', 'han'), getattr(p, 'front', False), getattr(p, 'arch', 0), getattr(p, 'spread', 0))
     def pose(self, torso):
         a = lambda pair: (pair[0] + torso, pair[1] + torso)
         p = Pose(torso=torso, arm_n=a(self.arm_n), arm_f=a(self.arm_f), leg_n=a(self.leg_n), leg_f=a(self.leg_f), head=self.head)
-        p.facing = self.facing; p.yaw = self.yaw; p.yaw_pivot = self.yaw_pivot; p.front = self.front; p.arch = self.arch
+        p.facing = self.facing; p.yaw = self.yaw; p.yaw_pivot = self.yaw_pivot; p.front = self.front; p.arch = self.arch; p.spread = self.spread
         return p
 
 def lerp_shape(a, b, u):
     l = lambda x, y: x + (y - x) * u   # follow the direction written in the spec (validator catches impossible paths)
     pr = lambda p, q: (l(p[0], q[0]), l(p[1], q[1]))
     return Shape(pr(a.arm_n, b.arm_n), pr(a.arm_f, b.arm_f), pr(a.leg_n, b.leg_n), pr(a.leg_f, b.leg_f), l(a.head, b.head),
-                 a.facing if u < 0.5 else b.facing, l(a.yaw, b.yaw), a.yaw_pivot, a.front if u < 0.5 else b.front, l(a.arch, b.arch))
+                 a.facing if u < 0.5 else b.facing, l(a.yaw, b.yaw), a.yaw_pivot, l(float(a.front), float(b.front)), l(a.arch, b.arch),
+                 l(getattr(a, 'spread', 0), getattr(b, 'spread', 0)))
 
 # ---------- mechanics ----------
 def com(p, pelvis=(0, 0)):
@@ -78,10 +80,10 @@ class Timeline:
     @property
     def last(self): return self.frames[-1]
 
-_POSE_FIELDS = ('torso', 'arm_n', 'arm_f', 'leg_n', 'leg_f', 'head', 'arch')
+_POSE_FIELDS = ('torso', 'arm_n', 'arm_f', 'leg_n', 'leg_f', 'head', 'arch', 'spread')
 
 def _pose_values(p):
-    return [p.torso, *p.arm_n, *p.arm_f, *p.leg_n, *p.leg_f, p.head, getattr(p, 'arch', 0.0)]
+    return [p.torso, *p.arm_n, *p.arm_f, *p.leg_n, *p.leg_f, p.head, getattr(p, 'arch', 0.0), getattr(p, 'spread', 0.0)]
 
 def _pose_from_values(values, template):
     torso = values[0]
@@ -90,6 +92,7 @@ def _pose_from_values(values, template):
     p.yaw = getattr(template, 'yaw', 0)
     p.yaw_pivot = getattr(template, 'yaw_pivot', 'han')
     p.arch = values[10]
+    p.spread = values[11] if len(values) > 11 else 0.0
     return p
 
 def _launch_tangent(start, end, joint, point, target_velocity, duration, frames):
@@ -105,7 +108,7 @@ def _launch_tangent(start, end, joint, point, target_velocity, duration, frames)
     desired = (endpoint[0] - target_velocity[0] / FPS,
                endpoint[1] - (target_velocity[1] + 0.5 * G / FPS) / FPS)
     base = [h00*a + h01*b for a, b in zip(q0, q1)]
-    bounds = [798, 1140, 1140, 997.5, 997.5, 997.5, 997.5, 997.5, 997.5, 0, 570]
+    bounds = [798, 1140, 1140, 997.5, 997.5, 997.5, 997.5, 997.5, 997.5, 0, 570, 0]
     rates = [0.0] * n
     for _ in range(120):
         q = [b + factor*r for b, r in zip(base, rates)]
@@ -222,26 +225,39 @@ def joint_angles(p):
     out['arch'] = getattr(p, 'arch', 0)
     return out
 
-def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=()):
+def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=(),
+             surfaces=(), canvas=None, canvas_shift=0, rings=None, vertical_support=False):
     problems = []
     prev = None; prev_meta = {}
     for i, (p, pel, meta) in enumerate(tl.frames):
         # face-on frames and frames in the middle of a twist (the 2D figure mirrors) skip side-view joint limits
-        if not front and not getattr(p, 'front', False) and not meta.get('twist'):
+        pose_front = float(getattr(p, 'front', False)) >= 0.5
+        if not front and not pose_front and not meta.get('twist'):
+            spread = getattr(p, 'spread', 0) >= 0.5
             for name, val in joint_angles(p).items():
+                # arms spread sideways (cross, swallow, inverted cross seen from the side): the
+                # sagittal shoulder angle says nothing about an abducted arm, so it is not checked
+                if spread and name.startswith('shoulder'):
+                    continue
                 lo, hi = LIMITS[name.split('_')[0]]
                 if not lo <= val <= hi:
                     problems.append(f'frame {i}: {name} {val:.0f}° outside {lo}..{hi}')
         j = p.joints(pel)
+        if canvas is not None:
+            width, height = canvas
+            for name, (x, y) in j.items():
+                y += canvas_shift
+                if x < 0 or x > width or y < 0 or y > height:
+                    problems.append(f'frame {i}: {name} outside canvas ({x:.1f}, {y:.1f})')
         if floor_y is not None:
             # physical heights: the raised camera of yaw-turned frames moves points on screen, not in space
             jf = p._joints_flat(pel) if getattr(p, 'yaw', 0) else j
             low = max(y for k, (x, y) in jf.items() if k != 'head')
             if low > floor_y + 2: problems.append(f'frame {i}: below the floor by {low - floor_y:.1f}px')
         for (x0, y0, x1, y1) in solids:
-            # side view is depth-ambiguous: head, hands and legs may hang BESIDE a beam; only the trunk
-            # (pelvis, neck) can never be inside the apparatus
-            for k, (x, y) in ((k, j[k]) for k in ('pelvis', 'neck')):
+            # Treat every articulated point like a possible collision; the old trunk-only
+            # check let a support leg pass through the beam unnoticed.
+            for k, (x, y) in j.items():
                 if x0 + 1 < x < x1 - 1 and y0 + 1.5 < y < y1 - 0.5:
                     problems.append(f'frame {i}: {k} inside the apparatus'); break
         for b in bars:
@@ -252,6 +268,56 @@ def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=()):
         if meta.get('contact'):
             jn, pt = meta['contact']
             if math.dist(j[jn], pt) > 1.0: problems.append(f'frame {i}: contact {jn} slipped')
+            if surfaces and not any(surface['accepts'](pt) for surface in surfaces):
+                problems.append(f'frame {i}: contact {jn} is not on an apparatus surface')
+            # On beam/bar tops, no body point may cross below the top while it is
+            # horizontally over the apparatus. A real hang is allowed only when
+            # the contact phase explicitly declares underBar.
+            if not meta.get('underBar'):
+                supporting_tops = [surface for surface in surfaces
+                                   if surface.get('top') is not None and surface['accepts'](pt)]
+                for surface in supporting_tops:
+                    if surface.get('top') is None:
+                        continue
+                    x0, x1, top = surface['x0'], surface['x1'], surface['top']
+                    for name in ('ton', 'tof', 'ann', 'anf', 'knn', 'knf', 'hipn', 'hipf',
+                                 'pelvis', 'neck', 'head', 'han', 'haf'):
+                        x, y = j[name]
+                        if x0 <= x <= x1 and y > top + 4:
+                            problems.append(f'frame {i}: {name} below apparatus top while over it')
+                            break
+                    else:
+                        continue
+                    break
+            if rings is not None and jn in ('han', 'haf'):
+                # Both hands need a visible ring at their actual grip points. Side
+                # view projects the pair to the same point; front view separates them.
+                # Foot contacts (dismount landings on the mat) are not ring grips.
+                targets = rings(p) if callable(rings) else rings
+                camera = float(getattr(p, 'front', 0))
+                mid_x = (targets[0][0] + targets[1][0]) / 2
+                for name, target in zip(('haf', 'han'), targets):
+                    # Seen from the front, a straight-arm cross/swallow pulls each
+                    # strap outward: the ring stays at grip height on its own side
+                    # but moves sideways with the hand (straps drawn to the hand).
+                    hx, hy = j[name]
+                    strap_follows = (camera > 0 and abs(hy - target[1]) <= 5
+                                     and (hx - mid_x) * (target[0] - mid_x) > 0
+                                     and abs(hx - mid_x) <= 70)
+                    if math.dist(j[name], target) > 5 and not strap_follows:
+                        problems.append(f'frame {i}: {name} is not at a ring grip point')
+                    # Only a full front view can hide a grip behind the trunk: in side
+                    # view the near ring is drawn over the body, and mid camera turn the
+                    # projection briefly crosses the hand behind the trunk.
+                    if camera < 1:
+                        continue
+                    if _point_segment_distance(j[name], j['pelvis'], j['neck']) < 8.5:
+                        problems.append(f'frame {i}: {name} is covered by the torso at the ring grip')
+            if vertical_support and meta.get('verticalSupport'):
+                trunk = p.upper_torso() if hasattr(p, 'upper_torso') else p.torso
+                off_vertical = min(abs(_wrap(trunk)), abs(_wrap(trunk - 180)))
+                if off_vertical > 45:
+                    problems.append(f'frame {i}: vertical support trunk leans {off_vertical:.0f}° from vertical')
         if prev is not None:
             # per-segment speed limits (deg per frame at 30 fps), from biomechanics:
             # trunk ~840 deg/s, leg kicks ~1050 deg/s, arm swings ~1200 deg/s
@@ -270,6 +336,14 @@ def validate(tl, floor_y=None, bars=(), max_step=28, front=False, solids=()):
                     if abs(d) > limit[attr]: problems.append(f'frame {i}: {attr} jumps {abs(d):.0f}°'); break
         prev, prev_meta = p, meta
     return problems
+
+def _point_segment_distance(point, start, end):
+    dx, dy = end[0] - start[0], end[1] - start[1]
+    length_sq = dx * dx + dy * dy
+    if length_sq == 0:
+        return math.dist(point, start)
+    t = max(0.0, min(1.0, ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / length_sq))
+    return math.dist(point, (start[0] + t * dx, start[1] + t * dy))
 
 
 def momentum_warnings(tl, takeoff=1.5, spike=3.5):

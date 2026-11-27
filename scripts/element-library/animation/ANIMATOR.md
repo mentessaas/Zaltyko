@@ -39,8 +39,14 @@ in `work/` to generate families of specs (e.g. "back salto with N twists") inste
   `lb` 1.70 m at x 390, `hb` 2.50 m at x 520, a second board `board_hb` at x≈650 outside the high bar for mounts
   from that side, `floor@X`; room for the run/round-off and for swings outside the bars), `rings` (`rings`, 2.75 m; rings and straps are drawn at the hands),
   `parallel_bars` (`rail@X`, 2.0 m), `pommel_horse` (`pommel_l`, `pommel_r`, `horse@X`),
-  `vault` (wider canvas, 640 px ≈ 7.5 m: runway from x≈20 for the hurdle/round-off, `board` at x≈280, `table@X` top 1.25 m with the table between x 370 and 462, `floor@X`, `mat@X` between x 478 and 628).
+  `vault` (wider canvas, 680 px with a 40 px left safety margin: runway from x≈60 for the hurdle/round-off, `board` at x≈320, `table@X` top 1.25 m, `floor@X`, `mat@X`; apparatus spacing is unchanged).
   Use x between ~30 and ~330. The canvas grows upward automatically.
+
+### Apparatus contact and body clearance
+
+Pose angles are absolute screen-space directions (`0` up, `90` right, `180` down, `270` left). In particular, a leg angle of `180` points the leg down through the screen; it does not mean “the supporting leg” or “standing.” Pinning a hand or foot fixes only that joint; it does not move or protect the rest of the body. For beam and bar-top support, keep every joint that is horizontally over the apparatus above its top surface. A limb beside the apparatus can hang below the top only when it is outside the apparatus span.
+
+For an intentional hang or under-bar swing on rings, high bar, or uneven bars, mark that contact phase with `"underBar": true`. Do not use the flag for a handstand or a support on top of the apparatus. Contacts must land on the named apparatus surface or grip point (within a few pixels); an anchor name alone does not make a misplaced contact valid. Ring contact keeps both hands on the rendered ring grip points, and the straps terminate at those hands. The near ring and strap are drawn in front of the gymnast; the validator rejects a wrist hidden by the torso or away from its visible ring grip.
 
 ## Spec
 ```json
@@ -69,7 +75,8 @@ in `work/` to generate families of specs (e.g. "back salto with N twists") inste
 - Holds (strength): show a short, plausible entry (0.5–1 s) and then hold the pose with `dt: 2.0`.
 - Twisting frames skip the side-view joint limits (the 2D figure mirrors during a twist), so tucked and
   piked twists are allowed; keep the shape anatomically plausible anyway.
-- Front-view elements (cross on rings): `"view": "front"` and `"front": true` in the poses.
+- Choose the view from the defining fact of each phase. On rings, any phase whose defining fact is lateral arms (cross, inverted cross, L-cross, swallow and inverted swallow) uses the front view; longitudinal swings and positions whose defining fact is not lateral arms use the side view. The rule is exposed as `rings().view_rules` in `scenes.py` (`lateral_arms: front`, `longitudinal_swing: side`). Declare the phase on its contact object, for example `{"contact":{"view":"front", ...}}`; it overrides pose `front` values for that phase. In front view anchor the near hand at `ring_near` and the far hand at `ring_far`. For a side-view swing followed by a lateral-arm position, set the swing phase to `"view":"side"` and the next phase to `"view":"front","at":"ring_near","cameraTransitionS":0.3`. The projection and near-hand grip move smoothly over that duration. On the first phase, add `"cameraFrom":"side"` when transition from the side is needed. Do not change the top-level `view` just to control one phase.
+- Declare a support element's defining vertical position with top-level `"definingPosition":"handstand"` (or `"vertical"`) and mark the relevant contact phase `"verticalSupport":true`. On parallel bars the validator then rejects a marked support frame whose trunk is more than 45° from vertical. Entry and flight phases are unaffected.
 - Rotation about a vertical axis (pommel horse circles/flairs, travels; pirouettes): add `"yaw"` (deg)
   and `"yawPivot"` (joint, default `han`) to poses. The body is drawn in its own plane and turned about
   a vertical axis through the pivot: horizontal offsets shrink with cos(yaw) and the body is drawn
@@ -148,3 +155,26 @@ Bars, rings, parallel bars, beam, and ordinary floor support keep the 1.5 m/s ta
 within-support limits. Review the remaining warnings: they usually indicate a one-frame final key
 interval, a launch pose whose pinned-contact COM path cannot reach the ballistic velocity within the
 existing segment-speed limits, or an internal stop-and-go between authored keys.
+
+## Reference specs (copy the pattern, not the poses blindly)
+
+`specs/reference/` holds specs that pass the canonical engine with zero problems and zero momentum
+warnings and that Claude checked frame by frame. When an element has the same kind of movement, start from
+the matching reference and change only what the element's facts require.
+
+| Movement | Reference | What to copy |
+|---|---|---|
+| Tucked salto (any apparatus) | `ref_mhb_dm_double_salto_fwd_tuck.json` | Flight shape `leg_n: [50, 170]` relative to the trunk: thigh-trunk 50°, knee flexed 120° (heel near the seat). Open to `[180, 180]` only after the last quarter turn. |
+| Roll on the beam | `ref_bb_roll_fwd.json` | Contact changes joint as the body rolls: `ton` (squat) → `neck` (hips above the neck, head tucked with `head` ~110) → `pelvis` (sit). The last key of one phase equals the first key of the next, and the next phase's `at` is where that joint already is. Arms stay with `shoulder` ≤ 60° so the hands never go into the beam. |
+| Parallel bars salto landing in handstand | `ref_mpb_sp_salto_bwd_to_handstand.json` | Swing back, swing forward (arms stay near vertical, `underBar` true), short last key (0.3 s) so take-off speed matches, `rotation` chosen so the landing torso is exactly 180 (mod 360): the body arrives already inverted, then a `verticalSupport` phase holds the handstand. |
+| Rings strength (cross, swallow, L-cross) | `ref_mrg_kip_to_cross.json` | Swing phases in side view on `rings`; the strength hold in `view: 'front'` on `ring_far` with `cameraTransitionS`, so the far hand stays on its ring and joint limits are not measured in a side view. |
+| Sole circle / toe-on / pike stand on a bar | `ref_ub_sole_circle_bwd.json` | Hands AND feet on the same bar: the body is a fixed triangle (bar→shoulder 44 px, shoulder→hip 44 px, hip→toes 66 px) rotated around the bar. Keys every 10° of the circle (dt 0.04) keep the toes within 3 px of the bar; `underBar` true; one contact phase on `han`. Built by computing torso, arm and leg angles from that triangle. |
+
+## Twists flip the figure's facing (read before writing any shape after a 1/2, 3/2 ... twist)
+
+After an odd number of half turns the engine flips `facing`, so the figure is drawn mirrored. A flight
+shape written as `leg [50, 170]` (a tuck) then folds BACKWARD (hip ~230°, knee ~-120°) once the twist is done.
+Rules: keep the legs straight (`[180, 180]`) and both legs equal while the twist runs, so the flip does not make
+limbs jump; after an odd half-turn count, write the tuck mirrored as `leg [310, 190]`; after an even count, use
+`[50, 170]`. Close or open a tuck over at least 0.2 of the flight; a faster change makes the limbs jump.
+| Rings swallow, planche, inverted cross, presses and slow rolls (decided 2026-11-26: SIDE view) | `ref_mrg_hang_pull_to_swallow.json` | Side view only (`view: 'side'`, `at: 'rings'`). Pose field `spread` (0..1) = arms abducted sideways: the engine foreshortens the arms in side view and does not check the sagittal shoulder angle. Raise `spread` to >= 0.5 BEFORE the shoulder angle leaves -75..200 (an early key at small torso change), hold 1.0 through the strength hold, bring it back to 0 when the arms return to the body plane (hang, support, handstand). No camera transitions for these elements. The iron cross keeps the front-view reference. |

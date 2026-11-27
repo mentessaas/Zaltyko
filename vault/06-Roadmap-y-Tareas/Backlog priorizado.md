@@ -38,6 +38,7 @@ Producto: `docs/producto/biblioteca-de-elementos.md`. Orden y hashes: `docs/depl
 - P2 · Fase D: plantillas de niveles de la RFEG (GAF Base B1–B10 y GAM Base B1–B5, edición 2027), solo con hechos, en su propia PR.
 - Deuda · Con la migración de la biblioteca en todos los entornos, quitar el conjunto antiguo de columnas de las detecciones de niveles, guiones y derechos de datos (PR propia).
 - Pendiente de autorización · Retirada de las tablas antiguas (`20261119122000_retire_legacy_skill_catalog_candidate.sql`), después de la fase C y primero en staging.
+- P1 · Corregir los specs de animación que fallan el nuevo validador geométrico. La auditoría del 25-11 validó 563 archivos del worktree `animaciones`: 266 tienen problemas de superficie de contacto, despeje de viga/barra, colisión con aparato o límites del lienzo. Revisar anillas y barras para marcar `underBar` solo en fases colgadas correctas. No editar las copias de `anim-cx-*` hasta coordinar sus lotes. Evidencia: `scripts/element-library/animation/work/geometry-audit.md`.
 
 ## A6 — Niveles y progresión por aparato, pendientes (2026-11-14)
 

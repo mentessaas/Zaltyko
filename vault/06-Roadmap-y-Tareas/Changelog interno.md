@@ -13477,3 +13477,16 @@ resuelve `expo/package.json`; su instalación congelada se bloquea por desajuste
 entre overrides y `mobile/pnpm-lock.yaml`. El barrido web global se detuvo tras
 17 minutos sin resumen final. No se modificaron lockfiles. No se encendieron
 banderas ni se tocaron servicios remotos.
+
+
+## 2026-11-25 — Validador geométrico de animaciones
+
+Se corrigió el hueco por el que una mano fijada al anclaje permitía que otras articulaciones atravesaran la viga. La escena era correcta; el ángulo absoluto de pierna `180` apunta hacia abajo y la especificación lo usaba en apoyos sobre la viga. El validador solo comprobaba pelvis/cuello dentro del sólido y no comparaba el contacto con una superficie real. `ANIMATOR.md` aclara la convención y la marca `underBar`.
+
+Se añadieron comprobaciones de despeje, contactos contra superficies, anillas/manos, puntos fuera del lienzo y colisiones de todo el cuerpo. Se registró la deuda de arreglar specs en Backlog priorizado. Pruebas geométricas: 6/6 PASS; `py_compile` y `git diff --check` PASS. `run_spec.py` sin render: 9.185 archivos en 15 worktrees; 4.697 fallan al menos una regla. En `animaciones`, 266/563. El detalle por lote y claves está en `scripts/element-library/animation/work/geometry-audit.md`. No se modificaron specs de `anim-cx-*`, no se renderizó ni se tocó ningún entorno.
+
+## 2026-11-25 — Cámara por fase y despeje del motor de animación
+
+La revisión visual detectó anillas cercanas tapadas por la silueta, posiciones de brazos laterales indistinguibles en vista lateral y una carrera de salto sin margen suficiente. El SVG ahora dibuja la anilla/cinta lejana detrás del cuerpo y la cercana delante; el validador rechaza muñecas superpuestas al tronco y agarres alejados de sus anillas. Cada fase de contacto puede declarar `view`; `cameraTransitionS` interpola la proyección y el agarre entre los puntos centrales de lado y `ring_near`/`ring_far` de frente. `scenes.py` publica la regla de anillas: brazos laterales de frente, balanceo longitudinal de lado. El lienzo de salto se desplaza 40 px sin cambiar distancias de carrera/aparatos. Specs declarados `handstand`/`vertical` en paralelas pueden marcar `verticalSupport` y fallan con inclinación del tronco >45°. No se editaron specs.
+
+Pruebas geométricas: 14/14 PASS; `py_compile` y `git diff --check` PASS. Recorrido sin render de las 83 specs de salto: cero errores de ejecución y cero primeros cuadros fuera del lienzo; el mínimo x inicial es 51,6 px. El validador todavía informa 581 problemas geométricos en specs de salto existentes, que quedan pendientes de sus tandas. No se generaron imágenes ni se consultaron fuentes prohibidas. Commit local `67e5ed1a`, sin push.

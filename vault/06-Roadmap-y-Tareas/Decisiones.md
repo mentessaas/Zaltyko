@@ -1491,3 +1491,11 @@ el dibujo SVG de siluetas Bezier, escenas y anillo de pirueta. Esto evita
 mantener dos implementaciones de física y preserva el resultado del motor. Los
 datos exportados requieren una clave en `accepted.json`; el archivo queda vacío
 hasta la revisión. La bandera de app permanece apagada por defecto.
+
+## 2026-11-25 — Validación geométrica de animaciones
+
+El validador debe comprobar el cuerpo completo contra las superficies modeladas: apoyo fijado al aparato, despeje de viga/barra, agarres de las dos manos en anillas y límites del lienzo. Fijar una mano o un pie no restringe el resto del cuerpo. Las fases colgadas se declaran explícitamente con `underBar: true`; no se infieren automáticamente. La convención angular sigue siendo absoluta en pantalla (`0` arriba, `180` abajo). Los specs de otros worktrees no se corrigen desde este cambio; el informe de auditoría queda como cola de reparación por lote.
+
+## 2026-11-25 — Vista de animación ligada al hecho técnico
+
+El hecho que define una fase determina su cámara. En anillas, posiciones cuyo hecho clave son brazos laterales se muestran de frente; los balanceos longitudinales se muestran de lado. El spec declara `view` en cada fase de contacto y puede usar `cameraTransitionS` (y `cameraFrom` al inicio) para una transición gradual entre el agarre central lateral y las anillas `ring_near`/`ring_far` de frente. La anilla y cinta cercanas se dibujan sobre el cuerpo y la validación comprueba que la muñeca no quede bajo el tronco ni fuera del agarre visible. En paralelas, una fase marcada `verticalSupport: true` dentro de un spec `definingPosition: handstand|vertical` falla si el tronco supera 45° desde la vertical. La escena de salto añade 40 px de margen inicial sin cambiar la separación entre aparatos.
