@@ -1741,14 +1741,27 @@ recuento coincide, y anotar solo el recuento y la ubicación en el informe (nunc
 Sin ese respaldo verificado no se aplica la candidata; si se decide que no hace falta
 conservarlos, debe quedar escrito por Elvis.
 
-## Candidata pendiente: retirar las tablas antiguas de elementos y puntuaciones (19-11-2026)
+## Retirada de las tablas antiguas de elementos y puntuaciones (19-11-2026, producción 27-11-2026)
 
 | Candidata | SHA-256 | Producción | Staging |
 |---|---|---|---|
-| `20261119122000_retire_legacy_skill_catalog_candidate.sql` | `8a193ef4c2d154ff282520244fd8e6b6932b6e3b9fd251af662bfa607f217646` | No aplicada | Aplicada 19-11-2026 |
+| `20261119122000_retire_legacy_skill_catalog_candidate.sql` | `8a193ef4c2d154ff282520244fd8e6b6932b6e3b9fd251af662bfa607f217646` | Sustituida por `20261127230000` (aplicada 27-11-2026) | Aplicada 19-11-2026 |
+| `20261127230000_retire_legacy_skill_catalog_demo_rows_candidate.sql` | `dc7e8a12b03aaf65da13f0b5cd65c0b6d4558e2291f4580b92d71f74c4720ace` | Aplicada 27-11-2026 | No aplica (staging ya no tenía las tablas) |
 
-**Estado: No se ha aplicado en producción.** En staging se aplicó el
-19-11-2026 con permiso de Elvis; las tres tablas estaban vacías. Cada entorno
+**Estado: retiradas en los dos entornos.** En staging se aplicó
+`20261119122000` el 19-11-2026 con permiso de Elvis; las tres tablas estaban
+vacías. En producción esa candidata habría abortado: `athlete_skills` ya no
+existía, `assessment_scores` estaba vacía y `skill_catalog` tenía 6 filas de la
+cuenta de demostración `11111111-0000-0000-0000-000000000000`, sin academias
+(tres elementos de ejemplo creados dos veces en noviembre de 2025). Elvis
+decidió borrarlas (ADR-0029 §7.4) y el 27-11-2026 se aplicó
+`20261127230000_retire_legacy_skill_catalog_demo_rows_candidate.sql`, que solo
+borra si encuentra exactamente esas 6 filas y después retira las tablas. Se
+comprobó antes que abortaba sin la confirmación de sesión
+(`zaltyko.retire_legacy_skill_catalog_demo`). Los espejos Drizzle de las tres
+tablas se quitaron de `src/db/schema/` en la misma PR. Las listas de RLS y CI
+que trabajan sobre la base local siguen nombrándolas porque las migraciones de
+`supabase/migrations` todavía las crean. Cada entorno
 necesita una autorización expresa de Elvis; la CI verde no equivale a
 autorización. Decisión: ADR-0029 §7.
 
@@ -1826,8 +1839,8 @@ Resumen de las secciones anteriores de la fase C (ADR-0029 §3.5 y §9). Product
 **Estado a 27-11-2026:** en producción, con permiso de Elvis, se aplicaron
 los pasos 1 a 4 y todas las semillas (1.301 elementos revisados), se programó
 la conservación de los avisos (paso 5) y se encendieron las banderas de la
-biblioteca, de las descripciones y de las animaciones. La retirada aparte sigue
-sin aplicar en producción. En staging está todo aplicado desde el 24-11-2026. Cada paso, en cada
+biblioteca, de las descripciones y de las animaciones. La retirada aparte se hizo
+el mismo día con `20261127230000`, que también borró 6 filas de demostración. En staging está todo aplicado desde el 24-11-2026. Cada paso, en cada
 entorno, necesita un permiso expreso de Elvis sobre el archivo y su hash; la
 CI verde no equivale a autorización.
 
@@ -1837,7 +1850,7 @@ CI verde no equivale a autorización.
 | 2 | `20261119120500_element_library_notes_candidate.sql` | `e521dccf2731854da916f1986764e0e40b5823ec4bd3952dc86797d47a846abb` | Aplicada 27-11-2026 | Aplicada 19-11-2026 |
 | 3 | `20261119121000_element_catalog_seed_fig-wag-2025-2028_1.sql` | `e0460dd430115358d224b0e426e3585ee6673d85a8c070d409f97d523d3e1488` | Aplicada 27-11-2026 | Pendiente (aplicada el 19-11-2026 la versión en borrador, `22c07286…`) |
 | 4 | `20261119121500_element_library_usage_event_candidate.sql` | `fbdf191475e0f4772de62ed8a35c11c73d0fdf31098948c4acb19ad0e92ea7ad` | Aplicada 27-11-2026 | Aplicada 19-11-2026 |
-| Aparte | `20261119122000_retire_legacy_skill_catalog_candidate.sql` | `8a193ef4c2d154ff282520244fd8e6b6932b6e3b9fd251af662bfa607f217646` | No aplicada | Aplicada 19-11-2026 |
+| Aparte | `20261119122000_retire_legacy_skill_catalog_candidate.sql` | `8a193ef4c2d154ff282520244fd8e6b6932b6e3b9fd251af662bfa607f217646` | Sustituida por `20261127230000` (aplicada 27-11-2026) | Aplicada 19-11-2026 |
 
 **Orden en cada entorno: primero staging, después producción.**
 
