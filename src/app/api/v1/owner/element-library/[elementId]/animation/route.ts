@@ -75,8 +75,9 @@ export async function GET(request: Request, context: { params: Promise<{ element
     }
     return noStore(apiSuccess(parsed.data));
   } catch (error) {
+    // Most elements have no animation yet: answer 200 with no data so the browser logs no error.
     if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
-      return invalidInput("La animación no está disponible.", "element-animation-unavailable");
+      return noStore(apiSuccess(null));
     }
     return progressError(error);
   }
