@@ -15,6 +15,11 @@ const CANDIDATE_PATH = `docs/deployment/candidates/${CANDIDATE_NAME}`;
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
 const sql = read(CANDIDATE_PATH);
 const code = sql.replace(/--[^\n]*/g, "").toLowerCase();
+const DEMO_PREFIX = "20261127230000";
+const DEMO_NAME = `${DEMO_PREFIX}_retire_legacy_skill_catalog_demo_rows_candidate.sql`;
+const DEMO_PATH = `docs/deployment/candidates/${DEMO_NAME}`;
+const demoSql = read(DEMO_PATH);
+const demoCode = demoSql.replace(/--[^\n]*/g, "").toLowerCase();
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -106,15 +111,14 @@ describe("candidata de borrado de las tablas antiguas de elementos", () => {
     expect(query).not.toMatch(/\b(?:insert|update|delete|drop|alter|truncate)\b/);
   });
 
-  it("figura en el README de candidatas con su SHA-256 y sin aplicar en producción", () => {
+  it("figura en el README de candidatas con su SHA-256, sustituida en producción", () => {
     const readme = read("docs/deployment/candidates/README.md");
     const hash = createHash("sha256").update(readFileSync(join(ROOT, CANDIDATE_PATH))).digest("hex");
     const row = readme.split("\n").find((line) => line.includes(`\`${CANDIDATE_NAME}\``));
     expect(row).toBeDefined();
     expect(row).toContain(hash);
-    expect(row).toContain("No aplicada");
-    const section = readme.slice(readme.indexOf(row!));
-    expect(section).toContain("No se ha aplicado en producción");
+    expect(row).toContain(`Sustituida por \`${DEMO_PREFIX}\``);
+    expect(row).toContain("Aplicada 19-11-2026");
   });
 });
 
@@ -141,16 +145,69 @@ describe("el código ya no usa las tablas antiguas", () => {
     expect(read("src/db/seeds/templates/README.md")).not.toMatch(/skillCatalog|-elements\.ts`?\s+#/);
   });
 
-  it("ningún archivo de src fuera de los espejos Drizzle las importa", () => {
+  it("ningún archivo de src las nombra y ya no hay espejos Drizzle", () => {
+    for (const path of [
+      "src/db/schema/skill-catalog.ts",
+      "src/db/schema/athlete-skills.ts",
+      "src/db/schema/assessment-scores.ts",
+    ]) {
+      expect(existsSync(join(ROOT, path)), path).toBe(false);
+    }
     const offenders: string[] = [];
     for (const file of walk(join(ROOT, "src"))) {
       const rel = relative(ROOT, file);
-      // Los espejos Drizzle se conservan hasta aplicar la candidata SQL.
-      if (rel.startsWith("src/db/schema/")) continue;
       if (/\b(?:assessmentScores|skillCatalog|athleteSkills)\b|assessment_scores|skill_catalog|athlete_skills/.test(readFileSync(file, "utf8"))) {
         offenders.push(rel);
       }
     }
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("candidata de producción: filas de demostración y retirada", () => {
+  const preflightEnd = demoCode.indexOf("$retire_legacy_skill_catalog_demo_preflight$;");
+
+  it("es solo candidata, fuera de supabase/migrations, con su propia transacción", () => {
+    expect(demoSql).toContain("CANDIDATE ONLY");
+    expect(demoSql).toContain("ADR-0029 §7.4");
+    expect(existsSync(join(ROOT, "supabase/migrations", DEMO_NAME))).toBe(false);
+    expect(demoCode.trimStart().startsWith("begin;")).toBe(true);
+    expect(demoCode.trimEnd().endsWith("commit;")).toBe(true);
+    expect(demoCode).toContain("set local lock_timeout = '5s';");
+  });
+
+  it("exige la confirmación de sesión antes de bloquear o borrar", () => {
+    const confirmation = demoCode.indexOf("current_setting('zaltyko.retire_legacy_skill_catalog_demo', true)");
+    expect(confirmation).toBeGreaterThanOrEqual(0);
+    expect(confirmation).toBeLessThan(demoCode.indexOf("lock table"));
+    expect(demoSql).not.toContain("set local zaltyko.retire_legacy_skill_catalog_demo");
+  });
+
+  it("solo borra las 6 filas de la cuenta de demostración sin academias, y aborta si no", () => {
+    expect(demoCode).toContain("'11111111-0000-0000-0000-000000000000'");
+    const guard = demoCode.indexOf("v_catalog_total <> 6 or v_catalog_demo <> 6 or v_demo_academies > 0");
+    const remove = demoCode.indexOf("delete from public.skill_catalog where tenant_id = $1");
+    expect(guard).toBeGreaterThanOrEqual(0);
+    expect(demoCode).toMatch(/if v_assessment_scores > 0 or v_athlete_skills > 0\s+or v_catalog_total/);
+    expect(guard).toBeLessThan(remove);
+    expect(remove).toBeLessThan(preflightEnd);
+    expect(demoCode.match(/\bdelete from\b/g)).toHaveLength(1);
+  });
+
+  it("retira las tres tablas después del preflight, sin cascade", () => {
+    const drops = [...demoCode.matchAll(/drop table (?:if exists )?(public\.[a-z_]+);/g)].map((m) => m[1]);
+    expect(drops).toEqual(["public.assessment_scores", "public.athlete_skills", "public.skill_catalog"]);
+    expect(demoCode.indexOf("drop table")).toBeGreaterThan(preflightEnd);
+    expect(demoCode).not.toMatch(/\bcascade\b/);
+    expect(demoCode).not.toMatch(/athlete_assessments|assessment_videos/);
+  });
+
+  it("figura en el README con su SHA-256 y aplicada en producción", () => {
+    const readme = read("docs/deployment/candidates/README.md");
+    const hash = createHash("sha256").update(readFileSync(join(ROOT, DEMO_PATH))).digest("hex");
+    const row = readme.split("\n").find((line) => line.includes(`\`${DEMO_NAME}\``));
+    expect(row).toBeDefined();
+    expect(row).toContain(hash);
+    expect(row).toContain("Aplicada 27-11-2026");
   });
 });
