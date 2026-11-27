@@ -69,6 +69,7 @@ describe("date locale build optimization", () => {
     expect(config.worker).toBeUndefined();
     expect(config.tracing).toEqual({
       "/*": ["./certs/supabase-root-ca.crt"],
+      "/api/v1/owner/element-library/*/animation": ["./src/modules/element-library/data/**/animaciones/*.json"],
     });
     expect(config.excludes).toBeUndefined();
     expect(config.webpack).toBe("function");
