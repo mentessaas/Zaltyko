@@ -243,12 +243,13 @@ intentos abiertos:
 `select cron.unschedule('zaltyko-collect-family-fees');` y
 `drop function if exists zaltyko_scheduler.call_cron_staging(text);`.
 
-## Conservación de los avisos sobre contenido (sin aplicar)
+## Conservación de los avisos sobre contenido
 
 `candidates/content-notices-retention.sql` programa el trabajo
 `zaltyko-content-notices-retention`, que llama a
-`/api/cron/content-notices-retention` (ADR-0029 §8.2). **No está aplicado en
-ningún entorno** y aplicarlo necesita la autorización expresa de Elvis.
+`/api/cron/content-notices-retention` (ADR-0029 §8.2). **Aplicado en
+producción el 27-11-2026** con permiso de Elvis; staging no tiene
+planificador. Cambiarlo necesita la autorización expresa de Elvis.
 
 | Trabajo (`cron.job.jobname`) | Expresión (UTC) | España (Madrid) | México (Ciudad de México) |
 |---|---|---|---|

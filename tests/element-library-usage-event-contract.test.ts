@@ -111,14 +111,14 @@ describe("candidata del evento de consulta a la biblioteca", () => {
     expect(namesIn(restored![1]!)).toEqual(["staff_visit", "family_portal_view"]);
   });
 
-  it("figura en el README de candidatas con su SHA-256 y sin aplicar en producción", () => {
+  it("figura en el README de candidatas con su SHA-256 y aplicada en producción", () => {
     const readme = read("docs/deployment/candidates/README.md");
     const hash = createHash("sha256").update(readFileSync(join(ROOT, CANDIDATE_PATH))).digest("hex");
     const row = readme.split("\n").find((line) => line.includes(`\`${CANDIDATE_NAME}\``));
     expect(row).toBeDefined();
     expect(row).toContain(hash);
-    expect(row).toContain("No aplicada");
+    expect(row).toContain("Aplicada 27-11-2026");
     const section = readme.slice(readme.indexOf(row!));
-    expect(section).toContain("No se ha aplicado en producción");
+    expect(section).toContain("en producción el 27-11-2026");
   });
 });
