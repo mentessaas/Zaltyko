@@ -1,0 +1,71 @@
+{
+  "elementKey": "mrg_v_sit",
+  "scene": "rings",
+  "view": "side",
+  "holdS": 0.7,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": "rings",
+        "view": "side",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 30.0,
+              "arm_n": [
+                165,
+                165
+              ],
+              "arm_f": [
+                165,
+                165
+              ],
+              "leg_n": [
+                30,
+                30
+              ],
+              "leg_f": [
+                30,
+                30
+              ],
+              "head": 0,
+              "facing": 1
+            }
+          },
+          {
+            "dt": 2.0,
+            "pose": {
+              "torso": 30.0,
+              "arm_n": [
+                165,
+                165
+              ],
+              "arm_f": [
+                165,
+                165
+              ],
+              "leg_n": [
+                30,
+                30
+              ],
+              "leg_f": [
+                30,
+                30
+              ],
+              "head": 0,
+              "facing": 1
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "poster": {
+    "main": 30,
+    "ghosts": [
+      0
+    ]
+  }
+}

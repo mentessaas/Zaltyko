@@ -1,0 +1,153 @@
+{
+  "elementKey": "mpb_hg_nguyen_shoot_up_half_or_three_quarter_turn_handstand",
+  "scene": "parallel_bars",
+  "view": "side",
+  "holdS": 0.4,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": "rail@185",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 45,
+              "arm_n": [
+                45,
+                45
+              ],
+              "arm_f": [
+                45,
+                45
+              ],
+              "leg_n": [
+                225,
+                225
+              ],
+              "leg_f": [
+                225,
+                225
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 90,
+              "arm_n": [
+                90,
+                90
+              ],
+              "arm_f": [
+                90,
+                90
+              ],
+              "leg_n": [
+                205,
+                210
+              ],
+              "leg_f": [
+                205,
+                210
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 135,
+              "arm_n": [
+                135,
+                135
+              ],
+              "arm_f": [
+                135,
+                135
+              ],
+              "leg_n": [
+                315,
+                315
+              ],
+              "leg_f": [
+                315,
+                315
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 180,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                360,
+                360
+              ],
+              "leg_f": [
+                360,
+                360
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          }
+        ],
+        "twist": {
+          "total": 180
+        },
+        "underBar": true
+      }
+    }
+  ],
+  "poster": {
+    "main": 40,
+    "ghosts": [
+      0,
+      20
+    ]
+  },
+  "authoringNotes": "The key visual distinction is the shoot-up turn and the handstand after a half or three-quarter turn; the preceding swing or circle is supported by the rails. Keep the release, catch and contact sequence visible. No exact limb angles beyond the named body shape are prescribed by this pose record."
+}

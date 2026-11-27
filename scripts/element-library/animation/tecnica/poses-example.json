@@ -1,0 +1,141 @@
+{
+  "mfx_planche_hold": {
+    "code": "MAG FX I.27",
+    "view": "side",
+    "apparatus": "floor line only",
+    "travel": "none; static hold 2 s",
+    "phases": [
+      {"name": "hold (planche)", "bodyShape": "stretched", "orientation": "horizontal face-down, head pointing forward (beyond the hands)", "torsoAngle": 90,
+       "arms": "straight, supporting the weight, hands on the floor under the front part of the torso (around chest/hips line), shoulders leaned forward of the hands",
+       "legs": "together, straight, horizontal, in line with the torso", "contact": "hands only", "where": "floor"}
+    ],
+    "variants": ["swallow form: same horizontal body, held lower (body almost at hand height), hands further back beside the hips with arms wider"],
+    "mustShow": ["whole body horizontal and straight, feet off the floor", "only the hands touch the floor, arms straight", "legs together (straddled legs is a different, lower element)"],
+    "notes": "Shoulders well forward of the hands is what keeps the body level. Not to be confused with the straddled planche (legs apart) or a lever on bent arms."
+  },
+  "mfx_salto_bwd_stretched_full_twist": {
+    "code": "MAG FX IV.8",
+    "view": "side",
+    "apparatus": "floor line only",
+    "travel": "backward (gymnast faces away from travel); somersault rotation backward = clockwise in a side view with travel to the right; 1/1 twist (360 deg) about the long axis during the flight, essentially completed by the time the body passes the inverted position and finished before landing",
+    "phases": [
+      {"name": "take-off", "bodyShape": "stretched", "orientation": "upright, slightly leaning back toward travel", "torsoAngle": 0, "arms": "straight overhead", "legs": "together, straight", "contact": "feet", "where": "floor"},
+      {"name": "rise / twist starts", "bodyShape": "stretched (slight hollow)", "orientation": "diagonal, head toward direction of travel and up", "torsoAngle": 60, "arms": "pulling in toward the chest / one arm across to initiate twist", "legs": "together, straight", "contact": "nothing", "where": "in the air"},
+      {"name": "peak (inverted, twisting)", "bodyShape": "stretched", "orientation": "inverted, head down", "torsoAngle": 180, "arms": "close to the body (wrapped to chest or along body) for the twist", "legs": "together, straight", "contact": "nothing", "where": "in the air, highest point"},
+      {"name": "descent (twist finished)", "bodyShape": "stretched", "orientation": "diagonal, feet leading down toward the landing", "torsoAngle": 120, "arms": "opening sideways / forward", "legs": "together, straight", "contact": "nothing", "where": "in the air"},
+      {"name": "landing", "bodyShape": "stretched with slight knee bend", "orientation": "upright", "torsoAngle": 0, "arms": "straight, raised forward-up / overhead", "legs": "together, feet together", "contact": "feet", "where": "floor"}
+    ],
+    "mustShow": ["body straight (no tuck, no pike) through the whole salto", "one full backward rotation combined with one full twist", "lands on both feet facing the same way as at take-off"],
+    "notes": "Usually done out of a round-off (and often a flic-flac). Because rotation and twist are both 360 deg, the gymnast lands facing the same direction as at take-off, travel continues backward. A twist arrow around the long axis is the cue that distinguishes it from a plain layout."
+  },
+  "mrg_swallow": {
+    "code": "MAG SR II.10",
+    "view": "side",
+    "apparatus": "one ring with its strap (the other is hidden behind in a side view); strap vertical",
+    "travel": "none; static hold 2 s",
+    "phases": [
+      {"name": "hold (support scale at ring height)", "bodyShape": "stretched", "orientation": "horizontal face-down, head pointing forward", "torsoAngle": 90,
+       "arms": "straight, supporting the weight, pressed down and slightly out to the sides so the hands are level with the hips", "legs": "together, straight, horizontal", "contact": "hands on the rings only", "where": "body at the same height as the rings (rings beside the hips)"}
+    ],
+    "mustShow": ["body horizontal and straight AT ring height (not above the rings like a planche)", "arms straight, rings at hip level", "straps vertical / still"],
+    "notes": "Also called maltese cross on rings. Difference from the planche (II.9): in the planche the body is above the rings with hands under the shoulders; in the swallow the body is lowered so its line passes through the rings."
+  },
+  "mrg_cross_any_or_v_cross": {
+    "code": "MAG SR II.15",
+    "view": "front",
+    "apparatus": "both rings with both straps, straps vertical",
+    "travel": "none; static hold 2 s",
+    "phases": [
+      {"name": "hold (cross)", "bodyShape": "stretched", "orientation": "upright, head up", "torsoAngle": 0,
+       "arms": "straight, horizontal, out to the sides, supporting the weight", "legs": "together, straight, hanging vertically", "contact": "hands on the rings only", "where": "rings at shoulder height, one at each hand, body centred between the straps"}
+    ],
+    "variants": ["L-cross: same arms, legs raised forward horizontal (L-sit shape), better seen from the side or 3/4", "V-cross: same arms, hips piked so the legs point up above horizontal (V-sit shape)"],
+    "mustShow": ["arms straight and horizontal, in line with the shoulders", "body vertical between the two rings", "rings at shoulder level (not below)"],
+    "notes": "Element name covers any cross (normal, L, V). The plain cross is the clearest single image; the inverted cross is a separate element (II.4)."
+  },
+  "mpb_sp_l_sit_hold": {
+    "code": "MAG PB II.7",
+    "view": "side",
+    "apparatus": "parallel bars, rails seen from the side (one rail in front of the other)",
+    "travel": "none; static hold 2 s",
+    "phases": [
+      {"name": "hold (L-sit)", "bodyShape": "L-sit", "orientation": "upright torso, head up", "torsoAngle": 0,
+       "arms": "straight, vertical, supporting the weight, hands on the rails beside the hips", "legs": "together, straight, horizontal, pointing forward along the rails", "contact": "hands only", "where": "above the rails, hips between/just above the rails"}
+    ],
+    "variants": ["on 1 rail or on 2 rails"],
+    "mustShow": ["legs horizontal (90 deg hip angle), together and straight", "arms straight in support", "only the hands touch the bars"],
+    "notes": "Legs below horizontal is an execution fault; legs above horizontal toward V is a different element."
+  },
+  "mhb_fl_tkatchev_straddle": {
+    "code": "MAG HB II.15",
+    "view": "side, bar seen end-on",
+    "apparatus": "high bar end-on with its uprights",
+    "travel": "the gymnast swings forward under the bar, releases on the upswing and flies backward over the bar (opposite to the swing direction), regrasping on the same side the swing started from; no twist (1/2 twist is a variant)",
+    "phases": [
+      {"name": "forward swing (tap)", "bodyShape": "stretched, passing slight arch to hollow", "orientation": "inverted-to-hanging, passing under the bar", "torsoAngle": 180, "arms": "straight overhead, hands on bar", "legs": "together", "contact": "hands", "where": "below bar"},
+      {"name": "release", "bodyShape": "stretched / slightly arched", "orientation": "diagonal, legs higher than head, rising on the far side of the bar", "torsoAngle": 120, "arms": "straight, just leaving the bar", "legs": "together", "contact": "nothing", "where": "in front of and above bar level"},
+      {"name": "over the bar", "bodyShape": "straddle-piked", "orientation": "upright torso above the bar, facing the bar, head up", "torsoAngle": 0, "arms": "straight, reaching forward-down toward the bar", "legs": "straddled wide, roughly horizontal, pointing forward over the bar", "contact": "nothing", "where": "above bar"},
+      {"name": "regrasp / hang", "bodyShape": "stretched", "orientation": "hanging, head up toward the bar", "torsoAngle": 150, "arms": "straight overhead, hands on bar", "legs": "together", "contact": "hands", "where": "below bar, swinging"}
+    ],
+    "mustShow": ["body passes above the bar in a straddle-pike, legs wide", "release on the forward swing and flight backward over the bar", "regrasp to hang"],
+    "notes": "Counter-rotating release: the flight rotation is opposite to the swing. Piked legs-together (Tv) and straight body (Tkatchev straight) are separate elements, so legs must be clearly straddled."
+  },
+  "mph_circle_or_flair_side_support": {
+    "code": "MAG PH II.1",
+    "view": "front (looking at the long side of the horse)",
+    "apparatus": "pommel horse body with both pommels; hands on the pommels",
+    "travel": "continuous circular swing of the legs and hips around the hands in a near-horizontal plane, 360 deg per circle; direction either way (most often counter-clockwise seen from above); one hand lifts at a time to let the legs pass",
+    "phases": [
+      {"name": "front support", "bodyShape": "stretched (hips extended)", "orientation": "body extended toward the viewer side, front of body facing the horse", "torsoAngle": 60, "arms": "straight, both hands on the pommels", "legs": "together, straight", "contact": "hands on pommels", "where": "legs on the near side of the horse"},
+      {"name": "side passage", "bodyShape": "stretched", "orientation": "horizontal face-up/face-down sweeping over one end, head pointing to the opposite side", "torsoAngle": 90, "arms": "one straight supporting arm, other hand lifted", "legs": "together, straight, horizontal over the horse", "contact": "one hand on a pommel", "where": "legs passing over the horse"},
+      {"name": "rear support", "bodyShape": "stretched", "orientation": "back to the horse, body extended to the far side", "torsoAngle": 60, "arms": "straight, both hands on pommels", "legs": "together, straight", "contact": "hands on pommels", "where": "legs on the far side of the horse"}
+    ],
+    "variants": ["flair: same circle with legs straddled wide (a flair variant may rise toward handstand, e.g. Thomas flair)", "circle outside or between the pommels is a separate element (II.2)"],
+    "mustShow": ["only the hands touch the horse, legs never touch it", "body extended and near horizontal through the circle (legs together = circle, wide straddle = flair)", "full 360 deg path of the legs around the hands"],
+    "notes": "Side support = body crosswise to the horse's long axis. Hips must stay open (no pike) during the circle."
+  },
+  "fx_round_off": {
+    "code": "WAG FX 3.106",
+    "view": "side",
+    "apparatus": "floor line only",
+    "travel": "forward entry; half turn (180 deg) about the long axis during the hand support (1/4 on the first hand, 1/4 after the handstand), so the gymnast lands facing back toward where she came from",
+    "phases": [
+      {"name": "lunge / reach", "bodyShape": "stretched, legs split", "orientation": "upright leaning forward, head toward travel", "torsoAngle": 30, "arms": "straight overhead", "legs": "front leg bent in lunge, rear leg straight behind", "contact": "front foot (rear foot leaving)", "where": "floor"},
+      {"name": "hand placement", "bodyShape": "split", "orientation": "diagonal, head down toward the floor", "torsoAngle": 150, "arms": "straight, first hand then second hand on the floor, body turning 1/4", "legs": "split front/back, rear leg swinging up", "contact": "hands", "where": "floor"},
+      {"name": "handstand, legs join", "bodyShape": "stretched", "orientation": "inverted, head down", "torsoAngle": 180, "arms": "straight, supporting the weight", "legs": "brought together at the top", "contact": "hands", "where": "floor"},
+      {"name": "snap-down / short flight", "bodyShape": "slightly hollow / piked at the hips", "orientation": "diagonal, feet leading down, head following", "torsoAngle": 120, "arms": "straight, pushing off and lifting from the floor", "legs": "together", "contact": "nothing", "where": "just above floor"},
+      {"name": "landing", "bodyShape": "stretched (slight knee bend)", "orientation": "upright", "torsoAngle": 0, "arms": "straight overhead", "legs": "together, both feet land at the same time", "contact": "feet", "where": "floor, facing opposite to the entry direction"}
+    ],
+    "mustShow": ["legs join together at or just after the handstand", "half turn: lands on both feet at once facing back toward the start", "push from the hands into a short flight before the feet land"],
+    "notes": "Not a cartwheel: a cartwheel lands one foot after the other facing sideways. The round-off's landing faces backward so it can feed a backward element."
+  },
+  "bb_split_leap_fwd": {
+    "code": "WAG BB 2.101",
+    "view": "side (beam length across the view)",
+    "apparatus": "balance beam with its legs/support, mat under it optional",
+    "travel": "forward along the beam; no turn",
+    "phases": [
+      {"name": "approach steps", "bodyShape": "stretched", "orientation": "upright, head toward travel", "torsoAngle": 0, "arms": "low/forward, swinging", "legs": "walking/running steps", "contact": "feet", "where": "on beam"},
+      {"name": "take-off", "bodyShape": "stretched", "orientation": "upright", "torsoAngle": 0, "arms": "swinging forward-up", "legs": "push from one leg, lead leg swinging forward straight", "contact": "one foot", "where": "on beam"},
+      {"name": "flight (split)", "bodyShape": "split", "orientation": "upright, head up and forward", "torsoAngle": 0, "arms": "straight, raised sideways-up (high diagonal) or one forward, one sideways", "legs": "split front/back, both straight, 180 deg separation, roughly horizontal", "contact": "nothing", "where": "above beam"},
+      {"name": "landing", "bodyShape": "stretched", "orientation": "upright", "torsoAngle": 0, "arms": "sideways/forward-up for balance", "legs": "land on the front (lead) leg, rear leg extended back then lowered", "contact": "one foot (lead leg)", "where": "on beam, further along than take-off"}
+    ],
+    "mustShow": ["180 deg front/back split in the air with both legs straight", "take-off from one foot and landing on the other (lead) foot", "travel along the beam, torso upright"],
+    "notes": "Leap = one-foot take-off; the split jump (2.202) takes off from both feet. Legs split in the direction of the beam (not straddle)."
+  },
+  "vt_ro_bwd_layout": {
+    "code": "WAG VT 4.30",
+    "view": "side",
+    "apparatus": "runway end, springboard, vault table, landing mat",
+    "travel": "run forward toward the table; round-off before the board turns the gymnast so she reaches the board backward; flic-flac (back handspring) onto the table; one stretched salto backward off the table with no twist; lands facing the table",
+    "phases": [
+      {"name": "round-off on runway", "bodyShape": "split -> stretched", "orientation": "inverted, head down", "torsoAngle": 180, "arms": "straight, hands on the mat before the board", "legs": "split then joined", "contact": "hands", "where": "runway, before springboard"},
+      {"name": "board contact", "bodyShape": "stretched (slight hollow)", "orientation": "upright, back to the table", "torsoAngle": 0, "arms": "straight, swinging back-up overhead", "legs": "together, feet on the board", "contact": "feet", "where": "springboard"},
+      {"name": "first flight / table contact (flic-flac)", "bodyShape": "stretched / slightly arched", "orientation": "inverted, head down toward the table, back leading", "torsoAngle": 180, "arms": "straight overhead, hands on the table", "legs": "together, straight", "contact": "hands", "where": "on top of vault table"},
+      {"name": "second flight (layout salto)", "bodyShape": "stretched", "orientation": "rotating backward; passes inverted then descends feet first", "torsoAngle": 150, "arms": "straight, close to the body or overhead", "legs": "together, straight", "contact": "nothing", "where": "above and beyond the table"},
+      {"name": "landing", "bodyShape": "stretched with knee bend", "orientation": "upright, facing back toward the table", "torsoAngle": 0, "arms": "straight forward", "legs": "together", "contact": "feet", "where": "landing mat"}
+    ],
+    "mustShow": ["round-off before the springboard and backward hand contact on the table", "straight body during the salto off the table (not tucked or piked)", "no twist: lands facing the table"],
+    "notes": "Yurchenko family. 1st flight: backward, hands to table. 2nd flight: one backward salto stretched; adding a twist makes it a different vault (4.31+)."
+  }
+}

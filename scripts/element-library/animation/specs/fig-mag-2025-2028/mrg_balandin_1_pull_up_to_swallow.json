@@ -1,0 +1,162 @@
+{
+  "elementKey": "mrg_balandin_1_pull_up_to_swallow",
+  "scene": "rings",
+  "view": "side",
+  "holdS": 0.7,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "view": "side",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0.0,
+              "arm_n": [
+                0.0,
+                0.0
+              ],
+              "arm_f": [
+                0.0,
+                0.0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 0.0
+            }
+          },
+          {
+            "dt": 0.85,
+            "pose": {
+              "torso": 90.0,
+              "arm_n": [
+                245,
+                245
+              ],
+              "arm_f": [
+                245,
+                245
+              ],
+              "leg_n": [
+                270.0,
+                270.0
+              ],
+              "leg_f": [
+                270.0,
+                270.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 0.0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "view": "side",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 90.0,
+              "arm_n": [
+                245,
+                245
+              ],
+              "arm_f": [
+                245,
+                245
+              ],
+              "leg_n": [
+                270.0,
+                270.0
+              ],
+              "leg_f": [
+                270.0,
+                270.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 0.0
+            }
+          },
+          {
+            "dt": 0.3,
+            "pose": {
+              "torso": 90.0,
+              "arm_n": [
+                360,
+                360
+              ],
+              "arm_f": [
+                360,
+                360
+              ],
+              "leg_n": [
+                270.0,
+                270.0
+              ],
+              "leg_f": [
+                270.0,
+                270.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 1.0
+            }
+          },
+          {
+            "dt": 2.0,
+            "pose": {
+              "torso": 90.0,
+              "arm_n": [
+                360,
+                360
+              ],
+              "arm_f": [
+                360,
+                360
+              ],
+              "leg_n": [
+                270.0,
+                270.0
+              ],
+              "leg_f": [
+                270.0,
+                270.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 1.0
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "poster": {
+    "main": 56,
+    "ghosts": [
+      0
+    ]
+  }
+}

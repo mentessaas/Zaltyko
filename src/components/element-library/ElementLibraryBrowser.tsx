@@ -62,12 +62,14 @@ export function ElementLibraryBrowser({
   locationId,
   disciplines,
   groupLabels,
+  animationsEnabled = false,
 }: {
   organizationId: string;
   locationId: string;
   /** Disciplinas con edición publicada, en orden. */
   disciplines: CatalogDiscipline[];
   groupLabels: ElementLibraryGroupLabels;
+  animationsEnabled: boolean;
 }) {
   const scope: LibraryScope = { organizationId, locationId };
   const ids = {
@@ -454,6 +456,7 @@ export function ElementLibraryBrowser({
               key={`${openCardData.id}:${cardReload}`}
               scope={scope}
               card={openCardData}
+              animationsEnabled={animationsEnabled}
               groupLabel={
                 groupLabels[openCardData.edition.code]?.[openCardData.apparatus]?.find(
                   (entry) => entry.key === openCardData.group

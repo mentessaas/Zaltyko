@@ -1,0 +1,210 @@
+{
+  "elementKey": "bb_kneel_sit_body_wave_rise_through_releve",
+  "scene": "beam",
+  "view": "side",
+  "holdS": 0.45,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "knn",
+        "at": "beam@180",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 30,
+              "arm_n": [
+                90,
+                90
+              ],
+              "arm_f": [
+                90,
+                90
+              ],
+              "leg_n": [
+                180,
+                270
+              ],
+              "leg_f": [
+                180,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.25,
+            "pose": {
+              "torso": 25,
+              "arm_n": [
+                70,
+                70
+              ],
+              "arm_f": [
+                70,
+                70
+              ],
+              "leg_n": [
+                180,
+                270
+              ],
+              "leg_f": [
+                180,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.3,
+            "pose": {
+              "torso": 15,
+              "arm_n": [
+                35,
+                35
+              ],
+              "arm_f": [
+                35,
+                35
+              ],
+              "leg_n": [
+                180,
+                270
+              ],
+              "leg_f": [
+                180,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "arch": 10
+            }
+          }
+        ]
+      }
+    },
+    {
+      "contact": {
+        "joint": "ton",
+        "at": "beam@145",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 15,
+              "arm_n": [
+                35,
+                35
+              ],
+              "arm_f": [
+                35,
+                35
+              ],
+              "leg_n": [
+                180,
+                270
+              ],
+              "leg_f": [
+                180,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "arch": 10
+            }
+          },
+          {
+            "dt": 0.3,
+            "pose": {
+              "torso": 5,
+              "arm_n": [
+                10,
+                10
+              ],
+              "arm_f": [
+                10,
+                10
+              ],
+              "leg_n": [
+                180,
+                205
+              ],
+              "leg_f": [
+                180,
+                205
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "arch": 20
+            }
+          },
+          {
+            "dt": 0.3,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "arch": 8
+            }
+          },
+          {
+            "dt": 0.25,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "poster": {
+    "main": 20,
+    "ghosts": [
+      6,
+      42
+    ]
+  }
+}

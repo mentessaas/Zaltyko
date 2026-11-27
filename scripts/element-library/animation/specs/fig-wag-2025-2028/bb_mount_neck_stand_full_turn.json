@@ -1,0 +1,505 @@
+{
+ "elementKey": "bb_mount_neck_stand_full_turn",
+ "scene": "beam_mount",
+ "view": "front",
+ "holdS": 0.6,
+ "timeline": [
+  {
+   "contact": {
+    "joint": "pelvis",
+    "at": [
+     300.0,
+     255.0
+    ],
+    "keys": [
+     {
+      "dt": 0,
+      "pose": {
+       "torso": 0,
+       "arm_n": [
+        -175,
+        -175
+       ],
+       "arm_f": [
+        -185,
+        -185
+       ],
+       "leg_n": [
+        -180,
+        -180
+       ],
+       "leg_f": [
+        -180,
+        -180
+       ],
+       "head": 0,
+       "facing": -1,
+       "front": true
+      }
+     },
+     {
+      "dt": 0.3,
+      "pose": {
+       "torso": 0,
+       "arm_n": [
+        -175,
+        -175
+       ],
+       "arm_f": [
+        -185,
+        -185
+       ],
+       "leg_n": [
+        -180,
+        -180
+       ],
+       "leg_f": [
+        -180,
+        -180
+       ],
+       "head": 0,
+       "facing": -1,
+       "front": true
+      }
+     }
+    ]
+   }
+  },
+  {
+   "flight": {
+    "riseM": 0.725,
+    "rotation": -118,
+    "shapes": [
+     {
+      "u": 0.5,
+      "pose": {
+       "torso": 0,
+       "arm_n": [
+        -90,
+        -90
+       ],
+       "arm_f": [
+        -150,
+        -150
+       ],
+       "leg_n": [
+        -160,
+        -160
+       ],
+       "leg_f": [
+        -80,
+        -80
+       ],
+       "head": 0,
+       "facing": -1,
+       "front": true
+      }
+     },
+     {
+      "u": 1.0,
+      "pose": {
+       "torso": -118,
+       "arm_n": [
+        -200,
+        -200
+       ],
+       "arm_f": [
+        -160,
+        -160
+       ],
+       "leg_n": [
+        -300,
+        -300
+       ],
+       "leg_f": [
+        -262,
+        -262
+       ],
+       "head": 0,
+       "facing": -1,
+       "front": true,
+       "yaw": 0,
+       "yawPivot": "neck"
+      }
+     }
+    ],
+    "land": {
+     "joint": "neck",
+     "at": [
+      374.0,
+      217.0
+     ]
+    }
+   }
+  },
+  {
+   "contact": {
+    "joint": "neck",
+    "at": [
+     374.0,
+     217.0
+    ],
+    "keys": [
+     {
+      "dt": 0,
+      "pose": {
+       "torso": -118,
+       "arm_n": [
+        -200,
+        -200
+       ],
+       "arm_f": [
+        -160,
+        -160
+       ],
+       "leg_n": [
+        -300,
+        -300
+       ],
+       "leg_f": [
+        -262,
+        -262
+       ],
+       "head": 0,
+       "facing": -1,
+       "front": true,
+       "yaw": 0,
+       "yawPivot": "neck"
+      }
+     },
+     {
+      "dt": 0.35,
+      "pose": {
+       "torso": -145,
+       "arm_n": [
+        -196,
+        -196
+       ],
+       "arm_f": [
+        -164,
+        -164
+       ],
+       "leg_n": [
+        -312,
+        -312
+       ],
+       "leg_f": [
+        -380,
+        -380
+       ],
+       "head": 0,
+       "facing": -1,
+       "front": true,
+       "yaw": -90,
+       "yawPivot": "neck"
+      }
+     },
+     {
+      "dt": 0.35,
+      "pose": {
+       "torso": -180,
+       "arm_n": [
+        -192,
+        -192
+       ],
+       "arm_f": [
+        -168,
+        -168
+       ],
+       "leg_n": [
+        -325,
+        -325
+       ],
+       "leg_f": [
+        -395,
+        -395
+       ],
+       "head": 0,
+       "facing": -1,
+       "front": true,
+       "yaw": -180,
+       "yawPivot": "neck"
+      }
+     },
+     {
+      "dt": 0.3,
+      "pose": {
+       "torso": -180,
+       "arm_n": [
+        -192,
+        -192
+       ],
+       "arm_f": [
+        -168,
+        -168
+       ],
+       "leg_n": [
+        -325,
+        -325
+       ],
+       "leg_f": [
+        -395,
+        -395
+       ],
+       "head": 0,
+       "facing": -1,
+       "front": true,
+       "yaw": -180,
+       "yawPivot": "neck"
+      }
+     },
+     {
+      "dt": 0.18,
+      "pose": {
+       "torso": -180,
+       "arm_n": [
+        -192,
+        -192
+       ],
+       "arm_f": [
+        -168,
+        -168
+       ],
+       "leg_n": [
+        -325,
+        -325
+       ],
+       "leg_f": [
+        -395,
+        -395
+       ],
+       "head": 0,
+       "facing": -1,
+       "front": true,
+       "yaw": -225,
+       "yawPivot": "neck"
+      }
+     },
+     {
+      "dt": 0.18,
+      "pose": {
+       "torso": -180,
+       "arm_n": [
+        -192,
+        -192
+       ],
+       "arm_f": [
+        -168,
+        -168
+       ],
+       "leg_n": [
+        -325,
+        -325
+       ],
+       "leg_f": [
+        -395,
+        -395
+       ],
+       "head": 0,
+       "facing": -1,
+       "front": true,
+       "yaw": -270,
+       "yawPivot": "neck"
+      }
+     },
+     {
+      "dt": 0.18,
+      "pose": {
+       "torso": -180,
+       "arm_n": [
+        -192,
+        -192
+       ],
+       "arm_f": [
+        -168,
+        -168
+       ],
+       "leg_n": [
+        -325,
+        -325
+       ],
+       "leg_f": [
+        -395,
+        -395
+       ],
+       "head": 0,
+       "facing": -1,
+       "front": true,
+       "yaw": -315,
+       "yawPivot": "neck"
+      }
+     },
+     {
+      "dt": 0.18,
+      "pose": {
+       "torso": -180,
+       "arm_n": [
+        -192,
+        -192
+       ],
+       "arm_f": [
+        -168,
+        -168
+       ],
+       "leg_n": [
+        -325,
+        -325
+       ],
+       "leg_f": [
+        -395,
+        -395
+       ],
+       "head": 0,
+       "facing": -1,
+       "front": true,
+       "yaw": -360,
+       "yawPivot": "neck"
+      }
+     },
+     {
+      "dt": 0.18,
+      "pose": {
+       "torso": -180,
+       "arm_n": [
+        -192,
+        -192
+       ],
+       "arm_f": [
+        -168,
+        -168
+       ],
+       "leg_n": [
+        -325,
+        -325
+       ],
+       "leg_f": [
+        -395,
+        -395
+       ],
+       "head": 0,
+       "facing": -1,
+       "front": true,
+       "yaw": -405,
+       "yawPivot": "neck"
+      }
+     },
+     {
+      "dt": 0.18,
+      "pose": {
+       "torso": -180,
+       "arm_n": [
+        -192,
+        -192
+       ],
+       "arm_f": [
+        -168,
+        -168
+       ],
+       "leg_n": [
+        -325,
+        -325
+       ],
+       "leg_f": [
+        -395,
+        -395
+       ],
+       "head": 0,
+       "facing": -1,
+       "front": true,
+       "yaw": -450,
+       "yawPivot": "neck"
+      }
+     },
+     {
+      "dt": 0.18,
+      "pose": {
+       "torso": -180,
+       "arm_n": [
+        -192,
+        -192
+       ],
+       "arm_f": [
+        -168,
+        -168
+       ],
+       "leg_n": [
+        -325,
+        -325
+       ],
+       "leg_f": [
+        -395,
+        -395
+       ],
+       "head": 0,
+       "facing": -1,
+       "front": true,
+       "yaw": -495,
+       "yawPivot": "neck"
+      }
+     },
+     {
+      "dt": 0.18,
+      "pose": {
+       "torso": -180,
+       "arm_n": [
+        -192,
+        -192
+       ],
+       "arm_f": [
+        -168,
+        -168
+       ],
+       "leg_n": [
+        -325,
+        -325
+       ],
+       "leg_f": [
+        -395,
+        -395
+       ],
+       "head": 0,
+       "facing": -1,
+       "front": true,
+       "yaw": -540,
+       "yawPivot": "neck"
+      }
+     },
+     {
+      "dt": 0.5,
+      "pose": {
+       "torso": -180,
+       "arm_n": [
+        -192,
+        -192
+       ],
+       "arm_f": [
+        -168,
+        -168
+       ],
+       "leg_n": [
+        -325,
+        -325
+       ],
+       "leg_f": [
+        -395,
+        -395
+       ],
+       "head": 0,
+       "facing": -1,
+       "front": true,
+       "yaw": -540,
+       "yawPivot": "neck"
+      }
+     }
+    ],
+    "front": true
+   }
+  }
+ ],
+ "poster": {
+  "main": 40,
+  "ghosts": [
+   0
+  ]
+ }
+}

@@ -1,0 +1,395 @@
+{
+  "elementKey": "mrg_dismount_double_salto_bwd_stretched_half_or_full_twist",
+  "scene": "rings",
+  "view": "side",
+  "holdS": 0.2,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                10,
+                10
+              ],
+              "arm_f": [
+                10,
+                10
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.7,
+            "pose": {
+              "torso": -35,
+              "arm_n": [
+                -25,
+                -25
+              ],
+              "arm_f": [
+                -25,
+                -25
+              ],
+              "leg_n": [
+                145,
+                145
+              ],
+              "leg_f": [
+                145,
+                145
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 5,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.7,
+            "pose": {
+              "torso": -65,
+              "arm_n": [
+                -55,
+                -55
+              ],
+              "arm_f": [
+                -55,
+                -55
+              ],
+              "leg_n": [
+                115,
+                115
+              ],
+              "leg_f": [
+                115,
+                115
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 4,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.2,
+            "pose": {
+              "torso": -90,
+              "arm_n": [
+                -80,
+                -80
+              ],
+              "arm_f": [
+                -80,
+                -80
+              ],
+              "leg_n": [
+                90,
+                90
+              ],
+              "leg_f": [
+                90,
+                90
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          }
+        ],
+        "underBar": true,
+        "view": "side"
+      }
+    },
+    {
+      "flight": {
+        "riseM": 1.55,
+        "rotation": -630,
+        "twist": 360.0,
+        "twistWindow": [
+          0.18,
+          0.86
+        ],
+        "shapes": [
+          {
+            "u": 0.12,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                70,
+                70
+              ],
+              "arm_f": [
+                70,
+                70
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 6
+            }
+          },
+          {
+            "u": 0.25,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                75,
+                75
+              ],
+              "arm_f": [
+                75,
+                75
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0
+            }
+          },
+          {
+            "u": 0.52,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                75,
+                75
+              ],
+              "arm_f": [
+                75,
+                75
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0
+            }
+          },
+          {
+            "u": 0.72,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                75,
+                75
+              ],
+              "arm_f": [
+                75,
+                75
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0
+            }
+          },
+          {
+            "u": 0.86,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                135,
+                135
+              ],
+              "arm_f": [
+                135,
+                135
+              ],
+              "leg_n": [
+                145,
+                145
+              ],
+              "leg_f": [
+                145,
+                145
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0
+            }
+          },
+          {
+            "u": 0.97,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                165,
+                165
+              ],
+              "arm_f": [
+                165,
+                165
+              ],
+              "leg_n": [
+                165,
+                165
+              ],
+              "leg_f": [
+                165,
+                165
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0
+            }
+          }
+        ],
+        "land": {
+          "joint": "ton",
+          "at": [
+            255,
+            352
+          ]
+        }
+      }
+    },
+    {
+      "contact": {
+        "joint": "ton",
+        "at": [
+          255,
+          352
+        ],
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": -720,
+              "arm_n": [
+                -555,
+                -555
+              ],
+              "arm_f": [
+                -555,
+                -555
+              ],
+              "leg_n": [
+                -555,
+                -555
+              ],
+              "leg_f": [
+                -555,
+                -555
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.12,
+            "pose": {
+              "torso": -720,
+              "arm_n": [
+                -570,
+                -570
+              ],
+              "arm_f": [
+                -570,
+                -570
+              ],
+              "leg_n": [
+                -570,
+                -525
+              ],
+              "leg_f": [
+                -570,
+                -525
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.25,
+            "pose": {
+              "torso": -720,
+              "arm_n": [
+                -580,
+                -580
+              ],
+              "arm_f": [
+                -580,
+                -580
+              ],
+              "leg_n": [
+                -545,
+                -545
+              ],
+              "leg_f": [
+                -545,
+                -545
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          }
+        ],
+        "view": "side"
+      }
+    }
+  ],
+  "poster": {
+    "main": 56,
+    "ghosts": [
+      9,
+      38
+    ]
+  },
+  "mustShow": [
+    "perform 2 backwardward saltos",
+    "complete the listed body shape in flight",
+    "land on both feet on the mat after releasing the rings",
+    "include the specified longitudinal rotation (up to 1 turns)"
+  ]
+}

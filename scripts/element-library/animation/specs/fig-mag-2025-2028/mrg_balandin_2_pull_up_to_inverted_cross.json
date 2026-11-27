@@ -1,0 +1,162 @@
+{
+  "elementKey": "mrg_balandin_2_pull_up_to_inverted_cross",
+  "scene": "rings",
+  "view": "side",
+  "holdS": 0.7,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "view": "side",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0.0,
+              "arm_n": [
+                0.0,
+                0.0
+              ],
+              "arm_f": [
+                0.0,
+                0.0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 1.0
+            }
+          },
+          {
+            "dt": 0.85,
+            "pose": {
+              "torso": 180.0,
+              "arm_n": [
+                90,
+                90
+              ],
+              "arm_f": [
+                90,
+                90
+              ],
+              "leg_n": [
+                360.0,
+                360.0
+              ],
+              "leg_f": [
+                360.0,
+                360.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 1.0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "view": "side",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 180.0,
+              "arm_n": [
+                90,
+                90
+              ],
+              "arm_f": [
+                90,
+                90
+              ],
+              "leg_n": [
+                360.0,
+                360.0
+              ],
+              "leg_f": [
+                360.0,
+                360.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 1.0
+            }
+          },
+          {
+            "dt": 0.3,
+            "pose": {
+              "torso": 180.0,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                360.0,
+                360.0
+              ],
+              "leg_f": [
+                360.0,
+                360.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 1.0
+            }
+          },
+          {
+            "dt": 2.0,
+            "pose": {
+              "torso": 180.0,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                360.0,
+                360.0
+              ],
+              "leg_f": [
+                360.0,
+                360.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 1.0
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "poster": {
+    "main": 64,
+    "ghosts": [
+      0
+    ]
+  }
+}

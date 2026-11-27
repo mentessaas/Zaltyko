@@ -13506,3 +13506,32 @@ Aprobación externa exacta y CI completa SUCCESS (tres navegadores sintéticos).
 ## 2026-10-27 — QA A actual y corrección móvil demostrada
 
 QA A humana enab067043: resumen30/3/1/3pagos70EUR,usageFree30/3/10,2inscripciones activas,Presente persistido,cuota35EUR noviembre impide duplicado y cobros sin pendientes. Lecturas ajenas denegadasNOT_FOUND/403; no se atribuyen escrituras/snapshots actuales. A375px no hay scrollhorizontal pero capturaCDP demuestra solapamiento de Inscripciones/Asistencia. Se corrige grid móvil3columnas bajo640/6desde640, alineación de objetivos y etiquetas completas; nuevo E2E remoto mide texto contenido,44pxmínimo y nointersección. PendienteCI/revisión/publicación,ab067preview intacta. Sin producción/ensayo/builds locales. Matriz vigente del corte docs/qa/essential-release-current-2026-10-27.md separa gates técnicos, ensayo natural y bloqueos vendedor/fiscal/Live. Nota anterior de publicación se incorpora sin reescribir historia.
+# 2026-11-24 — Renderizador de animaciones de la biblioteca detrás de bandera
+
+Se añadió el exportador de fotogramas desde el motor Python y la lista cerrada
+`accepted.json` (vacía hasta revisión), el render SVG de la ficha con carga
+perezosa protegida por el acceso de biblioteca, control de reproducción y
+respeto de `prefers-reduced-motion`. La bandera
+`ZALTYKO_ELEMENT_LIBRARY_ANIMATIONS_ENABLED` sigue apagada por defecto. El ADR-0031
+precisa que TypeScript solo dibuja los fotogramas precalculados. Las tres fixtures
+de prueba pesan 3.255, 6.894 y 4.094 bytes (media: 4.747,7 bytes); `accepted.json`
+permanece vacío y el exportador no publica datos en la biblioteca. Pasan
+typecheck, lint, paridad (2/2), componente (3/3) y matriz de rutas coach
+(131/131). La suite raíz completa no se pudo cerrar: el proyecto mobile no
+resuelve `expo/package.json`; su instalación congelada se bloquea por desajuste
+entre overrides y `mobile/pnpm-lock.yaml`. El barrido web global se detuvo tras
+17 minutos sin resumen final. No se modificaron lockfiles. No se encendieron
+banderas ni se tocaron servicios remotos.
+
+
+## 2026-11-25 — Validador geométrico de animaciones
+
+Se corrigió el hueco por el que una mano fijada al anclaje permitía que otras articulaciones atravesaran la viga. La escena era correcta; el ángulo absoluto de pierna `180` apunta hacia abajo y la especificación lo usaba en apoyos sobre la viga. El validador solo comprobaba pelvis/cuello dentro del sólido y no comparaba el contacto con una superficie real. `ANIMATOR.md` aclara la convención y la marca `underBar`.
+
+Se añadieron comprobaciones de despeje, contactos contra superficies, anillas/manos, puntos fuera del lienzo y colisiones de todo el cuerpo. Se registró la deuda de arreglar specs en Backlog priorizado. Pruebas geométricas: 6/6 PASS; `py_compile` y `git diff --check` PASS. `run_spec.py` sin render: 9.185 archivos en 15 worktrees; 4.697 fallan al menos una regla. En `animaciones`, 266/563. El detalle por lote y claves está en `scripts/element-library/animation/work/geometry-audit.md`. No se modificaron specs de `anim-cx-*`, no se renderizó ni se tocó ningún entorno.
+
+## 2026-11-25 — Cámara por fase y despeje del motor de animación
+
+La revisión visual detectó anillas cercanas tapadas por la silueta, posiciones de brazos laterales indistinguibles en vista lateral y una carrera de salto sin margen suficiente. El SVG ahora dibuja la anilla/cinta lejana detrás del cuerpo y la cercana delante; el validador rechaza muñecas superpuestas al tronco y agarres alejados de sus anillas. Cada fase de contacto puede declarar `view`; `cameraTransitionS` interpola la proyección y el agarre entre los puntos centrales de lado y `ring_near`/`ring_far` de frente. `scenes.py` publica la regla de anillas: brazos laterales de frente, balanceo longitudinal de lado. El lienzo de salto se desplaza 40 px sin cambiar distancias de carrera/aparatos. Specs declarados `handstand`/`vertical` en paralelas pueden marcar `verticalSupport` y fallan con inclinación del tronco >45°. No se editaron specs.
+
+Pruebas geométricas: 14/14 PASS; `py_compile` y `git diff --check` PASS. Recorrido sin render de las 83 specs de salto: cero errores de ejecución y cero primeros cuadros fuera del lienzo; el mínimo x inicial es 51,6 px. El validador todavía informa 581 problemas geométricos en specs de salto existentes, que quedan pendientes de sus tandas. No se generaron imágenes ni se consultaron fuentes prohibidas. Commit local `67e5ed1a`, sin push.

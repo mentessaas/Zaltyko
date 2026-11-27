@@ -1,0 +1,197 @@
+{
+  "elementKey": "mrg_cross_press_to_l_sit",
+  "scene": "rings",
+  "view": "side",
+  "holdS": 0.7,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "view": "side",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0.0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180.0,
+                180.0
+              ],
+              "leg_f": [
+                180.0,
+                180.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 1.0
+            }
+          },
+          {
+            "dt": 0.3,
+            "pose": {
+              "torso": 0.0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180.0,
+                180.0
+              ],
+              "leg_f": [
+                180.0,
+                180.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 1.0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "view": "side",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0.0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180.0,
+                180.0
+              ],
+              "leg_f": [
+                180.0,
+                180.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 1.0
+            }
+          },
+          {
+            "dt": 0.85,
+            "pose": {
+              "torso": 0.0,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                90.0,
+                90.0
+              ],
+              "leg_f": [
+                90.0,
+                90.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 0.0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "view": "side",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0.0,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                90.0,
+                90.0
+              ],
+              "leg_f": [
+                90.0,
+                90.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 0.0
+            }
+          },
+          {
+            "dt": 2.0,
+            "pose": {
+              "torso": 0.0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                90.0,
+                90.0
+              ],
+              "leg_f": [
+                90.0,
+                90.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 1.0
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "poster": {
+    "main": 64,
+    "ghosts": [
+      0
+    ]
+  }
+}

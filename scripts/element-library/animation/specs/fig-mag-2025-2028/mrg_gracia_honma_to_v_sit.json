@@ -1,0 +1,275 @@
+{
+  "elementKey": "mrg_gracia_honma_to_v_sit",
+  "scene": "rings",
+  "view": "side",
+  "holdS": 0.2,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "keys": [
+          {
+            "dt": 0.0,
+            "pose": {
+              "torso": 0.0,
+              "arm_n": [
+                0.0,
+                0.0
+              ],
+              "arm_f": [
+                0.0,
+                0.0
+              ],
+              "leg_n": [
+                180.0,
+                180.0
+              ],
+              "leg_f": [
+                180.0,
+                180.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.32,
+            "pose": {
+              "torso": 63.0,
+              "arm_n": [
+                63.0,
+                63.0
+              ],
+              "arm_f": [
+                63.0,
+                63.0
+              ],
+              "leg_n": [
+                243.0,
+                243.0
+              ],
+              "leg_f": [
+                243.0,
+                243.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 7,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.25999999999999995,
+            "pose": {
+              "torso": 135.45,
+              "arm_n": [
+                135.45,
+                135.45
+              ],
+              "arm_f": [
+                135.45,
+                135.45
+              ],
+              "leg_n": [
+                315.45,
+                315.45
+              ],
+              "leg_f": [
+                315.45,
+                315.45
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.32000000000000006,
+            "pose": {
+              "torso": 220.5,
+              "arm_n": [
+                220.5,
+                220.5
+              ],
+              "arm_f": [
+                220.5,
+                220.5
+              ],
+              "leg_n": [
+                400.5,
+                400.5
+              ],
+              "leg_f": [
+                400.5,
+                400.5
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.29999999999999993,
+            "pose": {
+              "torso": 283.5,
+              "arm_n": [
+                283.5,
+                283.5
+              ],
+              "arm_f": [
+                283.5,
+                283.5
+              ],
+              "leg_n": [
+                463.5,
+                463.5
+              ],
+              "leg_f": [
+                463.5,
+                463.5
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.8,
+            "pose": {
+              "torso": 315.0,
+              "arm_n": [
+                510.0,
+                510.0
+              ],
+              "arm_f": [
+                510.0,
+                510.0
+              ],
+              "leg_n": [
+                360.0,
+                360.0
+              ],
+              "leg_f": [
+                360.0,
+                360.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          }
+        ],
+        "underBar": true,
+        "view": "side"
+      }
+    },
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "underBar": false,
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 315.0,
+              "arm_n": [
+                510.0,
+                510.0
+              ],
+              "arm_f": [
+                510.0,
+                510.0
+              ],
+              "leg_n": [
+                360.0,
+                360.0
+              ],
+              "leg_f": [
+                360.0,
+                360.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.3,
+            "pose": {
+              "torso": 315.0,
+              "arm_n": [
+                521.5445836067415,
+                521.5445836067415
+              ],
+              "arm_f": [
+                521.5445836067415,
+                521.5445836067415
+              ],
+              "leg_n": [
+                360.0,
+                360.0
+              ],
+              "leg_f": [
+                360.0,
+                360.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          },
+          {
+            "dt": 2.0,
+            "pose": {
+              "torso": 315.0,
+              "arm_n": [
+                521.5445836067415,
+                521.5445836067415
+              ],
+              "arm_f": [
+                521.5445836067415,
+                521.5445836067415
+              ],
+              "leg_n": [
+                360.0,
+                360.0
+              ],
+              "leg_f": [
+                360.0,
+                360.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          }
+        ],
+        "view": "side"
+      }
+    }
+  ],
+  "poster": {
+    "main": 80,
+    "ghosts": [
+      8,
+      34
+    ]
+  },
+  "mustShow": [
+    "finish in the v-sit",
+    "maintain hand contact with both rings through the transition",
+    "show the specified leg shape and straight-arm support in the final hold",
+    "hold the final strength position steadily for 2 seconds"
+  ]
+}

@@ -227,6 +227,7 @@ describe("synthetic webpack build worker experiment", () => {
       expect(JSON.stringify(config.rewrites)).toContain("/monitoring");
       expect(config.tracing).toEqual({
         "/*": ["./certs/supabase-root-ca.crt"],
+        "/api/v1/owner/element-library/*/animation": ["./src/modules/element-library/data/**/animaciones/*.json"],
       });
     }
     delete experiment.experimental.webpackBuildWorker;
@@ -248,7 +249,10 @@ describe("synthetic webpack build worker experiment", () => {
     for (const config of [baseline, experiment]) {
       expect(config.webpack).toBe("function");
       expect(JSON.stringify(config.rewrites)).toContain("/monitoring");
-      expect(config.tracing).toEqual({ "/*": ["./certs/supabase-root-ca.crt"] });
+      expect(config.tracing).toEqual({
+        "/*": ["./certs/supabase-root-ca.crt"],
+        "/api/v1/owner/element-library/*/animation": ["./src/modules/element-library/data/**/animaciones/*.json"],
+      });
       // Absence preserves Next's default; production must never inherit the
       // local/sandbox serverMinification:false override.
       expect(config.experimental).not.toHaveProperty("serverMinification");

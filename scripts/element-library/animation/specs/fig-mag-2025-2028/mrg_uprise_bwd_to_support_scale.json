@@ -1,0 +1,249 @@
+{
+  "elementKey": "mrg_uprise_bwd_to_support_scale",
+  "scene": "rings",
+  "view": "side",
+  "holdS": 0.2,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "keys": [
+          {
+            "dt": 0.0,
+            "pose": {
+              "torso": -0.0,
+              "arm_n": [
+                -0.0,
+                -0.0
+              ],
+              "arm_f": [
+                -0.0,
+                -0.0
+              ],
+              "leg_n": [
+                180.0,
+                180.0
+              ],
+              "leg_f": [
+                180.0,
+                180.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.36,
+            "pose": {
+              "torso": -59.4,
+              "arm_n": [
+                -59.4,
+                -59.4
+              ],
+              "arm_f": [
+                -59.4,
+                -59.4
+              ],
+              "leg_n": [
+                120.6,
+                120.6
+              ],
+              "leg_f": [
+                120.6,
+                120.6
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 7,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.28,
+            "pose": {
+              "torso": -126.89999999999999,
+              "arm_n": [
+                -126.89999999999999,
+                -126.89999999999999
+              ],
+              "arm_f": [
+                -126.89999999999999,
+                -126.89999999999999
+              ],
+              "leg_n": [
+                33.10000000000001,
+                33.10000000000001
+              ],
+              "leg_f": [
+                33.10000000000001,
+                33.10000000000001
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": -8,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.33999999999999997,
+            "pose": {
+              "torso": -197.1,
+              "arm_n": [
+                -197.1,
+                -197.1
+              ],
+              "arm_f": [
+                -197.1,
+                -197.1
+              ],
+              "leg_n": [
+                -17.099999999999994,
+                -17.099999999999994
+              ],
+              "leg_f": [
+                -17.099999999999994,
+                -17.099999999999994
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.32000000000000006,
+            "pose": {
+              "torso": -245.70000000000002,
+              "arm_n": [
+                -245.70000000000002,
+                -245.70000000000002
+              ],
+              "arm_f": [
+                -245.70000000000002,
+                -245.70000000000002
+              ],
+              "leg_n": [
+                -65.70000000000002,
+                -65.70000000000002
+              ],
+              "leg_f": [
+                -65.70000000000002,
+                -65.70000000000002
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.8,
+            "pose": {
+              "torso": -270.0,
+              "arm_n": [
+                -135.0,
+                -135.0
+              ],
+              "arm_f": [
+                -135.0,
+                -135.0
+              ],
+              "leg_n": [
+                -90.0,
+                -90.0
+              ],
+              "leg_f": [
+                -90.0,
+                -90.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          }
+        ],
+        "underBar": true,
+        "view": "side"
+      }
+    },
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "underBar": false,
+        "keys": [
+          {
+            "dt": 0.0,
+            "pose": {
+              "torso": -270.0,
+              "arm_n": [
+                -135.0,
+                -135.0
+              ],
+              "arm_f": [
+                -135.0,
+                -135.0
+              ],
+              "leg_n": [
+                -90.0,
+                -90.0
+              ],
+              "leg_f": [
+                -90.0,
+                -90.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          },
+          {
+            "dt": 2.0,
+            "pose": {
+              "torso": -270.0,
+              "arm_n": [
+                -135.0,
+                -135.0
+              ],
+              "arm_f": [
+                -135.0,
+                -135.0
+              ],
+              "leg_n": [
+                -90.0,
+                -90.0
+              ],
+              "leg_f": [
+                -90.0,
+                -90.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "arch": 0,
+              "front": false
+            }
+          }
+        ],
+        "view": "side"
+      }
+    }
+  ],
+  "poster": {
+    "main": 80,
+    "ghosts": [
+      8,
+      34
+    ]
+  },
+  "mustShow": [
+    "finish in the scale support",
+    "maintain hand contact with both rings through the transition",
+    "show the specified leg shape and straight-arm support in the final hold",
+    "hold the final strength position steadily for 2 seconds"
+  ]
+}

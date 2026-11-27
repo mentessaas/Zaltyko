@@ -1,0 +1,304 @@
+{
+  "elementKey": "mrg_cross_press_to_planche",
+  "scene": "rings",
+  "view": "side",
+  "holdS": 0.7,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "ring_far",
+        "view": "front",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                13.835,
+                13.835
+              ],
+              "arm_f": [
+                -13.835,
+                -13.835
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          },
+          {
+            "dt": 0.7,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                13.835,
+                13.835
+              ],
+              "arm_f": [
+                -13.835,
+                -13.835
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "view": "side",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                13.835,
+                13.835
+              ],
+              "arm_f": [
+                -13.835,
+                -13.835
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          },
+          {
+            "dt": 0.3,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          },
+          {
+            "dt": 0.5,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          }
+        ],
+        "cameraFrom": "front",
+        "cameraTransitionS": 0.3
+      }
+    },
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "view": "side",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          },
+          {
+            "dt": 1.0,
+            "pose": {
+              "torso": 35,
+              "arm_n": [
+                65,
+                65
+              ],
+              "arm_f": [
+                65,
+                65
+              ],
+              "leg_n": [
+                215,
+                215
+              ],
+              "leg_f": [
+                215,
+                215
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          },
+          {
+            "dt": 1.0,
+            "pose": {
+              "torso": 65,
+              "arm_n": [
+                135,
+                135
+              ],
+              "arm_f": [
+                135,
+                135
+              ],
+              "leg_n": [
+                245,
+                245
+              ],
+              "leg_f": [
+                245,
+                245
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          },
+          {
+            "dt": 0.8,
+            "pose": {
+              "torso": 90,
+              "arm_n": [
+                225,
+                225
+              ],
+              "arm_f": [
+                225,
+                225
+              ],
+              "leg_n": [
+                270,
+                270
+              ],
+              "leg_f": [
+                270,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          },
+          {
+            "dt": 0.7,
+            "pose": {
+              "torso": 90,
+              "arm_n": [
+                225,
+                225
+              ],
+              "arm_f": [
+                225,
+                225
+              ],
+              "leg_n": [
+                270,
+                270
+              ],
+              "leg_f": [
+                270,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "poster": {
+    "main": 80,
+    "ghosts": [
+      12,
+      50
+    ]
+  }
+}

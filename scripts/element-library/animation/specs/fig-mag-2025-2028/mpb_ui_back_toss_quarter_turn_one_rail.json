@@ -1,0 +1,244 @@
+{
+  "elementKey": "mpb_ui_back_toss_quarter_turn_one_rail",
+  "scene": "parallel_bars",
+  "view": "side",
+  "holdS": 0.45,
+  "mustShow": [
+    "Start: upper-arm support on parallel bars",
+    "backward rotation from upper-arm support into support, with about 90° of turn",
+    "Finish: finish on parallel bars"
+  ],
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": [
+          180,
+          153
+        ],
+        "underBar": true,
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 270,
+              "arm_n": [
+                360,
+                270
+              ],
+              "arm_f": [
+                360,
+                270
+              ],
+              "leg_n": [
+                270,
+                270
+              ],
+              "leg_f": [
+                270,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "arch": 0,
+              "yaw": 0
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 270,
+              "arm_n": [
+                360,
+                360
+              ],
+              "arm_f": [
+                360,
+                360
+              ],
+              "leg_n": [
+                270,
+                270
+              ],
+              "leg_f": [
+                270,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "arch": 0,
+              "yaw": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "contact": {
+        "joint": "han",
+        "at": [
+          180,
+          153
+        ],
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 270,
+              "arm_n": [
+                360,
+                360
+              ],
+              "arm_f": [
+                360,
+                360
+              ],
+              "leg_n": [
+                270,
+                270
+              ],
+              "leg_f": [
+                270,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "arch": 0,
+              "yaw": 0
+            }
+          },
+          {
+            "dt": 0.55,
+            "pose": {
+              "torso": 360,
+              "arm_n": [
+                450,
+                450
+              ],
+              "arm_f": [
+                450,
+                450
+              ],
+              "leg_n": [
+                360,
+                360
+              ],
+              "leg_f": [
+                360,
+                360
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "arch": -8,
+              "yaw": 90
+            }
+          },
+          {
+            "dt": 0.55,
+            "pose": {
+              "torso": 450,
+              "arm_n": [
+                540,
+                540
+              ],
+              "arm_f": [
+                540,
+                540
+              ],
+              "leg_n": [
+                450,
+                450
+              ],
+              "leg_f": [
+                450,
+                450
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "arch": 0,
+              "yaw": 90
+            }
+          }
+        ],
+        "underBar": true
+      }
+    },
+    {
+      "contact": {
+        "joint": "han",
+        "at": [
+          180,
+          153
+        ],
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 450,
+              "arm_n": [
+                540,
+                540
+              ],
+              "arm_f": [
+                540,
+                540
+              ],
+              "leg_n": [
+                450,
+                450
+              ],
+              "leg_f": [
+                450,
+                450
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "arch": 0,
+              "yaw": 90
+            }
+          },
+          {
+            "dt": 0.85,
+            "pose": {
+              "torso": 450,
+              "arm_n": [
+                540,
+                540
+              ],
+              "arm_f": [
+                540,
+                540
+              ],
+              "leg_n": [
+                450,
+                450
+              ],
+              "leg_f": [
+                450,
+                450
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "arch": 0,
+              "yaw": 90
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "poster": {
+    "main": 30,
+    "ghosts": [
+      5,
+      42
+    ]
+  }
+}

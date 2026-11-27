@@ -1,0 +1,71 @@
+{
+  "elementKey": "bb_needle_scale_hand_support_hold",
+  "scene": "beam",
+  "view": "side",
+  "holdS": 0.5,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "ton",
+        "at": "beam@180",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 125,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                0,
+                0
+              ],
+              "head": 0,
+              "front": false
+            }
+          },
+          {
+            "dt": 2.0,
+            "pose": {
+              "torso": 125,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                0,
+                0
+              ],
+              "head": 0,
+              "front": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "poster": {
+    "main": 30,
+    "ghosts": [
+      10,
+      50
+    ]
+  }
+}

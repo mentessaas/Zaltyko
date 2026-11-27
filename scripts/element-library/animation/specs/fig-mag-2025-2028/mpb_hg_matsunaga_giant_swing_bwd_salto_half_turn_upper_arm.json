@@ -1,0 +1,296 @@
+{
+  "elementKey": "mpb_hg_matsunaga_giant_swing_bwd_salto_half_turn_upper_arm",
+  "scene": "parallel_bars",
+  "view": "side",
+  "holdS": 0.4,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": "rail@185",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 180,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                360,
+                360
+              ],
+              "leg_f": [
+                360,
+                360
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 1.2,
+            "pose": {
+              "torso": -195,
+              "arm_n": [
+                -195,
+                -195
+              ],
+              "arm_f": [
+                -195,
+                -195
+              ],
+              "leg_n": [
+                -15,
+                -15
+              ],
+              "leg_f": [
+                -15,
+                -15
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.25,
+            "pose": {
+              "torso": -215,
+              "arm_n": [
+                -215,
+                -215
+              ],
+              "arm_f": [
+                -215,
+                -215
+              ],
+              "leg_n": [
+                -35,
+                -35
+              ],
+              "leg_f": [
+                -35,
+                -35
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          }
+        ],
+        "underBar": true,
+        "twist": {
+          "total": 180
+        }
+      }
+    },
+    {
+      "flight": {
+        "riseM": 0.55,
+        "rotation": -360.0,
+        "shapes": [
+          {
+            "u": 0.28,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "u": 0.76,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                180,
+                135
+              ],
+              "arm_f": [
+                180,
+                135
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "u": 0.8,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                180.0,
+                156.0
+              ],
+              "arm_f": [
+                180.0,
+                156.0
+              ],
+              "leg_n": [
+                180.0,
+                180.0
+              ],
+              "leg_f": [
+                180.0,
+                180.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": true
+            }
+          },
+          {
+            "u": 0.84,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                180.0,
+                177.0
+              ],
+              "arm_f": [
+                180.0,
+                177.0
+              ],
+              "leg_n": [
+                180.0,
+                180.0
+              ],
+              "leg_f": [
+                180.0,
+                180.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": true
+            }
+          },
+          {
+            "u": 0.88,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                180.0,
+                198.0
+              ],
+              "arm_f": [
+                180.0,
+                198.0
+              ],
+              "leg_n": [
+                180.0,
+                180.0
+              ],
+              "leg_f": [
+                180.0,
+                180.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": true
+            }
+          },
+          {
+            "u": 0.92,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                180.0,
+                219.0
+              ],
+              "arm_f": [
+                180.0,
+                219.0
+              ],
+              "leg_n": [
+                180.0,
+                180.0
+              ],
+              "leg_f": [
+                180.0,
+                180.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": true
+            }
+          },
+          {
+            "u": 1.0,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                180.0,
+                240.0
+              ],
+              "arm_f": [
+                180.0,
+                240.0
+              ],
+              "leg_n": [
+                180.0,
+                180.0
+              ],
+              "leg_f": [
+                180.0,
+                180.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": true
+            }
+          }
+        ],
+        "land": {
+          "joint": "shn",
+          "at": "rail@185",
+          "underBar": true
+        },
+        "twist": 180,
+        "twistWindow": [
+          0.2,
+          0.82
+        ]
+      }
+    }
+  ],
+  "poster": {
+    "main": 56,
+    "ghosts": [
+      0,
+      22
+    ]
+  },
+  "authoringNotes": "The key visual distinction is the backward salto and half turn and the upper-arm catch after a backward salto and half turn; the preceding swing or circle is supported by the rails. Keep the release, catch and contact sequence visible. No exact limb angles beyond the named body shape are prescribed by this pose record. Round 5: central flight shape now matches the named tuck/pike/layout; support-only longitudinal turn uses measured yaw across the factual turn phase."
+}

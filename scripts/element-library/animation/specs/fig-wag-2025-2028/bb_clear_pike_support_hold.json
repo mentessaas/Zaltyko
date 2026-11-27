@@ -1,0 +1,68 @@
+{
+  "elementKey": "bb_clear_pike_support_hold",
+  "scene": "beam",
+  "view": "side",
+  "holdS": 0.5,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": "beam@180",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 90,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                0,
+                0
+              ],
+              "leg_f": [
+                0,
+                0
+              ],
+              "head": 0,
+              "facing": 1
+            }
+          },
+          {
+            "dt": 2,
+            "pose": {
+              "torso": 90,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                0,
+                0
+              ],
+              "leg_f": [
+                0,
+                0
+              ],
+              "head": 0,
+              "facing": 1
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "poster": {
+    "main": 10,
+    "ghosts": []
+  }
+}

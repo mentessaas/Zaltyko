@@ -1,0 +1,125 @@
+{
+  "elementKey": "mpb_hg_cucherat_celen_felge_handstand",
+  "scene": "parallel_bars",
+  "view": "side",
+  "holdS": 0.4,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": "rail@185",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": -55,
+              "arm_n": [
+                -55,
+                -55
+              ],
+              "arm_f": [
+                -55,
+                -55
+              ],
+              "leg_n": [
+                60,
+                65
+              ],
+              "leg_f": [
+                60,
+                65
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": -125,
+              "arm_n": [
+                -125,
+                -125
+              ],
+              "arm_f": [
+                -125,
+                -125
+              ],
+              "leg_n": [
+                -10,
+                -5
+              ],
+              "leg_f": [
+                -10,
+                -5
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": -180,
+              "arm_n": [
+                -180,
+                -180
+              ],
+              "arm_f": [
+                -180,
+                -180
+              ],
+              "leg_n": [
+                0,
+                0
+              ],
+              "leg_f": [
+                0,
+                0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          }
+        ],
+        "underBar": true
+      }
+    }
+  ],
+  "poster": {
+    "main": 36,
+    "ghosts": [
+      0,
+      24
+    ]
+  },
+  "authoringNotes": "The key visual distinction is the felge to handstand and the handstand; the preceding swing or circle is supported by the rails. Keep the release, catch and contact sequence visible. No exact limb angles beyond the named body shape are prescribed by this pose record. Keep the backward or forward felge direction distinct from the cast and giant-swing families."
+}

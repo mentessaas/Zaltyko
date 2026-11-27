@@ -9,8 +9,14 @@ import type { CatalogElementCard, ElementNoteView } from "@/modules/element-libr
 import { skillApparatusLabels } from "@/modules/skill-levels/domain/skill-levels";
 
 import { ElementAttribution } from "./ElementAttribution";
+import dynamic from "next/dynamic";
 import { LIBRARY_UNAVAILABLE_MESSAGE, putElementNote, type LibraryScope } from "./element-library-client";
 import { formatCatalogGroup, formatCatalogValue, formatFigReference } from "./format";
+
+const ElementAnimation = dynamic(
+  () => import("@/modules/element-library/animation/ElementAnimation").then((module) => module.ElementAnimation),
+  { ssr: false },
+);
 
 /**
  * Ficha de un elemento (ADR-0029 §1.8 y §2): aparato, grupo, valor, referencia
@@ -20,12 +26,14 @@ import { formatCatalogGroup, formatCatalogValue, formatFigReference } from "./fo
 export function ElementCard({
   scope,
   card,
+  animationsEnabled,
   groupLabel,
   onNoteSaved,
   onReload,
 }: {
   scope: LibraryScope;
   card: CatalogElementCard;
+  animationsEnabled: boolean;
   groupLabel?: string | null;
   onNoteSaved: (note: ElementNoteView | null) => void;
   onReload: () => void;
@@ -66,6 +74,16 @@ export function ElementCard({
 
   return (
     <div className="grid gap-5">
+      {animationsEnabled ? (
+        <ElementAnimation
+          key={`${card.edition.code}:${card.elementKey}`}
+          elementId={card.id}
+          edition={card.edition.code}
+          elementKey={card.elementKey}
+          organizationId={scope.organizationId}
+          locationId={scope.locationId}
+        />
+      ) : null}
       <dl className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-0.5">
           <dt className={ownerUi.smallLabel}>Nombre corto</dt>

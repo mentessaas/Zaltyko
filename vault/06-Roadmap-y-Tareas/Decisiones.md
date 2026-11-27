@@ -1508,6 +1508,28 @@ Se prepara una bandeja de gimnastas sin asignación operativa, exclusiva para Ow
 **Decisión e importancia:** publicar solo acceso, academia, gimnastas/familias, grupos/clases/inscripciones, asistencia, cuotas/pagos manuales y resumen. Health Score/Insights quedan sin navegación y sus páginas directas devuelven404. El resumen no consulta métricas avanzadas. Los embudos históricos /modules/* redirigen a /features y salen del sitemap. No se incluyen tareas programadas en el candidato. Se mantienen intactos contratos API, precios base, límites y esquema; no se activa un worker global.
 
 **Siguiente paso:** CI remota completa del nuevo commit, revisión externa vigente y comprobación en delivery con academias separadas; después controles productivos y comerciales. No equivale a un lanzamiento ni a validar producción. Se conserva el ensayo natural sin consultas ni escrituras en esta ronda.
+# 2026-11-24 — Los fotogramas de animación se calculan una vez en Python
+
+El formato que consume la app conserva, por elemento, los fotogramas de 30 fps
+calculados por el motor Python (segmentos, pelvis y metadatos de contacto y
+pirueta), cuantizados junto a los índices del pictograma. TypeScript solo porta
+el dibujo SVG de siluetas Bezier, escenas y anillo de pirueta. Esto evita
+mantener dos implementaciones de física y preserva el resultado del motor. Los
+datos exportados requieren una clave en `accepted.json`; el archivo queda vacío
+hasta la revisión. La bandera de app permanece apagada por defecto.
+
+## 2026-11-25 — Validación geométrica de animaciones
+
+El validador debe comprobar el cuerpo completo contra las superficies modeladas: apoyo fijado al aparato, despeje de viga/barra, agarres de las dos manos en anillas y límites del lienzo. Fijar una mano o un pie no restringe el resto del cuerpo. Las fases colgadas se declaran explícitamente con `underBar: true`; no se infieren automáticamente. La convención angular sigue siendo absoluta en pantalla (`0` arriba, `180` abajo). Los specs de otros worktrees no se corrigen desde este cambio; el informe de auditoría queda como cola de reparación por lote.
+
+## 2026-11-25 — Vista de animación ligada al hecho técnico
+
+El hecho que define una fase determina su cámara. En anillas, posiciones cuyo hecho clave son brazos laterales se muestran de frente; los balanceos longitudinales se muestran de lado. El spec declara `view` en cada fase de contacto y puede usar `cameraTransitionS` (y `cameraFrom` al inicio) para una transición gradual entre el agarre central lateral y las anillas `ring_near`/`ring_far` de frente. La anilla y cinta cercanas se dibujan sobre el cuerpo y la validación comprueba que la muñeca no quede bajo el tronco ni fuera del agarre visible. En paralelas, una fase marcada `verticalSupport: true` dentro de un spec `definingPosition: handstand|vertical` falla si el tronco supera 45° desde la vertical. La escena de salto añade 40 px de margen inicial sin cambiar la separación entre aparatos.
+
+## 2026-11-27 — Animaciones: el navegador solo pinta articulaciones ya calculadas
+
+El formato 2 del exportador envía, por fotograma, las articulaciones que calcula `figure.Pose.joints` (con vista frontal, brazos abiertos y giro de cámara ya aplicados) y el dibujo del aparato tal como lo hace `scenes.py`. El dibujo TypeScript deja de repetir la geometría del motor, que se había quedado atrás. `accepted.json` recoge los 604 elementos revisados. La bandera sigue apagada.
+
 # 2026-11-24 — Importación de plantillas RFEG de niveles 2026
 
 Se incorpora en fase D una primera edición RFEG de solo hechos: GAF Base 1–10 y GAM Base 1–5. Cada elemento o condición se importa como un elemento propio de la copia editable, con atribución al documento y página. Solo se enlazan coincidencias inequívocas con la biblioteca; la seta usa la clave caballo con arcos y una nota de iniciación. Como GAM Base 2 necesita 60 entradas, los topes por nivel y por envío de evaluación pasan a 64; el máximo conjunto de 400 marcas y el tope de 300 elementos por plantilla no cambian. En GAF Base 9–10 la normativa da mínimos de requisitos FIG sin enumerar los elementos elegibles, límite que se muestra en la documentación. `ZALTYKO_FEDERATION_LEVEL_TEMPLATES_ENABLED` queda apagada por defecto; SQL solo en candidata, sin aplicar. No se añade URL porque no aparece en los PDF locales. La edición 2027 espera al PDF; FMG sigue excluida por licencia. Evidencia: `docs/producto/niveles-y-progresion.md` y `src/modules/skill-levels/data/federation/rfeg-2026/`.

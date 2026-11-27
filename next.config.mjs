@@ -43,6 +43,11 @@ const nextConfig = {
   outputFileTracingRoot: resolve(__dirname),
   outputFileTracingIncludes: {
     "/*": ["./certs/supabase-root-ca.crt"],
+    // The animation route reads exported frames with a runtime path, which file
+    // tracing cannot see; ship them with that route explicitly.
+    "/api/v1/owner/element-library/*/animation": [
+      "./src/modules/element-library/data/**/animaciones/*.json",
+    ],
   },
   // swagger-jsdoc analiza archivos de rutas dinámicamente. Externalizarlo evita
   // que Webpack intente resolver esos requires durante el build de Next.
