@@ -1,0 +1,188 @@
+{
+  "elementKey": "mpb_hg_arican_cast_straddle_cut_bwd_handstand",
+  "scene": "parallel_bars",
+  "view": "side",
+  "holdS": 0.4,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": "rail@185",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.32,
+            "pose": {
+              "torso": -55,
+              "arm_n": [
+                -55,
+                -55
+              ],
+              "arm_f": [
+                -55,
+                -55
+              ],
+              "leg_n": [
+                125,
+                125
+              ],
+              "leg_f": [
+                125,
+                125
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.32,
+            "pose": {
+              "torso": -125,
+              "arm_n": [
+                -125,
+                -125
+              ],
+              "arm_f": [
+                -125,
+                -125
+              ],
+              "leg_n": [
+                55,
+                55
+              ],
+              "leg_f": [
+                55,
+                55
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.32,
+            "pose": {
+              "torso": -180,
+              "arm_n": [
+                -180,
+                -180
+              ],
+              "arm_f": [
+                -180,
+                -180
+              ],
+              "leg_n": [
+                -60,
+                -60
+              ],
+              "leg_f": [
+                60,
+                60
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          }
+        ],
+        "underBar": true
+      }
+    },
+    {
+      "contact": {
+        "joint": "han",
+        "at": [
+          185,
+          153
+        ],
+        "verticalSupport": true,
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": -180,
+              "arm_n": [
+                -180,
+                -180
+              ],
+              "arm_f": [
+                -180,
+                -180
+              ],
+              "leg_n": [
+                -60,
+                -60
+              ],
+              "leg_f": [
+                60,
+                60
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.18,
+            "pose": {
+              "torso": -180,
+              "arm_n": [
+                -180,
+                -180
+              ],
+              "arm_f": [
+                -180,
+                -180
+              ],
+              "leg_n": [
+                -60,
+                -60
+              ],
+              "leg_f": [
+                60,
+                60
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "poster": {
+    "main": 30,
+    "ghosts": [
+      0,
+      20
+    ]
+  },
+  "authoringNotes": "The key visual distinction is the straddled cut and the handstand after a straddled backward cut; the preceding swing or circle is supported by the rails. Keep the release, catch and contact sequence visible. No exact limb angles beyond the named body shape are prescribed by this pose record. Separate the backward cut from a somersault: the legs pass over the rails without a salto. This is a cast-based underswing, not a felge circle. Round 5: central flight shape now matches the named tuck/pike/layout; support-only longitudinal turn uses measured yaw across the factual turn phase.",
+  "definingPosition": "handstand"
+}

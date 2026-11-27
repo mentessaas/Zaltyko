@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { getCatalogElement } from "@/modules/element-library/application/element-library-service";
 import { ELEMENT_LIBRARY_ANIMATIONS_ENV_FLAG } from "@/modules/element-library/animation/config";
+import { ANIMATION_FLAGS, ANIMATION_JOINTS } from "@/modules/element-library/animation/types";
 import { catalogElementQuerySchema } from "@/modules/element-library/domain/library-requests";
 
 import {
@@ -17,24 +18,24 @@ import {
 } from "@/app/api/v1/owner/element-library-http";
 
 const paramsSchema = z.object({ elementId: z.guid() }).strict();
-const frameSchema = z.array(z.number().int()).length(25).superRefine((frame, context) => {
-  if (frame.some((value, index) => value < (index === 20 ? -1 : -1800) || value > (index === 20 ? 1000 : 1800))) {
-    context.addIssue({ code: "custom", message: "Animation frame values are out of range." });
-  }
-  if (![1, -1].includes(frame[11]) || frame[13] < 0 || frame[13] > 3 || ![0, 1].includes(frame[14]) || frame[17] < 0 || frame[17] > 8 || ![0, 1].includes(frame[21]) || ![0, 1].includes(frame[23]) || ![0, 1].includes(frame[24])) {
-    context.addIssue({ code: "custom", message: "Animation frame flags are invalid." });
-  }
-});
+const FRAME_LENGTH = ANIMATION_JOINTS.length * 2 + ANIMATION_FLAGS.length;
+const frameSchema = z.array(z.number().int().min(-3600).max(3600)).length(FRAME_LENGTH);
 const animationSchema = z.object({
-  formatVersion: z.literal(1),
+  formatVersion: z.literal(2),
   edition: z.string(),
   elementKey: z.string().regex(/^[a-z][a-z0-9_]{2,63}$/),
-  scene: z.enum(["floor", "floor_pass", "beam", "beam_mount", "high_bar", "uneven_bars", "rings", "parallel_bars", "pommel_horse", "vault"]),
+  scene: z.enum(["floor", "floor_pass", "beam", "beam_mount", "beam_side_dismount", "high_bar", "uneven_bars", "rings", "parallel_bars", "pommel_horse", "vault"]),
   fps: z.literal(30),
   size: z.tuple([z.number().positive().max(1000), z.number().positive().max(1000)]),
   floorY: z.number().finite().min(0).max(1000),
   headroom: z.number().int().nonnegative(),
   floorBand: z.boolean(),
+  // exported by scripts/element-library/animation/export_app.py from scenes.py: plain shapes in currentColor only
+  sceneSvg: z.string().max(4000).refine((value) => !/<script|on[a-z]+=|href|url\(|#[0-9a-f]{3}/i.test(value), "Scene drawing is not plain SVG shapes."),
+  rings: z.tuple([z.number().finite()]).nullable(),
+  joints: z.array(z.string()).refine((value) => value.join() === ANIMATION_JOINTS.join(), "Unknown joint layout."),
+  jointEncoding: z.literal("delta"),
+  flags: z.array(z.string()).refine((value) => value.join() === ANIMATION_FLAGS.join(), "Unknown flag layout."),
   poster: z.object({ main: z.number().int().nonnegative(), ghosts: z.array(z.number().int().nonnegative()) }).strict(),
   frames: z.array(frameSchema).min(1).max(600),
 }).strict().superRefine((data, context) => {

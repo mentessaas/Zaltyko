@@ -1,13 +1,16 @@
 """Export reviewed element animation frames for the browser renderer.
 
-Only keys listed in ``accepted.json`` are written. Specs and physics stay in
-Python; this file serializes their calculated output without recomputing it in
-the browser.
+Only keys listed in ``accepted.json`` are written. Specs, physics and the
+figure geometry stay in Python: each frame carries the joint positions that
+``figure.Pose.joints`` computed (front view, spread arms and camera turns
+included) plus the few flags the drawing needs, and the apparatus is exported
+as the SVG that ``scenes.py`` draws. The browser only paints them, so the two
+can never drift apart.
 """
 
 import json
-import os
-import sys
+import math
+import re
 from pathlib import Path
 
 from engine2 import FPS
@@ -16,44 +19,71 @@ from run_spec import build, headroom
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
 OUTPUT_ROOT = ROOT / "src/modules/element-library/data"
-FORMAT_VERSION = 1
-MAX_BYTES = 15 * 1024
-ANGLE_STEP = 5
-POSITION_STEP = 2
-CONTACT_JOINTS = ('', 'han', 'haf', 'ton', 'tof', 'ton', 'hipn', 'hipf', 'pelvis')
+FORMAT_VERSION = 2
+MAX_BYTES = 40 * 1024
+JOINTS = (
+    "pelvis", "mid", "neck", "head",
+    "shn", "eln", "han", "shf", "elf", "haf",
+    "hipn", "knn", "ann", "ton", "hipf", "knf", "anf", "tof",
+)
+# frame layout: 2 * len(JOINTS) joint coordinates (px, rounded), then FLAGS. Coordinates of every
+# frame after the first are stored as the difference from the previous frame ("jointEncoding": "delta").
+FLAGS = ("front", "arch", "farLayer", "behind", "twistRing", "twistTotal", "torso", "frontAmount")
+COLOURS = {
+    "#c7d0e3": ".35",   # supports, floor and mats
+    "#6f7da0": ".6",    # pommel handles
+}
 
 
-def quantize(value, step):
-    return int(round(value / step))
+def scene_svg(scene):
+    """The apparatus as drawn by scenes.py, recoloured to the page ink (currentColor)."""
+    drawing = scene.draw("x")
+    drawing = drawing.replace('url(#xm)', 'currentColor')
+    for colour, opacity in COLOURS.items():
+        drawing = drawing.replace(f'fill="{colour}"', f'fill="currentColor" fill-opacity="{opacity}"')
+        drawing = drawing.replace(f'stroke="{colour}"', f'stroke="currentColor" stroke-opacity="{opacity}"')
+    leftover = set(re.findall(r'(?:fill|stroke)="(#[0-9a-fA-F]{3,6}|url\([^)]*\))"', drawing))
+    if leftover:
+        raise ValueError(f"scene {scene.kind} has colours the exporter does not map: {sorted(leftover)}")
+    return drawing
+
+
+def close(a, b):
+    return abs(a[0] - b[0]) < 6 and abs(a[1] - b[1]) < 6
+
+
+def encode_frame(pose, pelvis, meta):
+    joints = pose.joints(pelvis)
+    coords = []
+    for name in JOINTS:
+        x, y = joints[name]
+        coords += [round(x), round(y)]
+    front = bool(pose.front)
+    arch = (not front) and abs(getattr(pose, "arch", 0)) > 2
+    far_layer = front or not (close(pose.arm_n, pose.arm_f) and close(pose.leg_n, pose.leg_f))
+    behind = math.sin(math.radians(getattr(pose, "yaw", 0))) < -0.05
+    twist_ring = bool(meta.get("twist") or meta.get("twistShow"))
+    twist_total = round(meta.get("twistTotal", 0)) if twist_ring else 0
+    front_amount = round(100 * max(0.0, min(1.0, float(pose.front))))
+    return coords + [int(front), int(arch), int(far_layer), int(behind), int(twist_ring), twist_total,
+                     round(pose.torso), front_amount]
 
 
 def encode_spec(spec, edition):
     scene, timeline, _ = build(spec)
-    frames = []
-    for pose, pelvis, meta in timeline.frames:
-        contact = meta.get('contact')
-        contact_joint, contact_point = contact if contact else ('', (0, 0))
-        frames.append([
-            quantize(pose.torso, ANGLE_STEP),
-            quantize(pose.arm_n[0], ANGLE_STEP), quantize(pose.arm_n[1], ANGLE_STEP),
-            quantize(pose.arm_f[0], ANGLE_STEP), quantize(pose.arm_f[1], ANGLE_STEP),
-            quantize(pose.leg_n[0], ANGLE_STEP), quantize(pose.leg_n[1], ANGLE_STEP),
-            quantize(pose.leg_f[0], ANGLE_STEP), quantize(pose.leg_f[1], ANGLE_STEP),
-            quantize(pose.head, ANGLE_STEP), quantize(getattr(pose, 'arch', 0), ANGLE_STEP),
-            getattr(pose, 'facing', 1), quantize(getattr(pose, 'yaw', 0), ANGLE_STEP),
-            {'han': 0, 'haf': 1, 'pelvis': 2, 'ton': 3}.get(getattr(pose, 'yaw_pivot', 'han'), 0), int(bool(pose.front)),
-            quantize(pelvis[0], POSITION_STEP), quantize(pelvis[1], POSITION_STEP),
-            CONTACT_JOINTS.index(contact_joint) if contact_joint in CONTACT_JOINTS else 0,
-            quantize(contact_point[0], POSITION_STEP), quantize(contact_point[1], POSITION_STEP),
-            int(meta.get('contact_phase', -1) if meta.get('contact_phase') is not None else -1),
-            int(bool(meta.get('twist'))), quantize(meta.get('twistTotal', 0), ANGLE_STEP), int(bool(meta.get('twistShow'))),
-            int(
-                not (
-                    all(abs(a - b) < 6 for a, b in zip(pose.arm_n, pose.arm_f))
-                    and all(abs(a - b) < 6 for a, b in zip(pose.leg_n, pose.leg_f))
-                ) or bool(pose.front)
-            ),
-        ])
+    absolute = [encode_frame(pose, pelvis, meta) for pose, pelvis, meta in timeline.frames]
+    count = 2 * len(JOINTS)
+    frames = [absolute[0]] + [
+        [a - b for a, b in zip(cur[:count], prev[:count])] + cur[count:]
+        for prev, cur in zip(absolute, absolute[1:])
+    ]
+    yaw_frames = any(getattr(pose, "yaw", 0) for pose, _, _ in timeline.frames)
+    poster = spec.get("poster", {})
+    last = len(frames) - 1
+    main = poster.get("main", len(frames) // 2)
+    ghosts = poster.get("ghosts", [])
+    if not 0 <= main <= last or any(not 0 <= g <= last for g in ghosts):
+        raise ValueError(f"{spec['elementKey']}: poster frames outside 0..{last}")
     return {
         "formatVersion": FORMAT_VERSION,
         "edition": edition,
@@ -63,11 +93,13 @@ def encode_spec(spec, edition):
         "size": [scene.w, scene.h],
         "floorY": scene.floor_y,
         "headroom": headroom(timeline),
-        "floorBand": bool(any(getattr(pose, 'yaw', 0) for pose, _, _ in timeline.frames) and scene.kind in ('floor', 'pommel_horse')),
-        "poster": {
-            "main": spec.get("poster", {}).get("main", len(frames) // 2),
-            "ghosts": spec.get("poster", {}).get("ghosts", []),
-        },
+        "floorBand": bool(yaw_frames and scene.kind in ("floor", "pommel_horse")),
+        "sceneSvg": scene_svg(scene),
+        "rings": [scene.at("rings")[0]] if scene.kind == "rings" else None,
+        "joints": list(JOINTS),
+        "jointEncoding": "delta",
+        "flags": list(FLAGS),
+        "poster": {"main": main, "ghosts": ghosts},
         "frames": frames,
     }
 

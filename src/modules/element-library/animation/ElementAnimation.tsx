@@ -3,19 +3,29 @@
 import { useEffect, useRef, useState } from "react";
 
 import { ownerUi } from "@/components/owner-dashboard/owner-ui";
-import type { ElementAnimationData } from "./types";
+import { ANIMATION_FLAGS, ANIMATION_JOINTS, type ElementAnimationData } from "./types";
 import { renderAnimationFrame, renderPosterSvg } from "./renderer";
+
+const SCENES = ["floor", "floor_pass", "beam", "beam_mount", "beam_side_dismount", "high_bar", "uneven_bars", "rings", "parallel_bars", "pommel_horse", "vault"];
+const FRAME_LENGTH = ANIMATION_JOINTS.length * 2 + ANIMATION_FLAGS.length;
+// the apparatus drawing is injected as SVG: only plain shapes in currentColor, never scripts, links or handlers
+const UNSAFE_SCENE_SVG = /<script|on[a-z]+=|href|url\(|#[0-9a-f]{3}/i;
 
 function validAnimation(value: unknown): value is ElementAnimationData {
   if (!value || typeof value !== "object") return false;
   const data = value as Partial<ElementAnimationData>;
-  return data.formatVersion === 1 && data.fps === 30 && Array.isArray(data.frames) && data.frames.length > 0 && data.frames.length <= 600 &&
-    data.frames.every((frame) => Array.isArray(frame) && frame.length === 25 && frame.every(Number.isSafeInteger)) &&
+  return data.formatVersion === 2 && data.fps === 30 && data.jointEncoding === "delta" &&
+    Array.isArray(data.joints) && data.joints.join() === ANIMATION_JOINTS.join() &&
+    Array.isArray(data.flags) && data.flags.join() === ANIMATION_FLAGS.join() &&
+    typeof data.sceneSvg === "string" && data.sceneSvg.length <= 4000 && !UNSAFE_SCENE_SVG.test(data.sceneSvg) &&
+    (data.rings === null || (Array.isArray(data.rings) && data.rings.length === 1 && Number.isFinite(data.rings[0]))) &&
+    Array.isArray(data.frames) && data.frames.length > 0 && data.frames.length <= 600 &&
+    data.frames.every((frame) => Array.isArray(frame) && frame.length === FRAME_LENGTH && frame.every(Number.isSafeInteger)) &&
     Array.isArray(data.size) && data.size.length === 2 && data.size.every((size) => Number.isFinite(size) && size > 0 && size <= 1000) &&
     typeof data.floorY === "number" && Number.isFinite(data.floorY) && typeof data.headroom === "number" && Number.isInteger(data.headroom) &&
     typeof data.floorBand === "boolean" && !!data.poster && Number.isInteger(data.poster.main) && data.poster.main >= 0 && data.poster.main < data.frames.length &&
     Array.isArray(data.poster.ghosts) && data.poster.ghosts.every((frame) => Number.isInteger(frame) && frame >= 0 && frame < data.frames!.length) &&
-    typeof data.scene === "string" && ["floor", "floor_pass", "beam", "beam_mount", "high_bar", "uneven_bars", "rings", "parallel_bars", "pommel_horse", "vault"].includes(data.scene);
+    typeof data.scene === "string" && SCENES.includes(data.scene);
 }
 
 export function ElementAnimation({ elementId, edition, elementKey, organizationId, locationId }: {

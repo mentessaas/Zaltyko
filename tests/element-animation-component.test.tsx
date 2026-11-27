@@ -3,10 +3,10 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ElementAnimation } from "@/modules/element-library/animation/ElementAnimation";
-import type { ElementAnimationData } from "@/modules/element-library/animation/types";
+import { ANIMATION_FLAGS, ANIMATION_JOINTS, type ElementAnimationData } from "@/modules/element-library/animation/types";
 
 const data: ElementAnimationData = {
-  formatVersion: 1,
+  formatVersion: 2,
   edition: "fig-wag-2025-2028",
   elementKey: "fx_sample",
   scene: "floor",
@@ -15,14 +15,19 @@ const data: ElementAnimationData = {
   floorY: 268,
   headroom: 0,
   floorBand: false,
+  sceneSvg: '<line x1="14" y1="268" x2="346" y2="268" stroke="currentColor" stroke-opacity=".35" stroke-width="2" stroke-linecap="round"/>',
+  rings: null,
+  joints: [...ANIMATION_JOINTS],
+  jointEncoding: "delta",
+  flags: [...ANIMATION_FLAGS],
   poster: { main: 0, ghosts: [] },
-  frames: [Array.from({ length: 25 }, (_, index) => index === 11 ? 1 : 0)],
+  frames: [Array.from({ length: ANIMATION_JOINTS.length * 2 + ANIMATION_FLAGS.length }, (_, index) => (index < ANIMATION_JOINTS.length * 2 ? 150 + index : 0))],
 };
 
 const originalMatchMedia = window.matchMedia;
 const observerState = { constructed: 0, observed: 0, visible: false };
 
-function setup({ reducedMotion, visible }: { reducedMotion: boolean; visible: boolean }) {
+function setup({ reducedMotion, visible, payload = data }: { reducedMotion: boolean; visible: boolean; payload?: ElementAnimationData }) {
   window.matchMedia = vi.fn().mockReturnValue({
     matches: reducedMotion,
     addEventListener: vi.fn(),
@@ -40,7 +45,7 @@ function setup({ reducedMotion, visible }: { reducedMotion: boolean; visible: bo
     takeRecords() { return []; }
   }
   vi.stubGlobal("IntersectionObserver", TestIntersectionObserver);
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data }) }));
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: payload }) }));
   const requestAnimationFrame = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(1);
   const cancelAnimationFrame = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
   render(<ElementAnimation elementId="element-id" edition={data.edition} elementKey={data.elementKey} organizationId="org-id" locationId="location-id" />);
@@ -81,5 +86,12 @@ describe("ElementAnimation", () => {
 
     expect(await screen.findByLabelText("Animación del elemento")).toBeTruthy();
     expect(requestAnimationFrame).not.toHaveBeenCalled();
+  });
+
+  it("ignores an animation whose apparatus drawing is not plain SVG shapes", async () => {
+    setup({ reducedMotion: false, visible: true, payload: { ...data, sceneSvg: '<g onload="alert(1)"/>' } });
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+    expect(screen.queryByLabelText("Animación del elemento")).toBeNull();
   });
 });

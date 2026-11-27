@@ -1,0 +1,97 @@
+{
+  "elementKey": "mpb_sp_l_sit_hold",
+  "scene": "parallel_bars",
+  "view": "side",
+  "holdS": 0.5,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": [
+          180,
+          153
+        ],
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                90,
+                90
+              ],
+              "leg_f": [
+                90,
+                90
+              ],
+              "head": 0,
+              "facing": 1
+            }
+          },
+          {
+            "dt": 0.6,
+            "pose": {
+              "torso": 8,
+              "arm_n": [
+                188,
+                188
+              ],
+              "arm_f": [
+                188,
+                188
+              ],
+              "leg_n": [
+                90,
+                90
+              ],
+              "leg_f": [
+                90,
+                90
+              ],
+              "head": 0,
+              "facing": 1
+            }
+          },
+          {
+            "dt": 2.0,
+            "pose": {
+              "torso": 10,
+              "arm_n": [
+                190,
+                190
+              ],
+              "arm_f": [
+                190,
+                190
+              ],
+              "leg_n": [
+                90,
+                90
+              ],
+              "leg_f": [
+                90,
+                90
+              ],
+              "head": 0,
+              "facing": 1
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "poster": {
+    "main": 74,
+    "ghosts": [
+      3
+    ]
+  }
+}

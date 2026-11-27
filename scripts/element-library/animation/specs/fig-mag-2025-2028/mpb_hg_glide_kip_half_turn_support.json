@@ -1,0 +1,190 @@
+{
+  "elementKey": "mpb_hg_glide_kip_half_turn_support",
+  "scene": "parallel_bars",
+  "view": "side",
+  "holdS": 0.4,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": "rail@185",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "yaw": 0,
+              "yawPivot": "han"
+            }
+          },
+          {
+            "dt": 0.5,
+            "pose": {
+              "torso": 35,
+              "arm_n": [
+                35,
+                35
+              ],
+              "arm_f": [
+                35,
+                35
+              ],
+              "leg_n": [
+                215,
+                215
+              ],
+              "leg_f": [
+                215,
+                215
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "yaw": 0,
+              "yawPivot": "han"
+            }
+          },
+          {
+            "dt": 0.5,
+            "pose": {
+              "torso": 75,
+              "arm_n": [
+                75,
+                75
+              ],
+              "arm_f": [
+                75,
+                75
+              ],
+              "leg_n": [
+                190,
+                195
+              ],
+              "leg_f": [
+                190,
+                195
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "yaw": 0,
+              "yawPivot": "han"
+            }
+          },
+          {
+            "dt": 0.5,
+            "pose": {
+              "torso": 106.7,
+              "arm_n": [
+                196.7,
+                196.7
+              ],
+              "arm_f": [
+                196.7,
+                196.7
+              ],
+              "leg_n": [
+                183.3,
+                186.7
+              ],
+              "leg_f": [
+                183.3,
+                186.7
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "yaw": 0,
+              "yawPivot": "han"
+            }
+          },
+          {
+            "dt": 0.5,
+            "pose": {
+              "torso": 110.0,
+              "arm_n": [
+                200.0,
+                200.0
+              ],
+              "arm_f": [
+                200.0,
+                200.0
+              ],
+              "leg_n": [
+                170.0,
+                170.0
+              ],
+              "leg_f": [
+                170.0,
+                170.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "yaw": 90,
+              "yawPivot": "han"
+            }
+          },
+          {
+            "dt": 0.5,
+            "pose": {
+              "torso": 90.0,
+              "arm_n": [
+                180.0,
+                180.0
+              ],
+              "arm_f": [
+                180.0,
+                180.0
+              ],
+              "leg_n": [
+                90.0,
+                90.0
+              ],
+              "leg_f": [
+                90.0,
+                90.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "yaw": 180,
+              "yawPivot": "han"
+            }
+          }
+        ],
+        "twist": {
+          "total": 180
+        },
+        "underBar": true
+      }
+    }
+  ],
+  "poster": {
+    "main": 50,
+    "ghosts": [
+      0,
+      20
+    ]
+  },
+  "authoringNotes": "The key visual distinction is the half-turn glide kip and the support after a half turn; the preceding swing or circle is supported by the rails. Keep the release, catch and contact sequence visible. No exact limb angles beyond the named body shape are prescribed by this pose record. The glide kip begins from hang rather than a handstand swing. Round 5: central flight shape now matches the named tuck/pike/layout; support-only longitudinal turn uses measured yaw across the factual turn phase."
+}

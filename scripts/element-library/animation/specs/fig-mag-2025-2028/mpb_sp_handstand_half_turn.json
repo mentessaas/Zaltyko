@@ -1,0 +1,153 @@
+{
+  "elementKey": "mpb_sp_handstand_half_turn",
+  "scene": "parallel_bars",
+  "view": "side",
+  "holdS": 0.5,
+  "definingPosition": "handstand",
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": [
+          180.0,
+          153
+        ],
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 180,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                360,
+                360
+              ],
+              "leg_f": [
+                360,
+                360
+              ],
+              "head": 0,
+              "facing": 1,
+              "yaw": 0
+            }
+          },
+          {
+            "dt": 0.12,
+            "pose": {
+              "torso": 180,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                360,
+                360
+              ],
+              "leg_f": [
+                360,
+                360
+              ],
+              "head": 0,
+              "facing": 1,
+              "yaw": 45
+            }
+          },
+          {
+            "dt": 0.12,
+            "pose": {
+              "torso": 180,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                360,
+                360
+              ],
+              "leg_f": [
+                360,
+                360
+              ],
+              "head": 0,
+              "facing": 1,
+              "yaw": 90
+            }
+          },
+          {
+            "dt": 0.12,
+            "pose": {
+              "torso": 180,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                360,
+                360
+              ],
+              "leg_f": [
+                360,
+                360
+              ],
+              "head": 0,
+              "facing": 1,
+              "yaw": 135
+            }
+          },
+          {
+            "dt": 0.12,
+            "pose": {
+              "torso": 180,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                360,
+                360
+              ],
+              "leg_f": [
+                360,
+                360
+              ],
+              "head": 0,
+              "facing": 1,
+              "yaw": 180
+            }
+          }
+        ],
+        "verticalSupport": true
+      }
+    }
+  ],
+  "poster": {
+    "main": 2,
+    "ghosts": [
+      2,
+      3
+    ]
+  }
+}

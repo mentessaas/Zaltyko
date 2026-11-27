@@ -1,0 +1,267 @@
+{
+  "elementKey": "mrg_pham_2_slow_roll_fwd_through_cross_to_swallow",
+  "scene": "rings",
+  "view": "side",
+  "holdS": 0.7,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "view": "side",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0.0,
+              "arm_n": [
+                0.0,
+                0.0
+              ],
+              "arm_f": [
+                0.0,
+                0.0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 0.0
+            }
+          },
+          {
+            "dt": 1.0,
+            "pose": {
+              "torso": 90.0,
+              "arm_n": [
+                245.0,
+                245.0
+              ],
+              "arm_f": [
+                245.0,
+                245.0
+              ],
+              "leg_n": [
+                270.0,
+                270.0
+              ],
+              "leg_f": [
+                270.0,
+                270.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 0.0
+            }
+          },
+          {
+            "dt": 1.0,
+            "pose": {
+              "torso": 180.0,
+              "arm_n": [
+                180.0,
+                180.0
+              ],
+              "arm_f": [
+                180.0,
+                180.0
+              ],
+              "leg_n": [
+                360,
+                360
+              ],
+              "leg_f": [
+                360,
+                360
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 0.0
+            }
+          },
+          {
+            "dt": 1.0,
+            "pose": {
+              "torso": 270.0,
+              "arm_n": [
+                425.0,
+                425.0
+              ],
+              "arm_f": [
+                425.0,
+                425.0
+              ],
+              "leg_n": [
+                450.0,
+                450.0
+              ],
+              "leg_f": [
+                450.0,
+                450.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 0.0
+            }
+          },
+          {
+            "dt": 1.0,
+            "pose": {
+              "torso": 360.0,
+              "arm_n": [
+                450.0,
+                450.0
+              ],
+              "arm_f": [
+                450.0,
+                450.0
+              ],
+              "leg_n": [
+                540.0,
+                540.0
+              ],
+              "leg_f": [
+                540.0,
+                540.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 0.0
+            }
+          },
+          {
+            "dt": 1.0,
+            "pose": {
+              "torso": 450.0,
+              "arm_n": [
+                605.0,
+                605.0
+              ],
+              "arm_f": [
+                605.0,
+                605.0
+              ],
+              "leg_n": [
+                630.0,
+                630.0
+              ],
+              "leg_f": [
+                630.0,
+                630.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 0.0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "view": "side",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 450.0,
+              "arm_n": [
+                605.0,
+                605.0
+              ],
+              "arm_f": [
+                605.0,
+                605.0
+              ],
+              "leg_n": [
+                630.0,
+                630.0
+              ],
+              "leg_f": [
+                630.0,
+                630.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 0.0
+            }
+          },
+          {
+            "dt": 0.3,
+            "pose": {
+              "torso": 450.0,
+              "arm_n": [
+                720,
+                720
+              ],
+              "arm_f": [
+                720,
+                720
+              ],
+              "leg_n": [
+                630.0,
+                630.0
+              ],
+              "leg_f": [
+                630.0,
+                630.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 1.0
+            }
+          },
+          {
+            "dt": 2.0,
+            "pose": {
+              "torso": 450.0,
+              "arm_n": [
+                720,
+                720
+              ],
+              "arm_f": [
+                720,
+                720
+              ],
+              "leg_n": [
+                630.0,
+                630.0
+              ],
+              "leg_f": [
+                630.0,
+                630.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "spread": 1.0
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "poster": {
+    "main": 189,
+    "ghosts": [
+      0,
+      120
+    ]
+  }
+}

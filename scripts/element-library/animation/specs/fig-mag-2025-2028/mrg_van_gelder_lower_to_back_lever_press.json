@@ -1,0 +1,95 @@
+{
+  "elementKey": "mrg_van_gelder_lower_to_back_lever_press",
+  "scene": "rings",
+  "view": "side",
+  "holdS": 0.7,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": "rings",
+        "view": "side",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 90.0,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                270,
+                270
+              ],
+              "leg_f": [
+                270,
+                270
+              ],
+              "head": 0,
+              "facing": 1
+            }
+          },
+          {
+            "dt": 0.85,
+            "pose": {
+              "torso": 90.0,
+              "arm_n": [
+                315,
+                315
+              ],
+              "arm_f": [
+                315,
+                315
+              ],
+              "leg_n": [
+                270.0,
+                270.0
+              ],
+              "leg_f": [
+                270.0,
+                270.0
+              ],
+              "head": 0,
+              "facing": 1
+            }
+          },
+          {
+            "dt": 2.0,
+            "pose": {
+              "torso": 90.0,
+              "arm_n": [
+                315,
+                315
+              ],
+              "arm_f": [
+                315,
+                315
+              ],
+              "leg_n": [
+                270.0,
+                270.0
+              ],
+              "leg_f": [
+                270.0,
+                270.0
+              ],
+              "head": 0,
+              "facing": 1
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "poster": {
+    "main": 56,
+    "ghosts": [
+      0
+    ]
+  }
+}

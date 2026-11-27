@@ -1,0 +1,245 @@
+{
+ "elementKey": "mpb_ui_fwd_uprise_straddle_cut_bwd_hang",
+ "scene": "parallel_bars",
+ "view": "side",
+ "holdS": 0.45,
+ "mustShow": [
+  "Start: upper-arm support and swing on parallel bars",
+  "forward uprise from upper-arm support, then a backward straddle cut to hang",
+  "Finish: finish on parallel bars"
+ ],
+ "timeline": [
+  {
+   "contact": {
+    "joint": "han",
+    "at": [
+     180,
+     153
+    ],
+    "underBar": true,
+    "keys": [
+     {
+      "dt": 0,
+      "pose": {
+       "torso": 90,
+       "arm_n": [
+        180,
+        90
+       ],
+       "arm_f": [
+        180,
+        90
+       ],
+       "leg_n": [
+        90,
+        90
+       ],
+       "leg_f": [
+        90,
+        90
+       ],
+       "head": 0,
+       "facing": 1,
+       "front": false,
+       "arch": 0,
+       "yaw": 0
+      }
+     },
+     {
+      "dt": 0.4,
+      "pose": {
+       "torso": 90,
+       "arm_n": [
+        180,
+        180
+       ],
+       "arm_f": [
+        180,
+        180
+       ],
+       "leg_n": [
+        135,
+        135
+       ],
+       "leg_f": [
+        135,
+        135
+       ],
+       "head": 0,
+       "facing": 1,
+       "front": false,
+       "arch": 0,
+       "yaw": 0
+      }
+     }
+    ]
+   }
+  },
+  {
+   "contact": {
+    "joint": "han",
+    "at": [
+     180,
+     153
+    ],
+    "underBar": true,
+    "keys": [
+     {
+      "dt": 0,
+      "pose": {
+       "torso": 90,
+       "arm_n": [
+        180,
+        180
+       ],
+       "arm_f": [
+        180,
+        180
+       ],
+       "leg_n": [
+        135,
+        135
+       ],
+       "leg_f": [
+        135,
+        135
+       ],
+       "head": 0,
+       "facing": 1,
+       "front": false,
+       "arch": 0,
+       "yaw": 0
+      }
+     },
+     {
+      "dt": 0.55,
+      "pose": {
+       "torso": 45,
+       "arm_n": [
+        135,
+        135
+       ],
+       "arm_f": [
+        135,
+        135
+       ],
+       "leg_n": [
+        90,
+        90
+       ],
+       "leg_f": [
+        90,
+        90
+       ],
+       "head": 0,
+       "facing": 1,
+       "front": false,
+       "arch": 0,
+       "yaw": 0
+      }
+     },
+     {
+      "dt": 0.55,
+      "pose": {
+       "torso": 0,
+       "arm_n": [
+        90,
+        0
+       ],
+       "arm_f": [
+        90,
+        0
+       ],
+       "leg_n": [
+        0,
+        0
+       ],
+       "leg_f": [
+        0,
+        0
+       ],
+       "head": 0,
+       "facing": 1,
+       "front": false,
+       "arch": 0,
+       "yaw": 0
+      }
+     }
+    ]
+   }
+  },
+  {
+   "contact": {
+    "joint": "han",
+    "at": [
+     180,
+     153
+    ],
+    "underBar": true,
+    "keys": [
+     {
+      "dt": 0,
+      "pose": {
+       "torso": 0,
+       "arm_n": [
+        90,
+        0
+       ],
+       "arm_f": [
+        90,
+        0
+       ],
+       "leg_n": [
+        0,
+        0
+       ],
+       "leg_f": [
+        0,
+        0
+       ],
+       "head": 0,
+       "facing": 1,
+       "front": false,
+       "arch": 0,
+       "yaw": 0
+      }
+     },
+     {
+      "dt": 0.85,
+      "pose": {
+       "torso": 0,
+       "arm_n": [
+        90,
+        0
+       ],
+       "arm_f": [
+        90,
+        0
+       ],
+       "leg_n": [
+        0,
+        0
+       ],
+       "leg_f": [
+        0,
+        0
+       ],
+       "head": 0,
+       "facing": 1,
+       "front": false,
+       "arch": 0,
+       "yaw": 0
+      }
+     }
+    ]
+   }
+  }
+ ],
+ "poster": {
+  "main": 30,
+  "ghosts": [
+   5,
+   42
+  ]
+ }
+}

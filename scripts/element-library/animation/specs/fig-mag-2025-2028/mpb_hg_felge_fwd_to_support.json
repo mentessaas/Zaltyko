@@ -1,0 +1,200 @@
+{
+  "elementKey": "mpb_hg_felge_fwd_to_support",
+  "scene": "parallel_bars",
+  "view": "side",
+  "holdS": 0.4,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": "rail@185",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 55,
+              "arm_n": [
+                55,
+                55
+              ],
+              "arm_f": [
+                55,
+                55
+              ],
+              "leg_n": [
+                235,
+                235
+              ],
+              "leg_f": [
+                235,
+                235
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 125,
+              "arm_n": [
+                125,
+                125
+              ],
+              "arm_f": [
+                125,
+                125
+              ],
+              "leg_n": [
+                305,
+                305
+              ],
+              "leg_f": [
+                305,
+                305
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 180,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                360,
+                360
+              ],
+              "leg_f": [
+                360,
+                360
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 186.7,
+              "arm_n": [
+                276.7,
+                276.7
+              ],
+              "arm_f": [
+                276.7,
+                276.7
+              ],
+              "leg_n": [
+                306.7,
+                306.7
+              ],
+              "leg_f": [
+                306.7,
+                306.7
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 161.7,
+              "arm_n": [
+                251.7,
+                251.7
+              ],
+              "arm_f": [
+                251.7,
+                251.7
+              ],
+              "leg_n": [
+                221.7,
+                221.7
+              ],
+              "leg_f": [
+                221.7,
+                221.7
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 90.0,
+              "arm_n": [
+                180.0,
+                180.0
+              ],
+              "arm_f": [
+                180.0,
+                180.0
+              ],
+              "leg_n": [
+                90.0,
+                90.0
+              ],
+              "leg_f": [
+                90.0,
+                90.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          }
+        ],
+        "underBar": true
+      }
+    }
+  ],
+  "poster": {
+    "main": 72,
+    "ghosts": [
+      0,
+      24
+    ]
+  },
+  "authoringNotes": "The key visual distinction is the forward felge and the support after a forward felge; the preceding swing or circle is supported by the rails. Keep the release, catch and contact sequence visible. No exact limb angles beyond the named body shape are prescribed by this pose record. Keep the backward or forward felge direction distinct from the cast and giant-swing families. Round 5: central flight shape now matches the named tuck/pike/layout; support-only longitudinal turn uses measured yaw across the factual turn phase."
+}

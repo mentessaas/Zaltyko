@@ -1,0 +1,277 @@
+{
+  "elementKey": "mrg_swallow_press_to_planche",
+  "scene": "rings",
+  "view": "side",
+  "holdS": 0.7,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "ring_far",
+        "view": "front",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 90,
+              "arm_n": [
+                122.624,
+                122.624
+              ],
+              "arm_f": [
+                186.449,
+                186.449
+              ],
+              "leg_n": [
+                270,
+                270
+              ],
+              "leg_f": [
+                270,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          },
+          {
+            "dt": 0.8,
+            "pose": {
+              "torso": 90,
+              "arm_n": [
+                122.624,
+                122.624
+              ],
+              "arm_f": [
+                186.449,
+                186.449
+              ],
+              "leg_n": [
+                270,
+                270
+              ],
+              "leg_f": [
+                270,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "view": "side",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 90,
+              "arm_n": [
+                122.624,
+                122.624
+              ],
+              "arm_f": [
+                186.449,
+                186.449
+              ],
+              "leg_n": [
+                270,
+                270
+              ],
+              "leg_f": [
+                270,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          },
+          {
+            "dt": 0.3,
+            "pose": {
+              "torso": 90,
+              "arm_n": [
+                154.537,
+                154.537
+              ],
+              "arm_f": [
+                154.537,
+                154.537
+              ],
+              "leg_n": [
+                270,
+                270
+              ],
+              "leg_f": [
+                270,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          },
+          {
+            "dt": 0.5,
+            "pose": {
+              "torso": 90,
+              "arm_n": [
+                154.537,
+                154.537
+              ],
+              "arm_f": [
+                154.537,
+                154.537
+              ],
+              "leg_n": [
+                270,
+                270
+              ],
+              "leg_f": [
+                270,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          }
+        ],
+        "cameraFrom": "front",
+        "cameraTransitionS": 0.3
+      }
+    },
+    {
+      "contact": {
+        "joint": "haf",
+        "at": "rings",
+        "view": "side",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 90,
+              "arm_n": [
+                154.537,
+                154.537
+              ],
+              "arm_f": [
+                154.537,
+                154.537
+              ],
+              "leg_n": [
+                270,
+                270
+              ],
+              "leg_f": [
+                270,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          },
+          {
+            "dt": 1.0,
+            "pose": {
+              "torso": 90,
+              "arm_n": [
+                185,
+                185
+              ],
+              "arm_f": [
+                185,
+                185
+              ],
+              "leg_n": [
+                270,
+                270
+              ],
+              "leg_f": [
+                270,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          },
+          {
+            "dt": 0.8,
+            "pose": {
+              "torso": 90,
+              "arm_n": [
+                225,
+                225
+              ],
+              "arm_f": [
+                225,
+                225
+              ],
+              "leg_n": [
+                270,
+                270
+              ],
+              "leg_f": [
+                270,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          },
+          {
+            "dt": 0.8,
+            "pose": {
+              "torso": 90,
+              "arm_n": [
+                225,
+                225
+              ],
+              "arm_f": [
+                225,
+                225
+              ],
+              "leg_n": [
+                270,
+                270
+              ],
+              "leg_f": [
+                270,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "spread": 0,
+              "arch": 0
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "poster": {
+    "main": 56,
+    "ghosts": [
+      0
+    ]
+  }
+}

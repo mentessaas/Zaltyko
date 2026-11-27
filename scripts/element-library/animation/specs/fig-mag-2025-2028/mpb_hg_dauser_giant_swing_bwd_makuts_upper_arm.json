@@ -1,0 +1,209 @@
+{
+  "elementKey": "mpb_hg_dauser_giant_swing_bwd_makuts_upper_arm",
+  "scene": "parallel_bars",
+  "view": "side",
+  "holdS": 0.4,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": "rail@185",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 180,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                360,
+                360
+              ],
+              "leg_f": [
+                360,
+                360
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 125,
+              "arm_n": [
+                125,
+                125
+              ],
+              "arm_f": [
+                125,
+                125
+              ],
+              "leg_n": [
+                305,
+                305
+              ],
+              "leg_f": [
+                305,
+                305
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 55,
+              "arm_n": [
+                55,
+                55
+              ],
+              "arm_f": [
+                55,
+                55
+              ],
+              "leg_n": [
+                235,
+                235
+              ],
+              "leg_f": [
+                235,
+                235
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": -6.7,
+              "arm_n": [
+                83.3,
+                23.3
+              ],
+              "arm_f": [
+                83.3,
+                23.3
+              ],
+              "leg_n": [
+                113.3,
+                113.3
+              ],
+              "leg_f": [
+                113.3,
+                113.3
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "yaw": 0.0,
+              "yawPivot": "han"
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 18.3,
+              "arm_n": [
+                108.3,
+                48.3
+              ],
+              "arm_f": [
+                108.3,
+                48.3
+              ],
+              "leg_n": [
+                78.3,
+                98.3
+              ],
+              "leg_f": [
+                78.3,
+                98.3
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "yaw": 90.0,
+              "yawPivot": "han"
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 90.0,
+              "arm_n": [
+                180.0,
+                120.0
+              ],
+              "arm_f": [
+                180.0,
+                120.0
+              ],
+              "leg_n": [
+                90.0,
+                90.0
+              ],
+              "leg_f": [
+                90.0,
+                90.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "yaw": 180.0,
+              "yawPivot": "han"
+            }
+          }
+        ],
+        "twist": {
+          "total": 180
+        },
+        "underBar": true
+      }
+    }
+  ],
+  "poster": {
+    "main": 72,
+    "ghosts": [
+      0,
+      24
+    ]
+  },
+  "authoringNotes": "The key visual distinction is the Makuts and the upper-arm catch after Makuts; the preceding swing or circle is supported by the rails. Keep the release, catch and contact sequence visible. No exact limb angles beyond the named body shape are prescribed by this pose record. Round 5: central flight shape now matches the named tuck/pike/layout; support-only longitudinal turn uses measured yaw across the factual turn phase."
+}

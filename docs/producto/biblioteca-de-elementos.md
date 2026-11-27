@@ -287,9 +287,9 @@ Pendiente ahora mismo de Elvis: el permiso para aplicar en staging la semilla re
 
 ### Animaciones propias (ADR-0031)
 
-Las fichas pueden mostrar animaciones propias de Zaltyko cuando existe un JSON revisado para la edición y el elemento, y está encendida `ZALTYKO_ELEMENT_LIBRARY_ANIMATIONS_ENABLED`. La bandera está apagada por defecto. Los JSON contienen fotogramas calculados por el motor Python a 30 fps, cuantizados; el navegador solo los dibuja. Se cargan al abrir una ficha, se pausan fuera de pantalla y ofrecen control accesible de reproducir/pausar. Con `prefers-reduced-motion` se muestra el pictograma fijo. La atribución explica que los dibujos son propios y no reproducen los del Código.
+Las fichas pueden mostrar animaciones propias de Zaltyko cuando existe un JSON revisado para la edición y el elemento, y está encendida `ZALTYKO_ELEMENT_LIBRARY_ANIMATIONS_ENABLED`. La bandera está apagada por defecto. Los JSON contienen fotogramas calculados por el motor Python a 30 fps (las articulaciones ya situadas y el dibujo del aparato); el navegador solo los dibuja. Se cargan al abrir una ficha, se pausan fuera de pantalla y ofrecen control accesible de reproducir/pausar. Con `prefers-reduced-motion` se muestra el pictograma fijo. La atribución explica que los dibujos son propios y no reproducen los del Código.
 
-El exportador `scripts/element-library/animation/export_app.py` escribe solo claves incluidas en `accepted.json` y rechaza datos de 15 KB o más. La lista de aceptados permanece vacía hasta revisión expresa. Esto no enciende la bandera ni publica animaciones en ningún entorno.
+El exportador `scripts/element-library/animation/export_app.py` escribe solo claves incluidas en `accepted.json` y rechaza datos de 40 KB o más. El 27-11-2026 la lista recoge los 604 elementos revisados por Claude (446 masculinos y 158 femeninos: anillas, paralelas, barra fija, salto, barra de equilibrio y asimétricas), cada uno con 0 problemas de geometría y 0 avisos de inercia. Esto no enciende la bandera ni publica animaciones en ningún entorno.
 
 `tests/element-library-animation.test.ts` compara la geometría del pictograma TypeScript con tres specs existentes del motor Python; `tests/element-animation-component.test.tsx` cubre movimiento reducido, control de reproducción y pausa fuera de pantalla.
 

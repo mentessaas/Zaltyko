@@ -1,0 +1,132 @@
+{
+  "elementKey": "mpb_hg_felge_half_turn_upper_arm",
+  "scene": "parallel_bars",
+  "view": "side",
+  "holdS": 0.4,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": "rail@185",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": -6.7,
+              "arm_n": [
+                83.3,
+                23.3
+              ],
+              "arm_f": [
+                83.3,
+                23.3
+              ],
+              "leg_n": [
+                70.0,
+                73.3
+              ],
+              "leg_f": [
+                70.0,
+                73.3
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 18.3,
+              "arm_n": [
+                108.3,
+                48.3
+              ],
+              "arm_f": [
+                108.3,
+                48.3
+              ],
+              "leg_n": [
+                56.7,
+                76.7
+              ],
+              "leg_f": [
+                56.7,
+                76.7
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "yaw": 0.0,
+              "yawPivot": "han"
+            }
+          },
+          {
+            "dt": 0.4,
+            "pose": {
+              "torso": 90.0,
+              "arm_n": [
+                180.0,
+                120.0
+              ],
+              "arm_f": [
+                180.0,
+                120.0
+              ],
+              "leg_n": [
+                90.0,
+                90.0
+              ],
+              "leg_f": [
+                90.0,
+                90.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "yaw": 180.0,
+              "yawPivot": "han"
+            }
+          }
+        ],
+        "twist": {
+          "total": 180
+        },
+        "underBar": true
+      }
+    }
+  ],
+  "poster": {
+    "main": 36,
+    "ghosts": [
+      0,
+      24
+    ]
+  },
+  "authoringNotes": "The key visual distinction is the backward felge and the upper-arm catch after a half turn; the preceding swing or circle is supported by the rails. Keep the release, catch and contact sequence visible. No exact limb angles beyond the named body shape are prescribed by this pose record. Keep the backward or forward felge direction distinct from the cast and giant-swing families. Round 5: central flight shape now matches the named tuck/pike/layout; support-only longitudinal turn uses measured yaw across the factual turn phase."
+}

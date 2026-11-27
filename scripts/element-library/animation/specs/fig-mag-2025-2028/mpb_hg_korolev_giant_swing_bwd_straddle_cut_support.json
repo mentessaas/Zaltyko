@@ -1,0 +1,200 @@
+{
+  "elementKey": "mpb_hg_korolev_giant_swing_bwd_straddle_cut_support",
+  "scene": "parallel_bars",
+  "view": "side",
+  "holdS": 0.4,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": "rail@185",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 180,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                360,
+                360
+              ],
+              "leg_f": [
+                360,
+                360
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.32,
+            "pose": {
+              "torso": 125,
+              "arm_n": [
+                125,
+                125
+              ],
+              "arm_f": [
+                125,
+                125
+              ],
+              "leg_n": [
+                305,
+                305
+              ],
+              "leg_f": [
+                305,
+                305
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.32,
+            "pose": {
+              "torso": 55,
+              "arm_n": [
+                55,
+                55
+              ],
+              "arm_f": [
+                55,
+                55
+              ],
+              "leg_n": [
+                235,
+                235
+              ],
+              "leg_f": [
+                235,
+                235
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.32,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.32,
+            "pose": {
+              "torso": -6.7,
+              "arm_n": [
+                83.3,
+                83.3
+              ],
+              "arm_f": [
+                83.3,
+                83.3
+              ],
+              "leg_n": [
+                73.3,
+                73.3
+              ],
+              "leg_f": [
+                153.3,
+                153.3
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.32,
+            "pose": {
+              "torso": 18.3,
+              "arm_n": [
+                108.3,
+                108.3
+              ],
+              "arm_f": [
+                108.3,
+                108.3
+              ],
+              "leg_n": [
+                58.3,
+                58.3
+              ],
+              "leg_f": [
+                98.3,
+                98.3
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.32,
+            "pose": {
+              "torso": 90.0,
+              "arm_n": [
+                180.0,
+                180.0
+              ],
+              "arm_f": [
+                180.0,
+                180.0
+              ],
+              "leg_n": [
+                90.0,
+                90.0
+              ],
+              "leg_f": [
+                90.0,
+                90.0
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          }
+        ],
+        "underBar": true
+      }
+    }
+  ],
+  "poster": {
+    "main": 50,
+    "ghosts": [
+      0,
+      20
+    ]
+  },
+  "authoringNotes": "The key visual distinction is the straddled backward cut and the support after a straddled backward cut; the preceding swing or circle is supported by the rails. Keep the release, catch and contact sequence visible. No exact limb angles beyond the named body shape are prescribed by this pose record. Separate the backward cut from a somersault: the legs pass over the rails without a salto. Round 5: central flight shape now matches the named tuck/pike/layout; support-only longitudinal turn uses measured yaw across the factual turn phase."
+}

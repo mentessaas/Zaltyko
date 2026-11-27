@@ -1,0 +1,408 @@
+{
+  "elementKey": "mpb_hg_glide_kip_piked_l_sit_handstand_hop_three_quarter_turn",
+  "scene": "parallel_bars",
+  "view": "side",
+  "holdS": 0.4,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": [
+          185,
+          153
+        ],
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.5,
+            "pose": {
+              "torso": 35,
+              "arm_n": [
+                35,
+                35
+              ],
+              "arm_f": [
+                35,
+                35
+              ],
+              "leg_n": [
+                215,
+                215
+              ],
+              "leg_f": [
+                215,
+                215
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.5,
+            "pose": {
+              "torso": 75,
+              "arm_n": [
+                75,
+                75
+              ],
+              "arm_f": [
+                75,
+                75
+              ],
+              "leg_n": [
+                190,
+                195
+              ],
+              "leg_f": [
+                190,
+                195
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.5,
+            "pose": {
+              "torso": 115,
+              "arm_n": [
+                115,
+                115
+              ],
+              "arm_f": [
+                115,
+                115
+              ],
+              "leg_n": [
+                230,
+                235
+              ],
+              "leg_f": [
+                230,
+                235
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.5,
+            "pose": {
+              "torso": 150,
+              "arm_n": [
+                150,
+                150
+              ],
+              "arm_f": [
+                150,
+                150
+              ],
+              "leg_n": [
+                265,
+                270
+              ],
+              "leg_f": [
+                265,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.5,
+            "pose": {
+              "torso": 180,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                320,
+                320
+              ],
+              "leg_f": [
+                320,
+                320
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "yaw": 0.0,
+              "yawPivot": "han"
+            }
+          }
+        ],
+        "underBar": true
+      }
+    },
+    {
+      "contact": {
+        "joint": "han",
+        "at": [
+          185,
+          153
+        ],
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 180,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                320,
+                320
+              ],
+              "leg_f": [
+                320,
+                320
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "yaw": 0.0,
+              "yawPivot": "han"
+            }
+          },
+          {
+            "dt": 0.2,
+            "pose": {
+              "torso": 180,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                320,
+                320
+              ],
+              "leg_f": [
+                320,
+                320
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false,
+              "yaw": 0.0,
+              "yawPivot": "han"
+            }
+          }
+        ],
+        "verticalSupport": true
+      }
+    },
+    {
+      "flight": {
+        "riseM": 0.1,
+        "rotation": 0,
+        "twist": 270,
+        "twistWindow": [
+          0.1,
+          0.9
+        ],
+        "shapes": [
+          {
+            "u": 0.42,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                55,
+                55
+              ],
+              "leg_f": [
+                55,
+                55
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "u": 0.58,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                55,
+                55
+              ],
+              "leg_f": [
+                55,
+                55
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "u": 1.0,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                140,
+                140
+              ],
+              "leg_f": [
+                140,
+                140
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          }
+        ],
+        "land": {
+          "joint": "han",
+          "at": [
+            185,
+            153
+          ]
+        }
+      }
+    },
+    {
+      "contact": {
+        "joint": "han",
+        "at": [
+          185,
+          153
+        ],
+        "verticalSupport": true,
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 180,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                320,
+                320
+              ],
+              "leg_f": [
+                320,
+                320
+              ],
+              "head": 0,
+              "facing": -1,
+              "front": false,
+              "yaw": 0.0,
+              "yawPivot": "han"
+            }
+          },
+          {
+            "dt": 0.6,
+            "pose": {
+              "torso": 180,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                360,
+                360
+              ],
+              "leg_f": [
+                360,
+                360
+              ],
+              "head": 0,
+              "facing": -1,
+              "front": false,
+              "yaw": 0.0,
+              "yawPivot": "han"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "poster": {
+    "main": 40,
+    "ghosts": [
+      0,
+      20
+    ]
+  },
+  "authoringNotes": "The key visual distinction is the hop with turn and the handstand after a piked L-sit and three-quarter-turn hop; the preceding swing or circle is supported by the rails. Keep the release, catch and contact sequence visible. No exact limb angles beyond the named body shape are prescribed by this pose record. The glide kip begins from hang rather than a handstand swing. Round 5: central flight shape now matches the named tuck/pike/layout; support-only longitudinal turn uses measured yaw across the factual turn phase.",
+  "definingPosition": "handstand"
+}

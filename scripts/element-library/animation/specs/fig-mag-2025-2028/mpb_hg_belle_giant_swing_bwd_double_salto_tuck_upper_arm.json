@@ -1,0 +1,346 @@
+{
+  "elementKey": "mpb_hg_belle_giant_swing_bwd_double_salto_tuck_upper_arm",
+  "scene": "parallel_bars",
+  "view": "side",
+  "holdS": 0.4,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": "rail@185",
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 180,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                360,
+                360
+              ],
+              "leg_f": [
+                360,
+                360
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 1.2,
+            "pose": {
+              "torso": -195,
+              "arm_n": [
+                -195,
+                -195
+              ],
+              "arm_f": [
+                -195,
+                -195
+              ],
+              "leg_n": [
+                -15,
+                -15
+              ],
+              "leg_f": [
+                -15,
+                -15
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.25,
+            "pose": {
+              "torso": -215,
+              "arm_n": [
+                -215,
+                -215
+              ],
+              "arm_f": [
+                -215,
+                -215
+              ],
+              "leg_n": [
+                -35,
+                -35
+              ],
+              "leg_f": [
+                -35,
+                -35
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          }
+        ],
+        "underBar": true
+      }
+    },
+    {
+      "flight": {
+        "riseM": 0.75,
+        "rotation": -720.0,
+        "shapes": [
+          {
+            "u": 0.03,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                180,
+                180
+              ],
+              "leg_f": [
+                180,
+                180
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "u": 0.28,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                120,
+                220
+              ],
+              "leg_f": [
+                120,
+                220
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "u": 0.5,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                50,
+                170
+              ],
+              "leg_f": [
+                50,
+                170
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "u": 0.6,
+            "pose": {
+              "arm_n": [
+                35.99999999999999,
+                23.999999999999993
+              ],
+              "arm_f": [
+                35.99999999999999,
+                23.999999999999993
+              ],
+              "leg_n": [
+                76.0,
+                172.0
+              ],
+              "leg_f": [
+                76.0,
+                172.0
+              ],
+              "torso": 0,
+              "head": 0.0,
+              "facing": 1,
+              "front": true,
+              "arch": 9.999999999999998
+            }
+          },
+          {
+            "u": 0.7,
+            "pose": {
+              "arm_n": [
+                71.99999999999999,
+                47.999999999999986
+              ],
+              "arm_f": [
+                71.99999999999999,
+                47.999999999999986
+              ],
+              "leg_n": [
+                101.99999999999999,
+                174.0
+              ],
+              "leg_f": [
+                101.99999999999999,
+                174.0
+              ],
+              "torso": 0,
+              "head": 0.0,
+              "facing": 1,
+              "front": true,
+              "arch": 19.999999999999996
+            }
+          },
+          {
+            "u": 0.8,
+            "pose": {
+              "arm_n": [
+                108.00000000000001,
+                72.00000000000001
+              ],
+              "arm_f": [
+                108.00000000000001,
+                72.00000000000001
+              ],
+              "leg_n": [
+                128.0,
+                176.0
+              ],
+              "leg_f": [
+                128.0,
+                176.0
+              ],
+              "torso": 0,
+              "head": 0.0,
+              "facing": 1,
+              "front": true,
+              "arch": 30.000000000000004
+            }
+          },
+          {
+            "u": 0.9,
+            "pose": {
+              "arm_n": [
+                144.0,
+                96.0
+              ],
+              "arm_f": [
+                144.0,
+                96.0
+              ],
+              "leg_n": [
+                154.0,
+                178.0
+              ],
+              "leg_f": [
+                154.0,
+                178.0
+              ],
+              "torso": 0,
+              "head": 0.0,
+              "facing": 1,
+              "front": true,
+              "arch": 40.0
+            }
+          },
+          {
+            "u": 0.96,
+            "pose": {
+              "arm_n": [
+                165.6,
+                110.39999999999999
+              ],
+              "arm_f": [
+                165.6,
+                110.39999999999999
+              ],
+              "leg_n": [
+                169.6,
+                179.2
+              ],
+              "leg_f": [
+                169.6,
+                179.2
+              ],
+              "torso": 0,
+              "head": 0.0,
+              "facing": 1,
+              "front": true,
+              "arch": 46.0
+            }
+          },
+          {
+            "u": 1.0,
+            "pose": {
+              "arm_n": [
+                180.0,
+                120.0
+              ],
+              "arm_f": [
+                180.0,
+                120.0
+              ],
+              "leg_n": [
+                180.0,
+                180.0
+              ],
+              "leg_f": [
+                180.0,
+                180.0
+              ],
+              "torso": 0,
+              "head": 0.0,
+              "facing": 1,
+              "front": true,
+              "arch": 50.0
+            }
+          }
+        ],
+        "land": {
+          "joint": "shn",
+          "at": [
+            185,
+            153
+          ]
+        }
+      }
+    }
+  ],
+  "poster": {
+    "main": 56,
+    "ghosts": [
+      0,
+      22
+    ]
+  },
+  "authoringNotes": "The key visual distinction is the double tucked salto and the upper-arm catch after two tucked backward saltos; the preceding swing or circle is supported by the rails. Keep the release, catch and contact sequence visible. No exact limb angles beyond the named body shape are prescribed by this pose record. Round 5: central flight shape now matches the named tuck/pike/layout; support-only longitudinal turn uses measured yaw across the factual turn phase."
+}

@@ -1,0 +1,343 @@
+{
+  "elementKey": "mpb_hg_juarez_1_felge_salto_bwd_piked_upper_arm",
+  "scene": "parallel_bars",
+  "view": "side",
+  "holdS": 0.4,
+  "timeline": [
+    {
+      "contact": {
+        "joint": "han",
+        "at": [
+          185,
+          153
+        ],
+        "keys": [
+          {
+            "dt": 0,
+            "pose": {
+              "torso": 90,
+              "arm_n": [
+                180,
+                180
+              ],
+              "arm_f": [
+                180,
+                180
+              ],
+              "leg_n": [
+                270,
+                270
+              ],
+              "leg_f": [
+                270,
+                270
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 1.2,
+            "pose": {
+              "torso": -265,
+              "arm_n": [
+                -265,
+                -265
+              ],
+              "arm_f": [
+                -265,
+                -265
+              ],
+              "leg_n": [
+                -85,
+                -85
+              ],
+              "leg_f": [
+                -85,
+                -85
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "dt": 0.25,
+            "pose": {
+              "torso": -270,
+              "arm_n": [
+                -270,
+                -270
+              ],
+              "arm_f": [
+                -270,
+                -270
+              ],
+              "leg_n": [
+                -105,
+                -105
+              ],
+              "leg_f": [
+                -105,
+                -105
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          }
+        ],
+        "underBar": true
+      }
+    },
+    {
+      "flight": {
+        "riseM": 0.55,
+        "rotation": -360.0,
+        "shapes": [
+          {
+            "u": 0.03,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                165,
+                165
+              ],
+              "leg_f": [
+                165,
+                165
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "u": 0.28,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                120,
+                120
+              ],
+              "leg_f": [
+                120,
+                120
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "u": 0.5,
+            "pose": {
+              "torso": 0,
+              "arm_n": [
+                0,
+                0
+              ],
+              "arm_f": [
+                0,
+                0
+              ],
+              "leg_n": [
+                40,
+                40
+              ],
+              "leg_f": [
+                40,
+                40
+              ],
+              "head": 0,
+              "facing": 1,
+              "front": false
+            }
+          },
+          {
+            "u": 0.6,
+            "pose": {
+              "torso": 0,
+              "head": 0,
+              "facing": 1,
+              "front": true,
+              "arm_n": [
+                35.99999999999999,
+                35.99999999999999
+              ],
+              "arm_f": [
+                35.99999999999999,
+                35.99999999999999
+              ],
+              "leg_n": [
+                32.0,
+                32.0
+              ],
+              "leg_f": [
+                32.0,
+                32.0
+              ]
+            }
+          },
+          {
+            "u": 0.7,
+            "pose": {
+              "torso": 0,
+              "head": 0,
+              "facing": 1,
+              "front": true,
+              "arm_n": [
+                71.99999999999999,
+                71.99999999999999
+              ],
+              "arm_f": [
+                71.99999999999999,
+                71.99999999999999
+              ],
+              "leg_n": [
+                24.000000000000004,
+                24.000000000000004
+              ],
+              "leg_f": [
+                24.000000000000004,
+                24.000000000000004
+              ]
+            }
+          },
+          {
+            "u": 0.8,
+            "pose": {
+              "torso": 0,
+              "head": 0,
+              "facing": 1,
+              "front": true,
+              "arm_n": [
+                108.00000000000001,
+                108.00000000000001
+              ],
+              "arm_f": [
+                108.00000000000001,
+                108.00000000000001
+              ],
+              "leg_n": [
+                15.999999999999996,
+                15.999999999999996
+              ],
+              "leg_f": [
+                15.999999999999996,
+                15.999999999999996
+              ]
+            }
+          },
+          {
+            "u": 0.9,
+            "pose": {
+              "torso": 0,
+              "head": 0,
+              "facing": 1,
+              "front": true,
+              "arm_n": [
+                144.0,
+                144.0
+              ],
+              "arm_f": [
+                144.0,
+                144.0
+              ],
+              "leg_n": [
+                8.0,
+                8.0
+              ],
+              "leg_f": [
+                8.0,
+                8.0
+              ]
+            }
+          },
+          {
+            "u": 0.96,
+            "pose": {
+              "torso": 0,
+              "head": 0,
+              "facing": 1,
+              "front": true,
+              "arm_n": [
+                165.6,
+                165.6
+              ],
+              "arm_f": [
+                165.6,
+                165.6
+              ],
+              "leg_n": [
+                3.200000000000003,
+                3.200000000000003
+              ],
+              "leg_f": [
+                3.200000000000003,
+                3.200000000000003
+              ]
+            }
+          },
+          {
+            "u": 1.0,
+            "pose": {
+              "torso": 0,
+              "head": 0,
+              "facing": 1,
+              "front": true,
+              "arm_n": [
+                180.0,
+                180.0
+              ],
+              "arm_f": [
+                180.0,
+                180.0
+              ],
+              "leg_n": [
+                0.0,
+                0.0
+              ],
+              "leg_f": [
+                0.0,
+                0.0
+              ]
+            }
+          }
+        ],
+        "land": {
+          "joint": "shn",
+          "at": [
+            130,
+            153
+          ]
+        }
+      }
+    }
+  ],
+  "poster": {
+    "main": 56,
+    "ghosts": [
+      0,
+      22
+    ]
+  },
+  "authoringNotes": "The key visual distinction is the piked backward salto and the upper-arm catch after a piked backward salto; the preceding swing or circle is supported by the rails. Keep the release, catch and contact sequence visible. No exact limb angles beyond the named body shape are prescribed by this pose record. Keep the backward or forward felge direction distinct from the cast and giant-swing families. Round 5: central flight shape now matches the named tuck/pike/layout; support-only longitudinal turn uses measured yaw across the factual turn phase."
+}
